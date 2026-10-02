@@ -10,7 +10,7 @@ the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 **Polarion 2606 / Tomcat 11 / Jakarta EE 11**. The repository follows the layout of
 `com.intechcore.polarion.extension.timesheet`.
 
-Status: skeleton. The About page and the REST base exist. The GitHub client, the settings, the
+Status: in development. The About page, the GitHub client and the repository settings exist. The
 import service, the job and the administration pages are not written yet.
 
 ## Build & verify
@@ -62,8 +62,14 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 **Java** (`src/main/java/.../github/`)
 - `GithubAppServlet` - a `GenericUiServlet` subclass serving the `github-app` webapp context, which
   holds the Vite bundle, the administration-menu icons and the generated `html/about.html`.
-- `rest/GithubRestApplication` - the REST application. It has no controllers of its own yet; generic
-  provides `/version`, `/configuration-properties` and the settings endpoints.
+- `rest/GithubRestApplication` - the REST application. It registers the repository settings and has no
+  controllers of its own yet; generic provides `/version`, `/configuration-properties` and the
+  settings endpoints.
+- `client/GithubClient` - reads the open issues and discussions of a public repository from the
+  GitHub REST API, without a token. Anonymous access allows 60 requests per hour.
+- `settings/RepositorySettings` - named settings under the feature `repositories`, one setting per
+  repository, in the scope of a project only. `RepositorySettingsModel.validate()` runs before
+  every save. The REST endpoints come from generic: `/settings/repositories/...`.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),
