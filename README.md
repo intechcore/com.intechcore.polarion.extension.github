@@ -13,8 +13,26 @@
 This Polarion extension creates work items from the open issues and discussions of GitHub
 repositories. It runs as a scheduled job or by hand from the administration pages.
 
-The extension is under development. The import works through the REST API and the scheduled job.
-The administration pages for the settings are not written yet.
+The extension is under development. The settings page, the REST API and the scheduled job work.
+The page that starts an import by hand is not written yet.
+
+## Polarion configuration
+
+Open the administration of a project, then `GitHub` / `Repositories`.
+
+1. Select `Add new` and give the setting a name.
+2. Enter the repository as `owner/name` and a short name. The short name goes into the titles.
+3. Turn on issues, discussions or both, and select the work item type for each.
+4. Adjust the title and the description templates when needed.
+5. Select where the work item keeps the GitHub URL: a hyperlink, or a custom field of the type String.
+   The import finds its own work items by that URL, so do not change it after the first import.
+6. To link every created work item to an epic, enter the ID of the epic and select the link role.
+7. Add field values that every created work item gets.
+8. Select `Save`.
+
+The templates take the placeholders `{shortName}`, `{repository}`, `{number}`, `{title}`,
+`{author}` and `{url}`. The description also takes `{body}`. The description is HTML, and the
+import escapes every value.
 
 ## Build
 

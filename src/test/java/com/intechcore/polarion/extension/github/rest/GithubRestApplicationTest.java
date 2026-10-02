@@ -4,6 +4,8 @@ import ch.sbb.polarion.extension.generic.rest.controller.info.ExtensionInfoInter
 import ch.sbb.polarion.extension.generic.settings.NamedSettingsRegistry;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
+import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
+import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,8 @@ class GithubRestApplicationTest {
                     ExtensionInfoInternalController.class,
                     ImportInternalController.class,
                     ImportApiController.class,
+                    ProjectInternalController.class,
+                    ProjectApiController.class,
                     GithubClientExceptionMapper.class);
             assertThat(settings.constructed()).hasSize(1);
             assertThat(NamedSettingsRegistry.INSTANCE.getByFeatureName(RepositorySettings.FEATURE_NAME))

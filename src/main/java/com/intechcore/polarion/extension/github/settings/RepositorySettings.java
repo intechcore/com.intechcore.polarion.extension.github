@@ -40,9 +40,15 @@ public class RepositorySettings extends GenericNamedSettings<RepositorySettingsM
         return super.save(scope, id, what);
     }
 
+    /**
+     * A setting without a repository is a draft: the administration page creates a setting by its
+     * name alone and fills it afterwards. A draft is stored as it is, and the import rejects it.
+     */
     @Override
     public void beforeSave(@NotNull RepositorySettingsModel what) {
-        what.validate();
+        if (what.getRepository() != null && !what.getRepository().isBlank()) {
+            what.validate();
+        }
     }
 
     @Override

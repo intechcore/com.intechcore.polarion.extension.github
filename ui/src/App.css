@@ -12,3 +12,44 @@ body {
 .about-page .app-icon {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.14));
 }
+
+/* The settings forms: one label column and one control column. */
+.settings-table td {
+  padding: 3px 8px 3px 0;
+  vertical-align: top;
+}
+
+.settings-table td:first-child {
+  /* One width for every block, so the control columns line up down the page. */
+  width: 170px;
+  white-space: nowrap;
+  padding-top: 6px;
+}
+
+.settings-table input[type='text'],
+.settings-table textarea,
+.settings-table .searchable-dropdown {
+  width: 420px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.field-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.field-row .searchable-dropdown,
+.field-row input[type='text'] {
+  width: 240px;
+}
+
+.item-settings-enabled {
+  margin-bottom: 6px;
+}
+
+.repository-form.dimmed {
+  opacity: 0.5;
+  pointer-events: none;
+}
