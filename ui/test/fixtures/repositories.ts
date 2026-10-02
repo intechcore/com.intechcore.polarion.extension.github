@@ -19,6 +19,10 @@ export const CONTENT = {
     epicId: 'EL-1',
     epicLinkRole: 'parent',
     fields: { severity: 'major' },
+    rules: [
+      { match: 'LABEL', value: 'wontfix', skip: true, workItemType: null, fields: {} },
+      { match: 'TYPE', value: 'Bug', skip: false, workItemType: 'issue', fields: { priority: 'high' } },
+    ],
   },
   discussions: {
     enabled: false,
@@ -30,6 +34,7 @@ export const CONTENT = {
     epicId: null,
     epicLinkRole: null,
     fields: {},
+    rules: [],
   },
 };
 

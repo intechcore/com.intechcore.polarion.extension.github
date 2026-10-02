@@ -10,6 +10,8 @@ public enum ImportStatus {
     CREATED,
     /** A work item holds the item already. */
     EXISTS,
+    /** A rule of the settings leaves the item out. */
+    SKIPPED,
     /** The import could not create the work item. */
     FAILED
 }

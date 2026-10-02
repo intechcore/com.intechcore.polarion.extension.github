@@ -7,7 +7,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,7 +32,7 @@ public class ItemSettings {
     @Schema(description = "The type of the created work items")
     private String workItemType;
 
-    @Schema(description = "The title template. Placeholders: {shortName}, {repository}, {number}, {title}, {author}, {url}")
+    @Schema(description = "The title template. Placeholders: {shortName}, {repository}, {number}, {title}, {author}, {url}, {labels}, {type}, {category}")
     @Builder.Default
     private String titleTemplate = DEFAULT_TITLE_TEMPLATE;
 
@@ -54,4 +56,8 @@ public class ItemSettings {
     @Schema(description = "Field values of the created work items, by field ID")
     @Builder.Default
     private Map<String, String> fields = new LinkedHashMap<>();
+
+    @Schema(description = "Rules for the items that need another work item type, or no import. The first matching rule applies.")
+    @Builder.Default
+    private List<ItemRule> rules = new ArrayList<>();
 }

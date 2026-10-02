@@ -15,6 +15,10 @@ const input = (id: string) => document.getElementById(id) as HTMLInputElement;
 // The shared dropdown hides the <select> that carries the id and draws its trigger right after it.
 const trigger = (id: string) =>
   document.getElementById(id)!.nextElementSibling!.querySelector<HTMLInputElement>('.sd-trigger')!;
+const byLabel = <T extends HTMLElement>(label: string) => document.querySelector<T>(`[aria-label="${label}"]`)!;
+// A dropdown carries its label on the hidden <select> and on the trigger. The trigger is what a user sees.
+const dropdown = (label: string) =>
+  document.querySelector<HTMLInputElement>(`input.sd-trigger[aria-label="${label}"]`)!;
 const button = (label: string): HTMLButtonElement => {
   const found = Array.from(document.querySelectorAll<HTMLButtonElement>('.sbb-btn')).find(
     (b) => (b.textContent ?? '').trim() === label,
@@ -108,6 +112,10 @@ describe('Repositories page', () => {
         // Without an epic the role has nothing to describe.
         epicLinkRole: null,
         fields: { severity: 'major' },
+        rules: [
+          { match: 'LABEL', value: 'wontfix', skip: true, workItemType: null, fields: {} },
+          { match: 'TYPE', value: 'Bug', skip: false, workItemType: 'issue', fields: { priority: 'high' } },
+        ],
       },
       discussions: {
         enabled: false,
@@ -119,6 +127,7 @@ describe('Repositories page', () => {
         epicId: null,
         epicLinkRole: null,
         fields: {},
+        rules: [],
       },
     });
   });
@@ -160,16 +169,17 @@ describe('Repositories page', () => {
     await pick(trigger('discussions-role'), 'relates to');
 
     // Two rows, the second one stays without a field and is not saved. The first is then removed again.
-    const addButtons = () =>
-      Array.from(document.querySelectorAll<HTMLButtonElement>('.sbb-btn')).filter(
+    // The discussions block is the second one. It has no rule, so its only such button is the one of the block.
+    const addFieldValue = () =>
+      Array.from(document.querySelectorAll('.item-settings')[1].querySelectorAll<HTMLButtonElement>('.sbb-btn')).find(
         (b) => b.textContent?.trim() === 'Add a field value',
-      );
-    addButtons()[1].click();
+      )!;
+    addFieldValue().click();
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Value 1 of discussions"]')).not.toBeNull());
-    const fieldTrigger = document.querySelectorAll<HTMLInputElement>('.field-row .sd-trigger')[1];
+    const fieldTrigger = dropdown('Field 1 of discussions');
     await pick(fieldTrigger, 'Severity (severity)');
     await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Value 1 of discussions"]')!, 'minor');
-    addButtons()[1].click();
+    addFieldValue().click();
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Value 2 of discussions"]')).not.toBeNull());
 
     button('Save').click();
@@ -184,6 +194,7 @@ describe('Repositories page', () => {
       epicId: 'EL-2',
       epicLinkRole: 'relates_to',
       fields: { severity: 'minor' },
+      rules: [],
     });
   });
 
@@ -197,6 +208,93 @@ describe('Repositories page', () => {
     expect(offered).toContain('priority');
     expect(offered).toContain('Severity (severity)');
     expect(offered).not.toContain('priority (priority)');
+  });
+
+  it('shows the rules of the saved setting', async () => {
+    await mount();
+
+    expect(byLabel<HTMLInputElement>('Value of rule 1 of issues').value).toBe('wontfix');
+    expect(input('issues-rule-1-skip').checked).toBe(true);
+    // A rule that leaves items out shows neither a type nor field values.
+    expect(dropdown('Work item type of rule 1 of issues')).toBeNull();
+    await vi.waitFor(() => expect(dropdown('What rule 2 of issues compares').value).toBe('Issue type'));
+    await vi.waitFor(() => expect(dropdown('Work item type of rule 2 of issues').value).toBe('Issue'));
+    expect(byLabel<HTMLInputElement>('Value 1 of rule 2 of issues').value).toBe('high');
+    // The fields of each work item type are read once, however many controls need them.
+    expect(fetchMock.mock.calls.filter((c) => /\/workitem-types\/task\/fields/.test(String(c[0])))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter((c) => /\/workitem-types\/issue\/fields/.test(String(c[0])))).toHaveLength(1);
+  });
+
+  it('adds, edits, reorders and removes rules', async () => {
+    await mount();
+    const addRule = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.sbb-btn')).find(
+        (b) => b.textContent?.trim() === 'Add a rule',
+      )!;
+
+    addRule().click();
+    await vi.waitFor(() => expect(byLabel('Value of rule 3 of issues')).not.toBeNull());
+    // An issue rule offers the label and the issue type, never the discussion category.
+    mousedown(dropdown('What rule 3 of issues compares'));
+    await vi.waitFor(() =>
+      expect(Array.from(document.querySelectorAll('.sd-portal .option')).map((o) => o.textContent?.trim())).toEqual([
+        'Label',
+        'Issue type',
+      ]),
+    );
+    await pick(dropdown('What rule 3 of issues compares'), 'Issue type');
+    await userEvent.fill(byLabel<HTMLInputElement>('Value of rule 3 of issues'), ' Feature ');
+    await pick(dropdown('Work item type of rule 3 of issues'), 'Task');
+    // The new rule gets a field value of its own, and one row without a field, which is not saved.
+    const addFieldValue = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('.rule:last-of-type .sbb-btn')).find(
+        (b) => b.textContent?.trim() === 'Add a field value',
+      )!;
+    addFieldValue().click();
+    await vi.waitFor(() => expect(dropdown('Field 1 of rule 3 of issues')).not.toBeNull());
+    await pick(dropdown('Field 1 of rule 3 of issues'), 'priority');
+    await userEvent.fill(byLabel<HTMLInputElement>('Value 1 of rule 3 of issues'), 'low');
+    addFieldValue().click();
+
+    // The first and the last rule cannot leave the list.
+    expect(byLabel<HTMLButtonElement>('Move rule 1 of issues up').disabled).toBe(true);
+    expect(byLabel<HTMLButtonElement>('Move rule 3 of issues down').disabled).toBe(true);
+    byLabel<HTMLButtonElement>('Move rule 3 of issues up').click();
+    await vi.waitFor(() => expect(byLabel<HTMLInputElement>('Value of rule 2 of issues').value).toBe(' Feature '));
+    byLabel<HTMLButtonElement>('Move rule 1 of issues down').click();
+    await vi.waitFor(() => expect(byLabel<HTMLInputElement>('Value of rule 2 of issues').value).toBe('wontfix'));
+    byLabel<HTMLButtonElement>('Remove rule 3 of issues').click();
+    await vi.waitFor(() => expect(byLabel('Value of rule 3 of issues')).toBeNull());
+    // Turning the remaining "wontfix" rule into an importing one keeps it without a type: the server refuses that.
+    await userEvent.click(input('issues-rule-2-skip'));
+
+    button('Save').click();
+
+    await vi.waitFor(() => expect(savedBody()).toBeDefined());
+    expect(savedBody().issues.rules).toEqual([
+      { match: 'TYPE', value: 'Feature', skip: false, workItemType: 'task', fields: { priority: 'low' } },
+      { match: 'LABEL', value: 'wontfix', skip: false, workItemType: null, fields: {} },
+    ]);
+  });
+
+  it('offers the category for a rule of the discussions', async () => {
+    await mount();
+    await userEvent.click(input('discussions-enabled'));
+    await vi.waitFor(() => expect(document.getElementById('discussions-title')).not.toBeNull());
+    Array.from(document.querySelectorAll<HTMLButtonElement>('.sbb-btn'))
+      .filter((b) => b.textContent?.trim() === 'Add a rule')[1]
+      .click();
+    await vi.waitFor(() => expect(dropdown('What rule 1 of discussions compares')).not.toBeNull());
+
+    await pick(dropdown('What rule 1 of discussions compares'), 'Category');
+    await userEvent.fill(byLabel<HTMLInputElement>('Value of rule 1 of discussions'), 'Q&A');
+    await userEvent.click(input('discussions-rule-1-skip'));
+    button('Save').click();
+
+    await vi.waitFor(() => expect(savedBody()).toBeDefined());
+    expect(savedBody().discussions.rules).toEqual([
+      { match: 'CATEGORY', value: 'Q&A', skip: true, workItemType: null, fields: {} },
+    ]);
   });
 
   it('removes a field value', async () => {

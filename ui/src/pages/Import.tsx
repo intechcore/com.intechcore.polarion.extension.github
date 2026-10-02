@@ -9,6 +9,7 @@ const STATUS_LABELS: Record<ImportStatus, string> = {
   NEW: 'New',
   CREATED: 'Created',
   EXISTS: 'Exists',
+  SKIPPED: 'Left out',
   FAILED: 'Failed',
 };
 
@@ -149,7 +150,7 @@ export default function Import() {
         <>
           <p className="import-summary">
             {entries.length} open item(s): {count('NEW')} new, {count('EXISTS') + count('CREATED')} with a work item,{' '}
-            {count('FAILED')} failed.
+            {count('SKIPPED')} left out, {count('FAILED')} failed.
           </p>
           {entries.length > 0 && (
             <table className="import-table">

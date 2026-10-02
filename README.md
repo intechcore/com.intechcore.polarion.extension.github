@@ -26,11 +26,29 @@ Open the administration of a project, then `GitHub` / `Repositories`.
    The import finds its own work items by that URL, so do not change it after the first import.
 6. To link every created work item to an epic, enter the ID of the epic and select the link role.
 7. Add field values that every created work item gets.
-8. Select `Save`.
+8. Add rules for the items that need another work item type, see below.
+9. Select `Save`.
 
 The templates take the placeholders `{shortName}`, `{repository}`, `{number}`, `{title}`,
-`{author}` and `{url}`. The description also takes `{body}`. The description is HTML, and the
-import escapes every value.
+`{author}`, `{url}`, `{labels}`, `{type}` and `{category}`. The description also takes `{body}`.
+The description is HTML, and the import escapes every value.
+
+### Rules
+
+A rule applies to the items that carry a given label, issue type or discussion category.
+
+| A rule can | How |
+|---|---|
+| create another work item type | Select the type in the rule. |
+| set other field values | Add field values to the rule. They are added to the field values of the block and replace them. |
+| leave the items out | Select `Do not import`. |
+
+The import checks the rules from the top and applies the first one that matches. An item that
+matches no rule gets the work item type and the field values of the block. The comparison ignores
+case. GitHub has issue types only in organizations that use them: elsewhere a rule on the issue
+type matches nothing.
+
+A work item is not created again when its issue gets another label later.
 
 ## Build
 

@@ -72,6 +72,10 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   every save. The REST endpoints come from generic: `/settings/repositories/...`.
 - `service/ImportService` - creates one work item per GitHub item, in one write transaction per
   work item. `TemplateRenderer` fills the `{name}` placeholders and escapes every value in HTML.
+- `settings/ItemRule` - a rule of a block: what to compare (`RuleMatch`: label, issue type,
+  category), the value, and either `skip` or a work item type with field values.
+  `ImportService` resolves every rule against the project before the first request, applies the
+  first matching one, and reports an item a rule leaves out as `SKIPPED`.
 - `rest/controller/ImportInternalController` (`@Hidden`, `/internal`) and `ImportApiController`
   (`@Secured`, `/api`) - `POST /projects/{projectId}/repositories/{name}/import?dryRun=`. A dry run
   is the preview. `GithubClientExceptionMapper` answers a GitHub failure with 502, or 429 for the
@@ -92,6 +96,9 @@ feature falls back to About.
   issues or discussions. `services/settings.ts` holds the REST calls.
 - `pages/Import.tsx` - the manual import. `Read from GitHub` is a dry run of the import endpoint,
   `Create work items` sends the selected URLs to the same endpoint.
+- `components/RulesEditor.tsx` and `components/FieldValues.tsx` - the rules of a block and the
+  field value rows, which the block and every rule share. `Repositories` serves all their requests
+  for the fields of one work item type from one request.
 - `services/useRemote.ts` - REST hook. **The UI always calls `/internal/*` (in-session); external
   callers use `/api/*` with a bearer token.**
 
@@ -138,6 +145,11 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
 - **An error message goes through `components/ErrorNotice`.** RSP styles `.alert` only inside
   `.notifications`. A bare `<div class="alert alert-error">` renders as plain text, and only a
   visual reference shows it.
+
+- **GitHub fields are read loosely.** `GithubItem` takes `type` and `category` as `Object` and reads
+  the name out of them. One item with an unexpected shape would otherwise fail the whole list.
+- **RSP's dropdown carries its `aria-label` twice**, on the hidden `<select>` and on the trigger. A
+  test addresses the trigger: `input.sd-trigger[aria-label="..."]`.
 
 ## Review focus
 

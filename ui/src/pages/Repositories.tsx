@@ -10,9 +10,10 @@ import {
 } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
 import ErrorNotice from '../components/ErrorNotice';
+import type { FieldRow } from '../components/FieldValues';
 import ItemSettingsForm, { type ItemForm } from '../components/ItemSettingsForm';
 import useSettings from '../services/settings';
-import type { ItemSettings, ProjectOption, RepositorySettings, Revision } from '../types';
+import type { ItemSettings, ProjectField, ProjectOption, RepositorySettings, Revision } from '../types';
 
 const DEFAULT_TITLE = '[GitHub] {shortName} : {title}';
 const DEFAULT_DESCRIPTION = '<a href="{url}">{url}</a>';
@@ -27,7 +28,14 @@ const EMPTY_ITEM: ItemForm = {
   epicId: '',
   epicLinkRole: '',
   fields: [],
+  rules: [],
 };
+
+const toRows = (fields: Record<string, string> | null): FieldRow[] =>
+  Object.entries(fields ?? {}).map(([id, value]) => ({ id, value }));
+
+const toFields = (rows: FieldRow[]): Record<string, string> =>
+  Object.fromEntries(rows.filter((row) => row.id).map((row) => [row.id, row.value]));
 
 function toForm(settings: ItemSettings | null): ItemForm {
   if (!settings) {
@@ -42,7 +50,14 @@ function toForm(settings: ItemSettings | null): ItemForm {
     duplicateKeyField: settings.duplicateKeyField ?? '',
     epicId: settings.epicId ?? '',
     epicLinkRole: settings.epicLinkRole ?? '',
-    fields: Object.entries(settings.fields ?? {}).map(([id, value]) => ({ id, value })),
+    fields: toRows(settings.fields),
+    rules: (settings.rules ?? []).map((rule) => ({
+      match: rule.match,
+      value: rule.value ?? '',
+      skip: rule.skip,
+      workItemType: rule.workItemType ?? '',
+      fields: toRows(rule.fields),
+    })),
   };
 }
 
@@ -56,7 +71,15 @@ function toSettings(form: ItemForm): ItemSettings {
     duplicateKeyField: form.duplicateKey === 'CUSTOM_FIELD' ? form.duplicateKeyField || null : null,
     epicId: form.epicId.trim() || null,
     epicLinkRole: form.epicId.trim() ? form.epicLinkRole || null : null,
-    fields: Object.fromEntries(form.fields.filter((row) => row.id).map((row) => [row.id, row.value])),
+    fields: toFields(form.fields),
+    rules: form.rules.map((rule) => ({
+      match: rule.match,
+      value: rule.value.trim(),
+      skip: rule.skip,
+      // A rule that leaves items out carries nothing else.
+      workItemType: rule.skip ? null : rule.workItemType || null,
+      fields: rule.skip ? {} : toFields(rule.fields),
+    })),
   };
 }
 
@@ -117,8 +140,20 @@ export default function Repositories() {
     setRevisionsToken((token) => token + 1);
   }, []);
 
+  // Several controls of the page ask for the fields of the same work item type: one request serves them all.
+  const fieldRequests = useRef(new Map<string, Promise<ProjectField[]>>());
   const loadFields = useCallback(
-    (workItemType: string) => settings.loadFields(projectId, workItemType),
+    (workItemType: string) => {
+      const key = `${projectId}/${workItemType}`;
+      let request = fieldRequests.current.get(key);
+      if (!request) {
+        request = settings.loadFields(projectId, workItemType);
+        fieldRequests.current.set(key, request);
+        // A failed request is asked again the next time.
+        request.catch(() => fieldRequests.current.delete(key));
+      }
+      return request;
+    },
     [settings, projectId],
   );
 
@@ -263,8 +298,16 @@ export default function Repositories() {
             <p>
               The title and the description take these placeholders: <code>{'{shortName}'}</code>,{' '}
               <code>{'{repository}'}</code>, <code>{'{number}'}</code>, <code>{'{title}'}</code>,{' '}
-              <code>{'{author}'}</code>, <code>{'{url}'}</code>. The description also takes <code>{'{body}'}</code>. The
-              description is HTML, and every value is escaped.
+              <code>{'{author}'}</code>, <code>{'{url}'}</code>, <code>{'{labels}'}</code>, <code>{'{type}'}</code>,{' '}
+              <code>{'{category}'}</code>. The description also takes <code>{'{body}'}</code>. The description is HTML,
+              and every value is escaped.
+            </p>
+            <h3>Rules</h3>
+            <p>
+              A rule applies to the items that carry a label, an issue type or a discussion category. It gives them
+              another work item type and field values, or leaves them out of the import. The first matching rule
+              applies. An item that matches no rule gets the work item type and the field values above. GitHub has issue
+              types only in organizations that use them.
             </p>
           </div>
         </div>

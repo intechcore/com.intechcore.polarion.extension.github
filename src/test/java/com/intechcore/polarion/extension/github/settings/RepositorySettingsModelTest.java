@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.settings;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -108,6 +109,65 @@ class RepositorySettingsModelTest {
     @Test
     void rejectsAnEpicWithoutALinkRole() {
         assertRejected(model -> model.getIssues().setEpicLinkRole(""), "link role");
+    }
+
+    private static ItemRule rule(RuleMatch match, String value, boolean skip, String workItemType) {
+        return ItemRule.builder().match(match).value(value).skip(skip).workItemType(workItemType).build();
+    }
+
+    @Test
+    void survivesSerializationWithRules() {
+        RepositorySettingsModel model = valid();
+        model.getIssues().setRules(List.of(
+                rule(RuleMatch.LABEL, "wontfix", true, null),
+                ItemRule.builder().match(RuleMatch.TYPE).value("Bug").workItemType("defect").fields(Map.of("severity", "major")).build()));
+
+        RepositorySettingsModel read = new RepositorySettingsModel();
+        read.deserialize(model.serialize());
+
+        assertThat(read).isEqualTo(model);
+        assertThat(read.getIssues().getRules()).extracting(ItemRule::describe).containsExactly("Label = wontfix", "Type = Bug");
+    }
+
+    @Test
+    void readsSettingsWrittenBeforeTheRulesExisted() {
+        RepositorySettingsModel read = new RepositorySettingsModel();
+        read.deserialize("-----BEGIN ISSUES-----\n{\"enabled\":true,\"workItemType\":\"task\"}\n-----END ISSUES-----\n");
+
+        assertThat(read.getIssues().getRules()).isEmpty();
+    }
+
+    @Test
+    void acceptsRulesThatFitTheirItems() {
+        RepositorySettingsModel model = valid();
+        model.getIssues().setRules(List.of(rule(RuleMatch.LABEL, "wontfix", true, null), rule(RuleMatch.TYPE, "Bug", false, "defect")));
+        model.setDiscussions(ItemSettings.builder().enabled(true).workItemType("task")
+                .rules(List.of(rule(RuleMatch.CATEGORY, "Q&A", false, "task"), rule(RuleMatch.LABEL, "docs", true, " "))).build());
+
+        assertThatCode(model::validate).doesNotThrowAnyException();
+        model.getIssues().setRules(null);
+        assertThatCode(model::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsAnIncompleteRule() {
+        assertRejected(model -> model.getIssues().setRules(List.of(rule(null, "bug", false, "task"))), "Rule 1 for issues needs what to compare");
+        assertRejected(model -> model.getIssues().setRules(java.util.Collections.singletonList(null)), "Rule 1 for issues needs what to compare");
+        assertRejected(model -> model.getIssues().setRules(List.of(rule(RuleMatch.LABEL, "ok", true, null), rule(RuleMatch.LABEL, " ", false, "task"))),
+                "Rule 2 for issues needs the value");
+        assertRejected(model -> model.getIssues().setRules(List.of(rule(RuleMatch.LABEL, "bug", false, ""))), "Rule 1 for issues needs a work item type");
+    }
+
+    @Test
+    void rejectsARuleThatComparesWhatTheItemsDoNotHave() {
+        assertRejected(model -> model.getIssues().setRules(List.of(rule(RuleMatch.CATEGORY, "Q&A", false, "task"))), "do not have");
+        assertRejected(model -> model.setDiscussions(ItemSettings.builder().enabled(true).workItemType("task")
+                .rules(List.of(rule(RuleMatch.TYPE, "Bug", false, "task"))).build()), "Rule 1 for discussions");
+    }
+
+    @Test
+    void describesARuleWithoutAMatchKind() {
+        assertThat(new ItemRule().describe()).isEqualTo(" = null");
     }
 
     @Test

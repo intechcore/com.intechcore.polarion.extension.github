@@ -442,6 +442,7 @@
               "NEW",
               "CREATED",
               "EXISTS",
+              "SKIPPED",
               "FAILED"
             ],
             "type": "string"
