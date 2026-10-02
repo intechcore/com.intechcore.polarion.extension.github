@@ -44,7 +44,7 @@ describe.skipIf(!__PIXEL_REFERENCES__)('Import page visual', () => {
 
     appButton('Read from GitHub').click();
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(4));
+    await vi.waitFor(() => expect(rows()).toHaveLength(5));
     await captureApp('import-preview');
   });
 
@@ -52,7 +52,7 @@ describe.skipIf(!__PIXEL_REFERENCES__)('Import page visual', () => {
     open();
     await ready();
     appButton('Read from GitHub').click();
-    await vi.waitFor(() => expect(rows()).toHaveLength(4));
+    await vi.waitFor(() => expect(rows()).toHaveLength(5));
 
     appButton('Create work items').click();
 

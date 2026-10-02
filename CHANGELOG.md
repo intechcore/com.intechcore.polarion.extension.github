@@ -23,3 +23,7 @@ All notable changes to this project are documented here. The format follows
 - The administration page `Import`, in the administration of a project. It reads the open issues
   and discussions of a repository, shows which have a work item, and creates work items for the
   selected ones.
+- Rules in the repository settings. A rule gives the issues with a label or an issue type, and the
+  discussions with a label or a category, another work item type and field values, or leaves them
+  out of the import. The first matching rule applies.
+- The placeholders `{labels}`, `{type}` and `{category}` for the title and description templates.

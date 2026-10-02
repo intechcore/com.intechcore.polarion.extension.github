@@ -44,7 +44,7 @@ async function mount(overrides: Route[] = []) {
 
 async function read() {
   button('Read from GitHub').click();
-  await vi.waitFor(() => expect(rows()).toHaveLength(4));
+  await vi.waitFor(() => expect(rows()).toHaveLength(5));
 }
 
 const importCall = () => fetchMock.mock.calls.find((c) => /dryRun=false/.test(String(c[0])));
@@ -69,10 +69,13 @@ describe('Import page', () => {
       ['Issue', '8', 'Typo in the guide', 'New', ''],
       ['Issue', '5', 'Old report', 'Exists', 'EL-12'],
       ['Discussion', '30', 'How to configure', 'New', ''],
+      ['Issue', '3', 'Not planned', 'Left out: by the rule Label = wontfix', ''],
     ]);
     expect(document.querySelector('.import-summary')!.textContent).toBe(
-      '4 open item(s): 3 new, 1 with a work item, 0 failed.',
+      '5 open item(s): 3 new, 1 with a work item, 1 left out, 0 failed.',
     );
+    // An item a rule leaves out cannot be selected.
+    expect(checkbox('https://github.com/acme/tool/issues/3')).toBeNull();
     expect(checkbox(ISSUE_7)!.checked).toBe(true);
     // An item with a work item cannot be selected, and its work item opens in Polarion itself.
     expect(checkbox('https://github.com/acme/tool/issues/5')).toBeNull();
@@ -98,9 +101,10 @@ describe('Import page', () => {
       ['Issue', '8', 'Typo in the guide', 'New', ''],
       ['Issue', '5', 'Old report', 'Exists', 'EL-12'],
       ['Discussion', '30', 'How to configure', 'Failed: The field severity is required', ''],
+      ['Issue', '3', 'Not planned', 'Left out: by the rule Label = wontfix', ''],
     ]);
     expect(document.querySelector('.import-summary')!.textContent).toBe(
-      '4 open item(s): 1 new, 2 with a work item, 1 failed.',
+      '5 open item(s): 1 new, 2 with a work item, 1 left out, 1 failed.',
     );
     // The selection is spent. The item left out can be selected again.
     expect(button('Create work items').disabled).toBe(true);
@@ -148,7 +152,7 @@ describe('Import page', () => {
 
     await vi.waitFor(() => expect(alertText()).toContain('No permission'));
     // The list stays, so the user can try again.
-    expect(rows()).toHaveLength(4);
+    expect(rows()).toHaveLength(5);
   });
 
   it('drops the list when another repository is selected', async () => {

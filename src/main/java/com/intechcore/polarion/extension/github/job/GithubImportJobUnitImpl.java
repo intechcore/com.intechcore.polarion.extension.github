@@ -99,14 +99,14 @@ public class GithubImportJobUnitImpl extends AbstractJobUnit implements GithubIm
         for (ImportEntry entry : result.getEntries()) {
             if (entry.getStatus() == ImportStatus.FAILED) {
                 getLogger().error(entry.getUrl() + " failed: " + entry.getMessage());
-            } else if (entry.getStatus() != ImportStatus.EXISTS) {
+            } else if (entry.getStatus() == ImportStatus.NEW || entry.getStatus() == ImportStatus.CREATED) {
                 getLogger().info(entry.getUrl() + " " + entry.getStatus() + (entry.getWorkItemId() == null ? "" : " " + entry.getWorkItemId()));
             }
         }
-        getLogger().info("Repository setting '%s' (%s)%s: %d created, %d new, %d existing, %d failed".formatted(
+        getLogger().info("Repository setting '%s' (%s)%s: %d created, %d new, %d existing, %d left out, %d failed".formatted(
                 name, result.getRepository(), result.isDryRun() ? ", dry run" : "",
                 result.count(ImportStatus.CREATED), result.count(ImportStatus.NEW),
-                result.count(ImportStatus.EXISTS), result.count(ImportStatus.FAILED)));
+                result.count(ImportStatus.EXISTS), result.count(ImportStatus.SKIPPED), result.count(ImportStatus.FAILED)));
         return (int) result.count(ImportStatus.FAILED);
     }
 }

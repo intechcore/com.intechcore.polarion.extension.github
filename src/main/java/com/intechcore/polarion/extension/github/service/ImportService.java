@@ -4,6 +4,7 @@ import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.client.GithubClient;
 import com.intechcore.polarion.extension.github.client.GithubItem;
 import com.intechcore.polarion.extension.github.settings.DuplicateKey;
+import com.intechcore.polarion.extension.github.settings.ItemRule;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
 import com.polarion.alm.shared.api.transaction.TransactionalExecutor;
@@ -17,6 +18,7 @@ import com.polarion.core.util.types.Text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -106,20 +108,52 @@ public class ImportService {
      * import once and not for every item.
      */
     private Target resolveTarget(ITrackerProject project, ItemSettings settings) {
-        ITypeOpt type = project.getWorkItemTypeEnum().wrapOption(settings.getWorkItemType());
-        if (type.isPhantom()) {
-            throw new IllegalArgumentException("The project '%s' has no work item type '%s'".formatted(project.getId(), settings.getWorkItemType()));
+        boolean linked = settings.getEpicId() != null && !settings.getEpicId().isBlank();
+        IWorkItem epic = linked ? polarionService.getWorkItem(project.getId(), settings.getEpicId()) : null;
+        Map<String, String> fields = settings.getFields() == null ? Map.of() : settings.getFields();
+        Outcome fallback = resolveOutcome(project, settings, settings.getWorkItemType(), fields, linked);
+
+        List<ResolvedRule> rules = new ArrayList<>();
+        if (settings.getRules() != null) {
+            for (ItemRule rule : settings.getRules()) {
+                Outcome outcome = null;
+                if (!rule.isSkip()) {
+                    Map<String, String> merged = new LinkedHashMap<>(fields);
+                    if (rule.getFields() != null) {
+                        merged.putAll(rule.getFields());
+                    }
+                    outcome = resolveOutcome(project, settings, rule.getWorkItemType(), merged, linked);
+                }
+                rules.add(new ResolvedRule(rule, outcome));
+            }
         }
-        IWorkItem epic = null;
+        return new Target(project, settings, epic, fallback, rules);
+    }
+
+    private static Outcome resolveOutcome(ITrackerProject project, ItemSettings settings, String typeId,
+                                          Map<String, String> fields, boolean linked) {
+        ITypeOpt type = project.getWorkItemTypeEnum().wrapOption(typeId);
+        if (type.isPhantom()) {
+            throw new IllegalArgumentException("The project '%s' has no work item type '%s'".formatted(project.getId(), typeId));
+        }
         ILinkRoleOpt epicRole = null;
-        if (settings.getEpicId() != null && !settings.getEpicId().isBlank()) {
-            epic = polarionService.getWorkItem(project.getId(), settings.getEpicId());
+        if (linked) {
+            // A link role can be limited to work item types, so it is looked up for each type.
             epicRole = project.getWorkItemLinkRoleEnum().wrapOption(settings.getEpicLinkRole(), type);
             if (epicRole.isPhantom()) {
                 throw new IllegalArgumentException("The project '%s' has no link role '%s'".formatted(project.getId(), settings.getEpicLinkRole()));
             }
         }
-        return new Target(project, settings, type, epic, epicRole);
+        return new Outcome(type, epicRole, fields);
+    }
+
+    private static boolean matches(ItemRule rule, GithubItem item) {
+        String value = rule.getValue().trim();
+        return switch (rule.getMatch()) {
+            case LABEL -> item.labelNames().stream().anyMatch(value::equalsIgnoreCase);
+            case TYPE -> value.equalsIgnoreCase(item.typeName());
+            case CATEGORY -> value.equalsIgnoreCase(item.categoryName());
+        };
     }
 
     private void importItems(ItemKind kind, List<GithubItem> items, Target target, RepositorySettingsModel settings,
@@ -139,10 +173,8 @@ public class ImportService {
             } else if (existing.containsKey(url)) {
                 entry.setStatus(ImportStatus.EXISTS);
                 entry.setWorkItemId(existing.get(url));
-            } else if (result.isDryRun()) {
-                entry.setStatus(ImportStatus.NEW);
             } else {
-                create(entry, item, target, settings);
+                importNewItem(entry, item, target, settings, result.isDryRun());
                 if (entry.getStatus() == ImportStatus.CREATED) {
                     existing.put(url, entry.getWorkItemId());
                 }
@@ -150,9 +182,25 @@ public class ImportService {
         }
     }
 
-    private void create(ImportEntry entry, GithubItem item, Target target, RepositorySettingsModel settings) {
+    /**
+     * Decides about an item no work item holds yet. The first matching rule applies. Without one,
+     * the settings of the block do.
+     */
+    private void importNewItem(ImportEntry entry, GithubItem item, Target target, RepositorySettingsModel settings, boolean dryRun) {
+        ResolvedRule rule = target.rules().stream().filter(candidate -> matches(candidate.rule(), item)).findFirst().orElse(null);
+        if (rule != null && rule.outcome() == null) {
+            entry.setStatus(ImportStatus.SKIPPED);
+            entry.setMessage("by the rule " + rule.rule().describe());
+        } else if (dryRun) {
+            entry.setStatus(ImportStatus.NEW);
+        } else {
+            create(entry, item, target, rule == null ? target.fallback() : rule.outcome(), settings);
+        }
+    }
+
+    private void create(ImportEntry entry, GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         try {
-            entry.setWorkItemId(writeTransaction.execute(() -> createWorkItem(item, target, settings)));
+            entry.setWorkItemId(writeTransaction.execute(() -> createWorkItem(item, target, outcome, settings)));
             entry.setStatus(ImportStatus.CREATED);
         } catch (RuntimeException e) {
             entry.setStatus(ImportStatus.FAILED);
@@ -160,19 +208,17 @@ public class ImportService {
         }
     }
 
-    private String createWorkItem(GithubItem item, Target target, RepositorySettingsModel settings) {
+    private String createWorkItem(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
         Map<String, String> values = templateValues(item, settings);
 
         IWorkItem workItem = polarionService.getTrackerService().createWorkItem(target.project());
-        workItem.setType(target.type());
+        workItem.setType(outcome.type());
         workItem.setTitle(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values));
         if (itemSettings.getDescriptionTemplate() != null && !itemSettings.getDescriptionTemplate().isBlank()) {
             workItem.setDescription(Text.html(TemplateRenderer.renderHtml(itemSettings.getDescriptionTemplate(), values)));
         }
-        if (itemSettings.getFields() != null) {
-            itemSettings.getFields().forEach((fieldId, value) -> polarionService.setFieldValue(workItem, fieldId, value));
-        }
+        outcome.fields().forEach((fieldId, value) -> polarionService.setFieldValue(workItem, fieldId, value));
         if (itemSettings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD) {
             polarionService.setFieldValue(workItem, itemSettings.getDuplicateKeyField(), item.htmlUrl());
         } else {
@@ -180,7 +226,7 @@ public class ImportService {
             workItem.addHyperlink(item.htmlUrl(), role);
         }
         if (target.epic() != null) {
-            workItem.addLinkedItem(target.epic(), target.epicRole(), null, false);
+            workItem.addLinkedItem(target.epic(), outcome.epicRole(), null, false);
         }
         workItem.save();
         return workItem.getId();
@@ -195,6 +241,9 @@ public class ImportService {
         values.put("author", item.user() == null ? "" : item.user().login());
         values.put("url", item.htmlUrl());
         values.put("body", item.body());
+        values.put("labels", String.join(", ", item.labelNames()));
+        values.put("type", item.typeName());
+        values.put("category", item.categoryName());
         return values;
     }
 
@@ -241,6 +290,15 @@ public class ImportService {
         return value;
     }
 
-    private record Target(ITrackerProject project, ItemSettings settings, ITypeOpt type, @Nullable IWorkItem epic, @Nullable ILinkRoleOpt epicRole) {
+    /** What the import needs of one block of the settings, looked up in the project. */
+    private record Target(ITrackerProject project, ItemSettings settings, @Nullable IWorkItem epic, Outcome fallback, List<ResolvedRule> rules) {
+    }
+
+    /** The work item an item becomes: its type, the role of its link to the epic, and its field values. */
+    private record Outcome(ITypeOpt type, @Nullable ILinkRoleOpt epicRole, Map<String, String> fields) {
+    }
+
+    /** A rule with its outcome. A rule that leaves items out has none. */
+    private record ResolvedRule(ItemRule rule, @Nullable Outcome outcome) {
     }
 }

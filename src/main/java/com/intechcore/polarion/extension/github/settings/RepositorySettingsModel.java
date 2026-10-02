@@ -77,11 +77,11 @@ public class RepositorySettingsModel extends SettingsModel {
         if (isBlank(shortName)) {
             throw new IllegalArgumentException("The short name is required");
         }
-        validate("issues", issues);
-        validate("discussions", discussions);
+        validate("issues", issues, RuleMatch.CATEGORY);
+        validate("discussions", discussions, RuleMatch.TYPE);
     }
 
-    private static void validate(String kind, ItemSettings settings) {
+    private static void validate(String kind, ItemSettings settings, RuleMatch notForThisKind) {
         if (settings == null || !settings.isEnabled()) {
             return;
         }
@@ -96,6 +96,26 @@ public class RepositorySettingsModel extends SettingsModel {
         }
         if (!isBlank(settings.getEpicId()) && isBlank(settings.getEpicLinkRole())) {
             throw new IllegalArgumentException("The link role to the epic for " + kind + " is required");
+        }
+        if (settings.getRules() != null) {
+            for (int i = 0; i < settings.getRules().size(); i++) {
+                validate("Rule " + (i + 1) + " for " + kind, settings.getRules().get(i), notForThisKind);
+            }
+        }
+    }
+
+    private static void validate(String rule, ItemRule settings, RuleMatch notForThisKind) {
+        if (settings == null || settings.getMatch() == null) {
+            throw new IllegalArgumentException(rule + " needs what to compare");
+        }
+        if (settings.getMatch() == notForThisKind) {
+            throw new IllegalArgumentException(rule + " compares what these items do not have");
+        }
+        if (isBlank(settings.getValue())) {
+            throw new IllegalArgumentException(rule + " needs the value to compare with");
+        }
+        if (!settings.isSkip() && isBlank(settings.getWorkItemType())) {
+            throw new IllegalArgumentException(rule + " needs a work item type");
         }
     }
 

@@ -4,6 +4,18 @@ export type { Revision, SettingName } from '@sbb-polarion/react-sbb-polarion';
 /** Where a work item keeps the URL of its GitHub item (settings.DuplicateKey). */
 export type DuplicateKey = 'HYPERLINK' | 'CUSTOM_FIELD';
 
+/** What a rule compares of a GitHub item (settings.RuleMatch). */
+export type RuleMatch = 'LABEL' | 'TYPE' | 'CATEGORY';
+
+/** A rule for the GitHub items that match it (settings.ItemRule). */
+export interface ItemRule {
+  match: RuleMatch;
+  value: string;
+  skip: boolean;
+  workItemType: string | null;
+  fields: Record<string, string> | null;
+}
+
 /** How issues or discussions become work items (settings.ItemSettings). */
 export interface ItemSettings {
   enabled: boolean;
@@ -15,6 +27,7 @@ export interface ItemSettings {
   epicId: string | null;
   epicLinkRole: string | null;
   fields: Record<string, string> | null;
+  rules: ItemRule[] | null;
 }
 
 /** The import settings of one GitHub repository (settings.RepositorySettingsModel). */
@@ -43,7 +56,7 @@ export interface ProjectField {
 
 export type ItemKind = 'ISSUE' | 'DISCUSSION';
 
-export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'FAILED';
+export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'SKIPPED' | 'FAILED';
 
 /** The outcome of the import for one GitHub item (service.ImportEntry). */
 export interface ImportEntry {

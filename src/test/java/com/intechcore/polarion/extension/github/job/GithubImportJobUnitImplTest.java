@@ -104,7 +104,7 @@ class GithubImportJobUnitImplTest {
         assertThat(status.getType()).isEqualTo(IJobStatus.JobStatusType.STATUS_TYPE_OK);
         verify(importService, never()).importRepository(anyString(), eq(off), anyBoolean(), any());
         verify(logger).info("https://github.com/acme/tool/issues/1 CREATED EL-1");
-        verify(logger).info("Repository setting 'tool' (acme/tool): 1 created, 0 new, 1 existing, 0 failed");
+        verify(logger).info("Repository setting 'tool' (acme/tool): 1 created, 0 new, 1 existing, 0 left out, 0 failed");
         verify(logger).info(contains("'off' is disabled"));
         verify(progress).done();
     }
@@ -124,7 +124,7 @@ class GithubImportJobUnitImplTest {
         verify(importService).importRepository("elibrary", off, true, null);
         verify(importService).importRepository("elibrary", tool, true, null);
         verify(repositorySettings, never()).readNames(anyString());
-        verify(logger).info("Repository setting 'off' (acme/off), dry run: 0 created, 1 new, 0 existing, 0 failed");
+        verify(logger).info("Repository setting 'off' (acme/off), dry run: 0 created, 1 new, 0 existing, 0 left out, 0 failed");
     }
 
     @Test

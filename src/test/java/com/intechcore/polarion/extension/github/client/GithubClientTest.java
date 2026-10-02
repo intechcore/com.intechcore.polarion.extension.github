@@ -81,6 +81,28 @@ class GithubClientTest {
     }
 
     @Test
+    void readsTheTypeTheCategoryAndTheLabels() {
+        answer("/repos/acme/tool/issues", 200, Map.of(), """
+                [
+                  {"number": 1, "state": "open", "type": {"id": 3, "name": "Bug"}, "labels": [{"name": "a"}, {"id": 5}, {"name": "b"}]},
+                  {"number": 2, "state": "open", "type": null},
+                  {"number": 3, "state": "open", "type": "Feature", "labels": []},
+                  {"number": 4, "state": "open", "type": {"id": 3}},
+                  {"number": 5, "state": "open", "type": 7}
+                ]""");
+        answer("/repos/acme/tool/discussions", 200, Map.of(), """
+                [{"number": 30, "state": "open", "category": {"name": "Q&A", "slug": "q-a"}}]""");
+
+        List<GithubItem> issues = client.getOpenIssues("acme", "tool");
+
+        assertThat(issues).extracting(GithubItem::typeName).containsExactly("Bug", null, "Feature", null, null);
+        assertThat(issues.get(0).labelNames()).containsExactly("a", "b");
+        assertThat(issues.get(1).labelNames()).isEmpty();
+        assertThat(issues.get(0).categoryName()).isNull();
+        assertThat(client.getOpenDiscussions("acme", "tool").get(0).categoryName()).isEqualTo("Q&A");
+    }
+
+    @Test
     void followsTheNextLinkUntilTheLastPage() {
         server.createContext("/repos/acme/tool/issues", exchange -> {
             String uri = exchange.getRequestURI().toString();

@@ -32,6 +32,10 @@ export const PREVIEW = {
     entry('ISSUE', 8, 'Typo in the guide', ISSUE_8, 'NEW'),
     entry('ISSUE', 5, 'Old report', 'https://github.com/acme/tool/issues/5', 'EXISTS', 'EL-12'),
     entry('DISCUSSION', 30, 'How to configure', DISCUSSION_30, 'NEW'),
+    {
+      ...entry('ISSUE', 3, 'Not planned', 'https://github.com/acme/tool/issues/3', 'SKIPPED'),
+      message: 'by the rule Label = wontfix',
+    },
   ],
 };
 

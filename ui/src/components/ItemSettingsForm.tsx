@@ -1,12 +1,7 @@
-import { useEffect, useState } from 'react';
 import { SearchableSelect } from '@sbb-polarion/react-sbb-polarion';
 import type { DuplicateKey, ProjectField, ProjectOption } from '../types';
-
-/** One field value of the created work items. */
-export interface FieldRow {
-  id: string;
-  value: string;
-}
+import FieldValues, { type FieldRow, fieldOption, useFields } from './FieldValues';
+import RulesEditor, { type RuleForm } from './RulesEditor';
 
 /** The form state of one kind of GitHub item: ItemSettings with the field values as an ordered list. */
 export interface ItemForm {
@@ -19,6 +14,7 @@ export interface ItemForm {
   epicId: string;
   epicLinkRole: string;
   fields: FieldRow[];
+  rules: RuleForm[];
 }
 
 const DUPLICATE_KEYS = [
@@ -48,37 +44,11 @@ export default function ItemSettingsForm({
   linkRoles,
   loadFields,
 }: Readonly<ItemSettingsFormProps>) {
-  const [fields, setFields] = useState<ProjectField[]>([]);
   const set = (change: Partial<ItemForm>) => onChange({ ...value, ...change });
-  const setRow = (index: number, change: Partial<FieldRow>) =>
-    set({ fields: value.fields.map((row, i) => (i === index ? { ...row, ...change } : row)) });
-
-  // The fields belong to a work item type, so they are read again when the type changes.
-  useEffect(() => {
-    let cancelled = false;
-    if (!value.workItemType) {
-      setFields([]);
-      return;
-    }
-    loadFields(value.workItemType)
-      .then((list) => {
-        if (!cancelled) setFields(list);
-      })
-      .catch(() => {
-        if (!cancelled) setFields([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadFields, value.workItemType]);
-
-  // Polarion names a built-in field by its ID, so the ID is added only where it says something new.
-  const option = (field: ProjectField) => ({
-    id: field.id,
-    name: field.name === field.id ? field.id : `${field.name} (${field.id})`,
-  });
-  const fieldOptions = fields.map(option);
-  const urlKeyOptions = fields.filter((field) => field.urlKey).map(option);
+  // Only the custom fields of the type String can keep the URL of a GitHub item.
+  const urlKeyOptions = useFields(value.workItemType, loadFields)
+    .filter((field) => field.urlKey)
+    .map(fieldOption);
 
   return (
     <div className="item-settings">
@@ -197,38 +167,25 @@ export default function ItemSettingsForm({
             <tr>
               <td>Field values:</td>
               <td>
-                {value.fields.map((row, index) => (
-                  // The rows have no identity of their own, and they never reorder.
-                  <div className="field-row" key={index}>
-                    <SearchableSelect
-                      ariaLabel={`Field ${index + 1} of ${kind}`}
-                      value={row.id}
-                      onChange={(id) => setRow(index, { id })}
-                      options={fieldOptions}
-                      allowEmpty
-                    />
-                    <input
-                      type="text"
-                      aria-label={`Value ${index + 1} of ${kind}`}
-                      value={row.value}
-                      onChange={(e) => setRow(index, { value: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      className="sbb-btn sbb-btn--control"
-                      onClick={() => set({ fields: value.fields.filter((_, i) => i !== index) })}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="sbb-btn sbb-btn--control"
-                  onClick={() => set({ fields: [...value.fields, { id: '', value: '' }] })}
-                >
-                  Add a field value
-                </button>
+                <FieldValues
+                  owner={kind}
+                  workItemType={value.workItemType}
+                  rows={value.fields}
+                  onChange={(fields) => set({ fields })}
+                  loadFields={loadFields}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td>Rules:</td>
+              <td>
+                <RulesEditor
+                  kind={kind}
+                  rules={value.rules}
+                  onChange={(rules) => set({ rules })}
+                  workItemTypes={workItemTypes}
+                  loadFields={loadFields}
+                />
               </td>
             </tr>
           </tbody>

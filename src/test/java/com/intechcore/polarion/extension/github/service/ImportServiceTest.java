@@ -5,8 +5,10 @@ import com.intechcore.polarion.extension.github.client.GithubClient;
 import com.intechcore.polarion.extension.github.client.GithubClientException;
 import com.intechcore.polarion.extension.github.client.GithubItem;
 import com.intechcore.polarion.extension.github.settings.DuplicateKey;
+import com.intechcore.polarion.extension.github.settings.ItemRule;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
+import com.intechcore.polarion.extension.github.settings.RuleMatch;
 import com.polarion.alm.tracker.ITrackerService;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
@@ -104,7 +106,7 @@ class ImportServiceTest {
 
     private static GithubItem item(long number, String title, String url) {
         return new GithubItem(number, title, "Body of " + number, "open", url, null, null,
-                new GithubItem.User("alice"), List.of(), null);
+                new GithubItem.User("alice"), List.of(), null, null, null);
     }
 
     private static RepositorySettingsModel settings() {
@@ -324,6 +326,125 @@ class ImportServiceTest {
         assertThat(created).isEmpty();
     }
 
+    private static GithubItem labeled(long number, String url, Object type, Object category, String... labels) {
+        return new GithubItem(number, "Item " + number, null, "open", url, null, null, null,
+                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category);
+    }
+
+    private ITypeOpt type(String id) {
+        ITypeOpt option = mock(ITypeOpt.class);
+        when(project.getWorkItemTypeEnum().wrapOption(id)).thenReturn(option);
+        return option;
+    }
+
+    @Test
+    void appliesTheFirstMatchingRule() {
+        ITypeOpt defect = type("defect");
+        ITypeOpt change = type("changerequest");
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("severity", "minor", "component", "core"));
+        settings.getIssues().setRules(List.of(
+                ItemRule.builder().match(RuleMatch.LABEL).value("WontFix").skip(true).build(),
+                ItemRule.builder().match(RuleMatch.TYPE).value("bug").workItemType("defect").fields(Map.of("severity", "major")).build(),
+                ItemRule.builder().match(RuleMatch.LABEL).value(" enhancement ").workItemType("changerequest").fields(null).build(),
+                ItemRule.builder().match(RuleMatch.LABEL).value("bug").workItemType("task").build()));
+        String base = "https://github.com/acme/tool/issues/";
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(
+                labeled(1, base + 1, Map.of("name", "Bug"), null, "bug", "wontfix"),
+                labeled(2, base + 2, Map.of("name", "Bug"), null, "bug", "enhancement"),
+                labeled(3, base + 3, "Feature", null, "Enhancement"),
+                labeled(4, base + 4, null, null, "question"),
+                labeled(5, base + 5, Map.of("id", 7), null)));
+
+        ImportResult result = service.importRepository(PROJECT, settings, false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(
+                ImportStatus.SKIPPED, ImportStatus.CREATED, ImportStatus.CREATED, ImportStatus.CREATED, ImportStatus.CREATED);
+        assertThat(result.getEntries().get(0).getMessage()).isEqualTo("by the rule Label = WontFix");
+        assertThat(created).hasSize(4);
+        // Item 2 matches the type rule before the label rules. Its field values replace the ones of the block.
+        verify(created.get(0)).setType(defect);
+        verify(polarionService).setFieldValue(created.get(0), "severity", "major");
+        verify(polarionService).setFieldValue(created.get(0), "component", "core");
+        // Item 3: a rule without field values keeps the ones of the block.
+        verify(created.get(1)).setType(change);
+        verify(polarionService).setFieldValue(created.get(1), "severity", "minor");
+        // Items 4 and 5 match no rule and get the type of the block.
+        verify(created.get(2)).setType(type);
+        verify(created.get(3)).setType(type);
+    }
+
+    @Test
+    void showsAnItemLeftOutByARuleInADryRunAndKeepsAnExistingOne() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.LABEL).value("wontfix").skip(true).build()));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(
+                labeled(7, ISSUE_7, null, null, "wontfix"), labeled(8, ISSUE_8, null, null, "wontfix")));
+        found.add(existingWithHyperlink("EL-5", ISSUE_7));
+
+        ImportResult result = service.importRepository(PROJECT, settings, true, null);
+
+        // A work item that exists already is reported, whatever a later rule says.
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.SKIPPED);
+    }
+
+    @Test
+    void appliesCategoryRulesToDiscussionsAndFillsTheNewPlaceholders() {
+        ITypeOpt question = type("question");
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEnabled(false);
+        settings.setDiscussions(ItemSettings.builder()
+                .enabled(true)
+                .workItemType("task")
+                .titleTemplate("{category} [{labels}] [{type}] {title}")
+                .rules(List.of(ItemRule.builder().match(RuleMatch.CATEGORY).value("q&a").workItemType("question").build()))
+                .build());
+        String base = "https://github.com/acme/tool/discussions/";
+        when(githubClient.getOpenDiscussions("acme", "tool")).thenReturn(List.of(
+                labeled(30, base + 30, null, Map.of("name", "Q&A"), "docs", "help"),
+                labeled(31, base + 31, null, Map.of("name", "Ideas"))));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0)).setType(question);
+        verify(created.get(0)).setTitle("Q&A [docs, help] [] Item 30");
+        verify(created.get(1)).setType(type);
+        verify(created.get(1)).setTitle("Ideas [] [] Item 31");
+    }
+
+    @Test
+    void rejectsAWorkItemTypeOfARuleTheProjectDoesNotHave() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.LABEL).value("bug").workItemType("nothing").build()));
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, true, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no work item type 'nothing'");
+        verify(githubClient, never()).getOpenIssues(anyString(), anyString());
+    }
+
+    @Test
+    void looksUpTheLinkRoleForTheTypeOfEachRule() {
+        ITypeOpt defect = type("defect");
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEpicId("EL-1");
+        settings.getIssues().setEpicLinkRole("parent");
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.LABEL).value("bug").workItemType("defect").build()));
+        IWorkItem epic = mock(IWorkItem.class);
+        when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
+        IEnumeration<ILinkRoleOpt> roles = mock(IEnumeration.class);
+        ILinkRoleOpt roleOfTask = mock(ILinkRoleOpt.class);
+        ILinkRoleOpt roleOfDefect = mock(ILinkRoleOpt.class);
+        when(project.getWorkItemLinkRoleEnum()).thenReturn(roles);
+        when(roles.wrapOption("parent", type)).thenReturn(roleOfTask);
+        when(roles.wrapOption("parent", defect)).thenReturn(roleOfDefect);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(labeled(7, ISSUE_7, null, null, "bug")));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0)).addLinkedItem(epic, roleOfDefect, null, false);
+    }
+
     @Test
     void rejectsInvalidSettingsBeforeAnyRequest() {
         RepositorySettingsModel settings = settings();
@@ -393,7 +514,7 @@ class ImportServiceTest {
 
     @Test
     void refusesAnItemWhoseUrlIsNotInTheRepository() {
-        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor, item(10, "Elsewhere", "https://example.com/acme/tool/issues/10")));
 
         ImportResult result = service.importRepository(PROJECT, settings(), false, null);
@@ -407,7 +528,7 @@ class ImportServiceTest {
     void acceptsAnItemWithoutAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setTitleTemplate("{title} by [{author}]");
-        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
 
         service.importRepository(PROJECT, settings, false, null);
