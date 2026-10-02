@@ -53,3 +53,44 @@ body {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* The Import page: the controls in one row, then the list of GitHub items. */
+.import-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.import-controls .searchable-dropdown {
+  width: 260px;
+}
+
+.import-table {
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.import-table th,
+.import-table td {
+  border: 1px solid #d5d5d5;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.import-table th {
+  background: #f3f3f0;
+}
+
+.import-table .status-FAILED {
+  color: #b40000;
+}
+
+.import-table .status-CREATED {
+  color: #1e7e34;
+}
+
+.import-summary {
+  margin-bottom: 12px;
+}

@@ -20,3 +20,6 @@ All notable changes to this project are documented here. The format follows
 - The administration page `Repositories`, in the administration of a project. It edits the
   repository settings: the work item type, the templates, where the GitHub URL is kept, the epic
   link and the field values, for issues and discussions each.
+- The administration page `Import`, in the administration of a project. It reads the open issues
+  and discussions of a repository, shows which have a work item, and creates work items for the
+  selected ones.

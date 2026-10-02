@@ -13,8 +13,6 @@
 This Polarion extension creates work items from the open issues and discussions of GitHub
 repositories. It runs as a scheduled job or by hand from the administration pages.
 
-The extension is under development. The settings page, the REST API and the scheduled job work.
-The page that starts an import by hand is not written yet.
 
 ## Polarion configuration
 
@@ -55,6 +53,17 @@ mvn clean install -P local-install-into-polarion
 The `POLARION_HOME` environment variable must point to the Polarion installation folder.
 
 Changes take effect only after a restart of Polarion.
+
+## Manual import
+
+Open the administration of a project, then `GitHub` / `Import`.
+
+1. Select the repository setting.
+2. Select `Read from GitHub`. The page lists the open issues and discussions. An item that has a
+   work item already shows its ID.
+3. Clear the items you do not want. Every new item starts selected.
+4. Select `Create work items`. The list shows the ID of each created work item, or the reason of
+   a failure.
 
 ## Scheduled import
 

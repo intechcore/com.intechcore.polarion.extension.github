@@ -40,3 +40,25 @@ export interface ProjectField {
   custom: boolean;
   urlKey: boolean;
 }
+
+export type ItemKind = 'ISSUE' | 'DISCUSSION';
+
+export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'FAILED';
+
+/** The outcome of the import for one GitHub item (service.ImportEntry). */
+export interface ImportEntry {
+  kind: ItemKind;
+  number: number;
+  title: string | null;
+  url: string | null;
+  status: ImportStatus;
+  workItemId: string | null;
+  message: string | null;
+}
+
+/** The outcome of the import of one repository (service.ImportResult). */
+export interface ImportResult {
+  repository: string;
+  dryRun: boolean;
+  entries: ImportEntry[];
+}
