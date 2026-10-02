@@ -9,6 +9,7 @@ import {
   getScope,
 } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
+import ErrorNotice from '../components/ErrorNotice';
 import ItemSettingsForm, { type ItemForm } from '../components/ItemSettingsForm';
 import useSettings from '../services/settings';
 import type { ItemSettings, ProjectOption, RepositorySettings, Revision } from '../types';
@@ -159,16 +160,14 @@ export default function Repositories() {
   if (!projectId) {
     return (
       <PageLayout title="Repositories">
-        <div className="alert alert-error">
-          Repositories are configured in a project. Open this page from a project.
-        </div>
+        <ErrorNotice>Repositories are configured in a project. Open this page from a project.</ErrorNotice>
       </PageLayout>
     );
   }
 
   return (
     <PageLayout title="Repositories">
-      {loadingError && <div className="alert alert-error">The project options did not load: {loadingError}</div>}
+      {loadingError && <ErrorNotice>The project options did not load: {loadingError}</ErrorNotice>}
 
       <ConfigurationsPane
         ref={paneRef}
