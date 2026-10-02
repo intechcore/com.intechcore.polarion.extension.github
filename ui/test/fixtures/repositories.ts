@@ -46,6 +46,8 @@ export const LINK_ROLES = [
 export const FIELDS = [
   { id: 'githubUrl', name: 'GitHub URL', custom: true, urlKey: true },
   { id: 'severity', name: 'Severity', custom: false, urlKey: false },
+  // A built-in field: Polarion names it by its ID.
+  { id: 'priority', name: 'priority', custom: false, urlKey: false },
 ];
 
 export const REVISIONS = [

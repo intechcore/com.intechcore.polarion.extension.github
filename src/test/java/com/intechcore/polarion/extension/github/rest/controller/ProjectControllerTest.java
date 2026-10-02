@@ -71,23 +71,31 @@ class ProjectControllerTest {
     }
 
     @Test
-    void listsTheWritableFieldsAndMarksTheOnesThatCanKeepAUrl() {
+    void listsTheFieldsThatTakeAValueAndMarksTheOnesThatCanKeepAUrl() {
         FieldMetadata readOnly = field("created", "created", false, FieldType.STRING);
         readOnly.setReadOnly(true);
         FieldMetadata multi = field("tags", "Tags", true, FieldType.STRING);
         multi.setMulti(true);
-        when(polarionService.getGeneralFields("WorkItem", contextId, "task"))
-                .thenReturn(Set.of(field("severity", "severity", false, FieldType.STRING), readOnly));
+        // What the settings cannot fill: structures, lists, and the fields the import fills itself.
+        when(polarionService.getGeneralFields("WorkItem", contextId, "task")).thenReturn(Set.of(
+                field("severity", "severity", false, FieldType.ENUM),
+                field("assignee", "assignee", false, FieldType.LIST),
+                field("categories", "categories", false, FieldType.LIST),
+                field("approvals", "approvals", false, FieldType.UNKNOWN),
+                field("title", "title", false, FieldType.STRING),
+                field("description", "description", false, FieldType.TEXT),
+                field("type", "type", false, FieldType.ENUM),
+                readOnly));
         when(polarionService.getCustomFields("WorkItem", contextId, null))
                 .thenReturn(Set.of(field("githubUrl", "GitHub URL", true, FieldType.STRING), multi));
         when(polarionService.getCustomFields("WorkItem", contextId, "task"))
                 .thenReturn(Set.of(field("githubUrl", "GitHub URL of a task", true, FieldType.STRING), field("estimate", "Estimate", true, FieldType.FLOAT)));
 
         assertThat(new ProjectInternalController(polarionService).getFields("elibrary", "task")).containsExactly(
+                new ProjectField("assignee", "assignee", false, false),
                 new ProjectField("estimate", "Estimate", true, false),
                 new ProjectField("githubUrl", "GitHub URL of a task", true, true),
-                new ProjectField("severity", "severity", false, false),
-                new ProjectField("tags", "Tags", true, false));
+                new ProjectField("severity", "severity", false, false));
     }
 
     @Test

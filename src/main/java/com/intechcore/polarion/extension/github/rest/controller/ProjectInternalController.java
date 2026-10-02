@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * What the settings page offers to choose from: the work item types, link roles and fields of a project.
@@ -31,6 +32,10 @@ import java.util.Map;
 @Path("/internal")
 @Singleton
 public class ProjectInternalController {
+
+    private static final Set<String> FILLED_BY_THE_IMPORT = Set.of("title", "description", "type");
+    // A list of users, which generic sets from one user ID.
+    private static final String ASSIGNEE = "assignee";
 
     protected final PolarionService polarionService;
 
@@ -62,6 +67,21 @@ public class ProjectInternalController {
                 .toList();
     }
 
+    /**
+     * Whether the settings can give the field a value. The value is one string, so structures such
+     * as approvals, attachments or comments are out, and so are the fields the import fills itself.
+     */
+    private static boolean takesAValue(FieldMetadata field) {
+        if (field.isReadOnly() || FILLED_BY_THE_IMPORT.contains(field.getId())) {
+            return false;
+        }
+        if (ASSIGNEE.equals(field.getId())) {
+            return true;
+        }
+        FieldType type = FieldType.recognize(field.getType());
+        return !field.isMulti() && type != FieldType.UNKNOWN && type != FieldType.LIST;
+    }
+
     @Operation(summary = "Returns the fields of a work item type of a project")
     @GET
     @Path("/projects/{projectId}/workitem-types/{workItemType}/fields")
@@ -77,7 +97,7 @@ public class ProjectInternalController {
         polarionService.getCustomFields(IWorkItem.PROTO, contextId, workItemType).forEach(field -> fields.put(field.getId(), field));
 
         return fields.values().stream()
-                .filter(field -> !field.isReadOnly())
+                .filter(ProjectInternalController::takesAValue)
                 .map(field -> new ProjectField(field.getId(), field.getLabel(), field.isCustom(),
                         field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType())))
                 .sorted(Comparator.comparing(ProjectField::name, String.CASE_INSENSITIVE_ORDER))

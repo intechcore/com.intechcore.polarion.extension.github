@@ -136,6 +136,7 @@ describe('Repositories page', () => {
     );
     const offered = Array.from(document.querySelectorAll('.sd-portal .option')).map((o) => o.textContent?.trim());
     expect(offered).not.toContain('Severity (severity)');
+    expect(offered).not.toContain('priority');
     await pick(trigger('issues-key-field'), 'GitHub URL (githubUrl)');
 
     button('Save').click();
@@ -184,6 +185,18 @@ describe('Repositories page', () => {
       epicLinkRole: 'relates_to',
       fields: { severity: 'minor' },
     });
+  });
+
+  it('shows a field named by its ID once', async () => {
+    await mount();
+
+    mousedown(document.querySelector<HTMLInputElement>('.field-row .sd-trigger')!);
+    await vi.waitFor(() => expect(document.querySelectorAll('.sd-portal .option').length).toBeGreaterThan(1));
+
+    const offered = Array.from(document.querySelectorAll('.sd-portal .option')).map((o) => o.textContent?.trim());
+    expect(offered).toContain('priority');
+    expect(offered).toContain('Severity (severity)');
+    expect(offered).not.toContain('priority (priority)');
   });
 
   it('removes a field value', async () => {
