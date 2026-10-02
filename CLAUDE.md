@@ -11,7 +11,7 @@ the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 `com.intechcore.polarion.extension.timesheet`.
 
 Status: in development. The About page, the GitHub client, the repository settings and the import
-with its REST endpoint exist. The job and the administration pages are not written yet.
+with its REST endpoint and the job exist. The administration pages are not written yet.
 
 ## Build & verify
 
@@ -75,6 +75,10 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   (`@Secured`, `/api`) - `POST /projects/{projectId}/repositories/{name}/import?dryRun=`. A dry run
   is the preview. `GithubClientExceptionMapper` answers a GitHub failure with 502, or 429 for the
   rate limit.
+- `job/GithubImportJobUnitImpl` - the job `github_import.job`, registered in `hivemodule.xml`. It
+  needs the scope of a project and imports its enabled repository settings. Polarion sets the
+  parameters through the setters of `GithubImportJobUnit`. The job stops at the GitHub rate limit
+  and fails when any item failed.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),

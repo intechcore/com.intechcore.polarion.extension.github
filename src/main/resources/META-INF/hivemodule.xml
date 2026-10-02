@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module id="com.intechcore.polarion.extension.github" version="1.0.0">
 
+    <service-point id="githubImportJobUnitFactory" interface="com.polarion.platform.jobs.IJobUnitFactory">
+        <invoke-factory>
+            <construct class="com.intechcore.polarion.extension.github.job.GithubImportJobUnitFactory"/>
+        </invoke-factory>
+    </service-point>
+
+    <contribution configuration-id="com.polarion.platform.jobs.configuration">
+        <jobUnitFactory name="github_import.job" factory="githubImportJobUnitFactory"/>
+    </contribution>
+
     <contribution configuration-id="com.polarion.xray.webui.administrationPageExtenders">
         <extender id="about"
                   name="About"

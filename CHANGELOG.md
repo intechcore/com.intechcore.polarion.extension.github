@@ -16,3 +16,4 @@ All notable changes to this project are documented here. The format follows
   URL, and the import skips an item that a work item holds already.
 - The REST endpoint `POST /projects/{projectId}/repositories/{name}/import`, with a dry run and an
   optional list of URLs.
+- The job `github_import.job`. It imports the enabled repositories of a project on a schedule.
