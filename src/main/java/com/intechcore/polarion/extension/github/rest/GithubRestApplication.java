@@ -4,6 +4,8 @@ import ch.sbb.polarion.extension.generic.rest.GenericRestApplication;
 import ch.sbb.polarion.extension.generic.settings.NamedSettingsRegistry;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
+import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
+import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import org.jetbrains.annotations.NotNull;
@@ -21,7 +23,9 @@ public class GithubRestApplication extends GenericRestApplication {
     protected @NotNull Set<Class<?>> getExtensionControllerClasses() {
         return Set.of(
                 ImportApiController.class,
-                ImportInternalController.class
+                ImportInternalController.class,
+                ProjectApiController.class,
+                ProjectInternalController.class
         );
     }
 

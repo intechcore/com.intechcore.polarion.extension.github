@@ -11,7 +11,8 @@ the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 `com.intechcore.polarion.extension.timesheet`.
 
 Status: in development. The About page, the GitHub client, the repository settings and the import
-with its REST endpoint and the job exist. The administration pages are not written yet.
+with its REST endpoint, the job and the `Repositories` page exist. The page for a manual import is
+not written yet.
 
 ## Build & verify
 
@@ -79,11 +80,16 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   needs the scope of a project and imports its enabled repository settings. Polarion sets the
   parameters through the setters of `GithubImportJobUnit`. The job stops at the GitHub rate limit
   and fails when any item failed.
+- `rest/controller/ProjectInternalController` and `ProjectApiController` - the work item types,
+  link roles and fields of a project, for the dropdowns of the settings page.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),
 served from the `github-app` webapp. One app, page selected by `?feature=`; an unknown or missing
 feature falls back to About.
+- `pages/Repositories.tsx` - the settings page of a project, on RSP's `ConfigurationsPane`,
+  `ConfigurationButtons` and `RevisionsTable`. `components/ItemSettingsForm.tsx` is the block for
+  issues or discussions. `services/settings.ts` holds the REST calls.
 - `services/useRemote.ts` - REST hook. **The UI always calls `/internal/*` (in-session); external
   callers use `/api/*` with a bearer token.**
 
@@ -113,6 +119,15 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
   or `CF_WORKITEM`. Every value in that SQL passes `sqlLiteral`, which allows no quote.
 - **Mockito: re-stubbing with `when(...)` runs the old answer once.** Use `doAnswer(...).when(...)`
   to replace an answer that has a side effect.
+
+- **A setting without a repository is a draft.** RSP's `ConfigurationsPane` creates a setting by
+  its name alone, and generic then saves the default values. `RepositorySettings.beforeSave`
+  therefore validates only a setting that names a repository. The import validates always.
+- **RSP's dropdown hides the `<select>` that carries the `id`** and draws its trigger in the next
+  sibling. A test reads the shown value from `#id + .searchable-dropdown .sd-trigger`, and picks an
+  option with `mousedown`, not `click`.
+- **A save reloads the setting.** `reloadNames` answers before the content arrives, so a test that
+  edits right after a save races the reload.
 
 ## Review focus
 

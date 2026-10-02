@@ -78,6 +78,20 @@ class RepositorySettingsTest {
     }
 
     @Test
+    void savesADraftWithoutARepository() {
+        try (MockedStatic<ScopeUtils> scopeUtils = mockStatic(ScopeUtils.class)) {
+            ILocation location = location();
+            scopeUtils.when(() -> ScopeUtils.getContextLocation(PROJECT_SCOPE)).thenReturn(location);
+            SettingsService service = mock(SettingsService.class);
+            RepositorySettings settings = new RepositorySettings(service);
+
+            settings.save(PROJECT_SCOPE, SettingId.fromId("tool"), settings.defaultValues());
+
+            verify(service).save(any(), anyString());
+        }
+    }
+
+    @Test
     void refusesToSaveOutsideAProject() {
         SettingsService service = mock(SettingsService.class);
         RepositorySettings settings = new RepositorySettings(service);

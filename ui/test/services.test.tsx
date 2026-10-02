@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
+import useSettings, { errorMessage } from '../src/services/settings';
 import useRemote from '../src/services/useRemote';
 import { installFetchMock } from './mockFetch';
 
@@ -73,5 +74,57 @@ describe('useRemote', () => {
 
     expect(response.status).toBe(503);
     expect((await response.json()).message).toContain('Be sure Polarion is started');
+  });
+});
+
+describe('useSettings', () => {
+  const SCOPE = 'project/elibrary/';
+
+  async function settings() {
+    const seen = probe(useSettings);
+    await vi.waitFor(() => expect(seen.current).toBeDefined());
+    return seen.current!;
+  }
+
+  it('creates a setting without a body, so the server stores its defaults', async () => {
+    const fetchMock = installFetchMock([
+      { method: 'PUT', match: /./, respond: () => new Response(null, { status: 204 }) },
+    ]);
+
+    await (await settings()).createConfiguration('my tool', SCOPE);
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      '/polarion/github/rest/internal/settings/repositories/names/my%20tool/content?scope=project%2Felibrary%2F',
+    );
+    expect(fetchMock.mock.calls[0][1]!.body).toBeUndefined();
+  });
+
+  it('renames and deletes a setting', async () => {
+    const fetchMock = installFetchMock([
+      { method: 'POST', match: /./, respond: () => new Response(null, { status: 204 }) },
+      { method: 'DELETE', match: /./, respond: () => new Response(null, { status: 204 }) },
+    ]);
+    const service = await settings();
+
+    await service.renameConfiguration('tool', SCOPE, 'other');
+    await service.deleteConfiguration('other', SCOPE);
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', body: 'other' });
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/names/other?scope=');
+    expect(fetchMock.mock.calls[1][1]!.method).toBe('DELETE');
+  });
+
+  it('rejects with the message of the server', async () => {
+    installFetchMock([
+      { method: 'DELETE', match: /./, respond: () => new Response('{"message":"Setting not found"}', { status: 404 }) },
+    ]);
+
+    await expect((await settings()).deleteConfiguration('gone', SCOPE)).rejects.toThrow('Setting not found');
+  });
+
+  it('reads the reason of a failure from whatever the server sends', async () => {
+    expect(await errorMessage(new Response('{"other":1}', { status: 400 }))).toBe('HTTP 400');
+    expect(await errorMessage(new Response('plain text', { status: 500 }))).toBe('plain text');
+    expect(await errorMessage(new Response('', { status: 503 }))).toBe('HTTP 503');
   });
 });

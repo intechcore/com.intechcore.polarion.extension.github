@@ -98,6 +98,40 @@
         ]
       }
     },
+    "/api/projects/{projectId}/link-roles": {
+      "get": {
+        "operationId": "getLinkRoles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectOption"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the work item link roles of a project",
+        "tags": [
+          "Project options"
+        ]
+      }
+    },
     "/api/projects/{projectId}/repositories/{name}/import": {
       "post": {
         "operationId": "importRepository",
@@ -154,6 +188,82 @@
         "summary": "Creates work items from the open issues and discussions of a configured repository",
         "tags": [
           "Import"
+        ]
+      }
+    },
+    "/api/projects/{projectId}/workitem-types": {
+      "get": {
+        "operationId": "getWorkItemTypes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectOption"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the work item types of a project",
+        "tags": [
+          "Project options"
+        ]
+      }
+    },
+    "/api/projects/{projectId}/workitem-types/{workItemType}/fields": {
+      "get": {
+        "operationId": "getFields",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workItemType",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectField"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the fields of a work item type of a project",
+        "tags": [
+          "Project options"
         ]
       }
     },
@@ -381,6 +491,38 @@
           },
           "repository": {
             "description": "The repository as owner/name",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectField": {
+        "description": "A work item field of a project",
+        "properties": {
+          "custom": {
+            "description": "Whether the field is a custom field",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "urlKey": {
+            "description": "Whether the field can keep the URL of a GitHub item: a custom field of the type String",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectOption": {
+        "description": "A work item type or a link role of a project",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
             "type": "string"
           }
         },

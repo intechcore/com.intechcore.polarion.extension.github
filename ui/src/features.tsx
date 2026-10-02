@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import About from './pages/About';
+import Repositories from './pages/Repositories';
 
 /**
  * A single navigable page of the app. The `id` is what appears in the URL as `?feature=<id>`: the
@@ -14,6 +15,12 @@ export interface Feature {
 }
 
 export const FEATURES: Feature[] = [
+  {
+    id: 'repositories',
+    label: 'Repositories',
+    description: 'The GitHub repositories a project imports from.',
+    component: Repositories,
+  },
   {
     id: 'about',
     label: 'About',

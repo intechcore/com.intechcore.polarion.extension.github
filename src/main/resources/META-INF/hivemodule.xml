@@ -23,6 +23,15 @@
                   projectGroupScope="false"
                   repositoryScope="true"/>
 
+        <extender id="repositories"
+                  name="Repositories"
+                  parentNodeId="github"
+                  iconUrl="/polarion/github-app/ui/images/menu/16x16/repositories.svg"
+                  pageUrl="/polarion/github-app/ui/app/index.html?feature=repositories&amp;embedded=true&amp;scope=$scope$"
+                  projectScope="true"
+                  projectGroupScope="false"
+                  repositoryScope="false"/>
+
         <extender id="restapi"
                   name="REST API"
                   parentNodeId="github"

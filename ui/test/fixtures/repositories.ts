@@ -1,0 +1,73 @@
+import type { Route } from '../mockFetch';
+
+export const SCOPE = 'project/elibrary/';
+
+export const NAMES = [{ name: 'tool', scope: SCOPE }];
+
+export const CONTENT = {
+  bundleTimestamp: '2026-10-02 14:25',
+  repository: 'acme/tool',
+  shortName: 'Tool',
+  enabled: true,
+  issues: {
+    enabled: true,
+    workItemType: 'task',
+    titleTemplate: '[GitHub] {shortName} : {title}',
+    descriptionTemplate: '<a href="{url}">{url}</a>',
+    duplicateKey: 'HYPERLINK',
+    duplicateKeyField: null,
+    epicId: 'EL-1',
+    epicLinkRole: 'parent',
+    fields: { severity: 'major' },
+  },
+  discussions: {
+    enabled: false,
+    workItemType: null,
+    titleTemplate: '[GitHub] {shortName} : {title}',
+    descriptionTemplate: '<a href="{url}">{url}</a>',
+    duplicateKey: 'HYPERLINK',
+    duplicateKeyField: null,
+    epicId: null,
+    epicLinkRole: null,
+    fields: {},
+  },
+};
+
+export const WORKITEM_TYPES = [
+  { id: 'task', name: 'Task' },
+  { id: 'issue', name: 'Issue' },
+];
+
+export const LINK_ROLES = [
+  { id: 'parent', name: 'has parent' },
+  { id: 'relates_to', name: 'relates to' },
+];
+
+export const FIELDS = [
+  { id: 'githubUrl', name: 'GitHub URL', custom: true, urlKey: true },
+  { id: 'severity', name: 'Severity', custom: false, urlKey: false },
+];
+
+export const REVISIONS = [
+  { name: '120', date: '2026-10-02 14:25', author: 'admin', baseline: '', description: 'Saved' },
+  { name: '110', date: '2026-10-01 09:00', author: 'admin', baseline: '', description: 'Created' },
+];
+
+/** The routes of a project with one saved repository setting. Later entries can be put first to override. */
+export function repositoriesRoutes(overrides: Route[] = []): Route[] {
+  return [
+    ...overrides,
+    { method: 'GET', match: /\/settings\/repositories\/names\?/, json: NAMES },
+    { method: 'GET', match: /\/settings\/repositories\/names\/[^/]+\/revisions/, json: REVISIONS },
+    { method: 'GET', match: /\/settings\/repositories\/names\/[^/]+\/content/, json: CONTENT },
+    {
+      method: 'PUT',
+      match: /\/settings\/repositories\/names\/[^/]+\/content/,
+      status: 204,
+      respond: () => new Response(null, { status: 204 }),
+    },
+    { method: 'GET', match: /\/projects\/[^/]+\/workitem-types\/[^/]+\/fields/, json: FIELDS },
+    { method: 'GET', match: /\/projects\/[^/]+\/workitem-types$/, json: WORKITEM_TYPES },
+    { method: 'GET', match: /\/projects\/[^/]+\/link-roles$/, json: LINK_ROLES },
+  ];
+}
