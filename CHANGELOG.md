@@ -11,3 +11,8 @@ All notable changes to this project are documented here. The format follows
 - A client that reads the open issues and discussions of a public GitHub repository.
 - Repository settings per project: the repository, the short name, and how issues and discussions
   become work items. The settings REST endpoints store and validate them.
+- The import: one work item per open issue or discussion, with the title and description from the
+  templates, the configured field values and the link to the epic. A work item keeps the GitHub
+  URL, and the import skips an item that a work item holds already.
+- The REST endpoint `POST /projects/{projectId}/repositories/{name}/import`, with a dry run and an
+  optional list of URLs.
