@@ -98,6 +98,65 @@
         ]
       }
     },
+    "/api/projects/{projectId}/repositories/{name}/import": {
+      "post": {
+        "operationId": "importRepository",
+        "parameters": [
+          {
+            "description": "The project that gets the work items",
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The name of the repository setting",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "True to report only what the import would do",
+            "in": "query",
+            "name": "dryRun",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Creates work items from the open issues and discussions of a configured repository",
+        "tags": [
+          "Import"
+        ]
+      }
+    },
     "/api/readme": {
       "get": {
         "operationId": "getDocumentation",
@@ -242,6 +301,86 @@
           },
           "swaggerUiUrl": {
             "description": "Returns the Swagger UI URL for the REST API",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ImportEntry": {
+        "description": "The outcome of the import for one GitHub item",
+        "properties": {
+          "kind": {
+            "description": "Issue or discussion",
+            "enum": [
+              "ISSUE",
+              "DISCUSSION"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "description": "The reason of a failure",
+            "type": "string"
+          },
+          "number": {
+            "description": "The number of the item in its repository",
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "description": "What the import did, or would do",
+            "enum": [
+              "NEW",
+              "CREATED",
+              "EXISTS",
+              "FAILED"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "description": "The title of the item on GitHub",
+            "type": "string"
+          },
+          "url": {
+            "description": "The URL of the item on GitHub",
+            "type": "string"
+          },
+          "workItemId": {
+            "description": "The ID of the work item, when one exists or was created",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ImportRequest": {
+        "description": "Which items of a repository to import",
+        "properties": {
+          "urls": {
+            "description": "The GitHub URLs to import. Leave it out to import every open item.",
+            "items": {
+              "description": "The GitHub URLs to import. Leave it out to import every open item.",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ImportResult": {
+        "description": "The outcome of the import of one repository",
+        "properties": {
+          "dryRun": {
+            "description": "Whether the import only reported what it would do",
+            "type": "boolean"
+          },
+          "entries": {
+            "description": "One entry per GitHub item",
+            "items": {
+              "$ref": "#/components/schemas/ImportEntry"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "description": "The repository as owner/name",
             "type": "string"
           }
         },

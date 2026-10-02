@@ -1,0 +1,57 @@
+package com.intechcore.polarion.extension.github.rest.controller;
+
+import ch.sbb.polarion.extension.generic.service.PolarionService;
+import ch.sbb.polarion.extension.generic.settings.SettingId;
+import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
+import com.intechcore.polarion.extension.github.service.ImportResult;
+import com.intechcore.polarion.extension.github.service.ImportService;
+import com.intechcore.polarion.extension.github.settings.RepositorySettings;
+import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Singleton;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import org.jetbrains.annotations.Nullable;
+
+@Tag(name = "Import")
+@Hidden
+@Path("/internal")
+@Singleton
+public class ImportInternalController {
+
+    protected final PolarionService polarionService;
+    private final RepositorySettings repositorySettings;
+    private final ImportService importService;
+
+    public ImportInternalController() {
+        this(new PolarionService(), new RepositorySettings(), new ImportService());
+    }
+
+    public ImportInternalController(PolarionService polarionService, RepositorySettings repositorySettings, ImportService importService) {
+        this.polarionService = polarionService;
+        this.repositorySettings = repositorySettings;
+        this.importService = importService;
+    }
+
+    @Operation(summary = "Creates work items from the open issues and discussions of a configured repository")
+    @POST
+    @Path("/projects/{projectId}/repositories/{name}/import")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public ImportResult importRepository(@Parameter(description = "The project that gets the work items") @PathParam("projectId") String projectId,
+                                         @Parameter(description = "The name of the repository setting") @PathParam("name") String name,
+                                         @Parameter(description = "True to report only what the import would do") @QueryParam("dryRun") @DefaultValue("false") boolean dryRun,
+                                         @Nullable ImportRequest request) {
+        RepositorySettingsModel settings = repositorySettings.load(projectId, SettingId.fromName(name));
+        return importService.importRepository(projectId, settings, dryRun, request == null ? null : request.getUrls());
+    }
+}

@@ -10,8 +10,8 @@ the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 **Polarion 2606 / Tomcat 11 / Jakarta EE 11**. The repository follows the layout of
 `com.intechcore.polarion.extension.timesheet`.
 
-Status: in development. The About page, the GitHub client and the repository settings exist. The
-import service, the job and the administration pages are not written yet.
+Status: in development. The About page, the GitHub client, the repository settings and the import
+with its REST endpoint exist. The job and the administration pages are not written yet.
 
 ## Build & verify
 
@@ -62,14 +62,19 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 **Java** (`src/main/java/.../github/`)
 - `GithubAppServlet` - a `GenericUiServlet` subclass serving the `github-app` webapp context, which
   holds the Vite bundle, the administration-menu icons and the generated `html/about.html`.
-- `rest/GithubRestApplication` - the REST application. It registers the repository settings and has no
-  controllers of its own yet; generic provides `/version`, `/configuration-properties` and the
-  settings endpoints.
+- `rest/GithubRestApplication` - the REST application. It registers the repository settings, the import
+  controllers and the GitHub error mapper.
 - `client/GithubClient` - reads the open issues and discussions of a public repository from the
   GitHub REST API, without a token. Anonymous access allows 60 requests per hour.
 - `settings/RepositorySettings` - named settings under the feature `repositories`, one setting per
   repository, in the scope of a project only. `RepositorySettingsModel.validate()` runs before
   every save. The REST endpoints come from generic: `/settings/repositories/...`.
+- `service/ImportService` - creates one work item per GitHub item, in one write transaction per
+  work item. `TemplateRenderer` fills the `{name}` placeholders and escapes every value in HTML.
+- `rest/controller/ImportInternalController` (`@Hidden`, `/internal`) and `ImportApiController`
+  (`@Secured`, `/api`) - `POST /projects/{projectId}/repositories/{name}/import?dryRun=`. A dry run
+  is the preview. `GithubClientExceptionMapper` answers a GitHub failure with 502, or 429 for the
+  rate limit.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),
@@ -97,6 +102,13 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
 - **OpenAPI**: `docs/openapi.json` is regenerated on build, and CI fails when the build changes it.
 - **Commits**: a pre-commit hook requires `user.email` to match
   `firstname.lastname@intechcore.com`.
+
+- **The Lucene index does not hold hyperlinks.** `tracker-hivemodule.xml` of
+  `com.polarion.alm.tracker` lists the indexed work item fields, and `hyperlinks` is not one of
+  them. The import finds its work items with an `SQL:(...)` query on `STRUCT_WORKITEM_HYPERLINKS`
+  or `CF_WORKITEM`. Every value in that SQL passes `sqlLiteral`, which allows no quote.
+- **Mockito: re-stubbing with `when(...)` runs the old answer once.** Use `doAnswer(...).when(...)`
+  to replace an answer that has a side effect.
 
 ## Review focus
 

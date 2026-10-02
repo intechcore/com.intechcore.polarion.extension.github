@@ -179,6 +179,7 @@
                     <resourcePackages>
                         <package>ch.sbb.polarion.extension.generic.rest.controller.info</package>
                         <package>ch.sbb.polarion.extension.generic.rest.model</package>
+                        <package>com.intechcore.polarion.extension.github.rest.controller</package>
                     </resourcePackages>
                 </configuration>
             </plugin>

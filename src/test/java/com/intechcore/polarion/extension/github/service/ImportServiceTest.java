@@ -1,0 +1,404 @@
+package com.intechcore.polarion.extension.github.service;
+
+import ch.sbb.polarion.extension.generic.service.PolarionService;
+import com.intechcore.polarion.extension.github.client.GithubClient;
+import com.intechcore.polarion.extension.github.client.GithubItem;
+import com.intechcore.polarion.extension.github.settings.DuplicateKey;
+import com.intechcore.polarion.extension.github.settings.ItemSettings;
+import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
+import com.polarion.alm.tracker.ITrackerService;
+import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
+import com.polarion.alm.tracker.model.IHyperlinkStruct;
+import com.polarion.alm.tracker.model.ILinkRoleOpt;
+import com.polarion.alm.tracker.model.ITrackerProject;
+import com.polarion.alm.tracker.model.ITypeOpt;
+import com.polarion.alm.tracker.model.IWorkItem;
+import com.polarion.core.util.types.Text;
+import com.polarion.platform.persistence.IEnumeration;
+import com.polarion.platform.persistence.model.IPObjectList;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@SuppressWarnings({"unchecked", "rawtypes"})
+class ImportServiceTest {
+
+    private static final String PROJECT = "elibrary";
+    private static final String ISSUE_7 = "https://github.com/acme/tool/issues/7";
+    private static final String ISSUE_8 = "https://github.com/acme/tool/issues/8";
+
+    private PolarionService polarionService;
+    private ITrackerService trackerService;
+    private ITrackerProject project;
+    private GithubClient githubClient;
+    private ITypeOpt type;
+    private IHyperlinkRoleOpt hyperlinkRole;
+    private final List<IWorkItem> created = new ArrayList<>();
+    private final List<String> queries = new ArrayList<>();
+    private final List<Object> found = new ArrayList<>();
+    private int transactions;
+    private ImportService service;
+
+    @BeforeEach
+    void setUp() {
+        polarionService = mock(PolarionService.class);
+        trackerService = mock(ITrackerService.class);
+        project = mock(ITrackerProject.class);
+        githubClient = mock(GithubClient.class);
+        type = mock(ITypeOpt.class);
+        hyperlinkRole = mock(IHyperlinkRoleOpt.class);
+
+        when(polarionService.getTrackerService()).thenReturn(trackerService);
+        when(polarionService.getTrackerProject(PROJECT)).thenReturn(project);
+        when(project.getId()).thenReturn(PROJECT);
+
+        IEnumeration<ITypeOpt> types = mock(IEnumeration.class);
+        when(project.getWorkItemTypeEnum()).thenReturn(types);
+        when(types.wrapOption("task")).thenReturn(type);
+        ITypeOpt phantom = mock(ITypeOpt.class);
+        when(phantom.isPhantom()).thenReturn(true);
+        when(types.wrapOption("nothing")).thenReturn(phantom);
+
+        IEnumeration<IHyperlinkRoleOpt> hyperlinkRoles = mock(IEnumeration.class);
+        when(project.getHyperlinkRoleEnum()).thenReturn(hyperlinkRoles);
+        when(hyperlinkRoles.wrapOption("ref_ext")).thenReturn(hyperlinkRole);
+
+        when(trackerService.queryWorkItems(anyString(), anyString())).thenAnswer(invocation -> {
+            queries.add(invocation.getArgument(0));
+            IPObjectList list = mock(IPObjectList.class);
+            when(list.iterator()).thenAnswer(i -> found.iterator());
+            return list;
+        });
+        when(trackerService.createWorkItem(project)).thenAnswer(invocation -> {
+            IWorkItem workItem = mock(IWorkItem.class);
+            when(workItem.getId()).thenReturn("EL-" + (100 + created.size()));
+            created.add(workItem);
+            return workItem;
+        });
+
+        service = new ImportService(polarionService, githubClient, new WriteTransaction() {
+            @Override
+            public <T> T execute(Supplier<T> action) {
+                transactions++;
+                return action.get();
+            }
+        });
+    }
+
+    private static GithubItem item(long number, String title, String url) {
+        return new GithubItem(number, title, "Body of " + number, "open", url, null, null,
+                new GithubItem.User("alice"), List.of(), null);
+    }
+
+    private static RepositorySettingsModel settings() {
+        return RepositorySettingsModel.builder()
+                .repository("acme/tool")
+                .shortName("Tool")
+                .issues(ItemSettings.builder().enabled(true).workItemType("task").build())
+                .discussions(new ItemSettings())
+                .build();
+    }
+
+    private static IWorkItem existingWithHyperlink(String id, String... urls) {
+        IWorkItem workItem = mock(IWorkItem.class);
+        when(workItem.getId()).thenReturn(id);
+        List<IHyperlinkStruct> hyperlinks = new ArrayList<>();
+        for (String url : urls) {
+            IHyperlinkStruct hyperlink = mock(IHyperlinkStruct.class);
+            when(hyperlink.getUri()).thenReturn(url);
+            hyperlinks.add(hyperlink);
+        }
+        when(workItem.getHyperlinks()).thenReturn(hyperlinks);
+        return workItem;
+    }
+
+    @Test
+    void createsAWorkItemForEveryNewIssue() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getRepository()).isEqualTo("acme/tool");
+        assertThat(result.isDryRun()).isFalse();
+        assertThat(result.count(ImportStatus.CREATED)).isEqualTo(2);
+        assertThat(result.getEntries()).extracting(ImportEntry::getWorkItemId).containsExactly("EL-100", "EL-101");
+        assertThat(result.getEntries().get(0)).satisfies(entry -> {
+            assertThat(entry.getKind()).isEqualTo(ItemKind.ISSUE);
+            assertThat(entry.getNumber()).isEqualTo(7);
+            assertThat(entry.getTitle()).isEqualTo("Crash on start");
+            assertThat(entry.getUrl()).isEqualTo(ISSUE_7);
+        });
+
+        IWorkItem workItem = created.get(0);
+        verify(workItem).setType(type);
+        verify(workItem).setTitle("[GitHub] Tool : Crash on start");
+        ArgumentCaptor<Text> description = ArgumentCaptor.forClass(Text.class);
+        verify(workItem).setDescription(description.capture());
+        assertThat(description.getValue().getType()).isEqualTo(Text.TYPE_HTML);
+        assertThat(description.getValue().getContent()).isEqualTo("<a href=\"" + ISSUE_7 + "\">" + ISSUE_7 + "</a>");
+        verify(workItem).addHyperlink(ISSUE_7, hyperlinkRole);
+        verify(workItem).save();
+        // One transaction per work item: a failure of one item leaves the others in place.
+        assertThat(transactions).isEqualTo(2);
+        verify(githubClient, never()).getOpenDiscussions(anyString(), anyString());
+    }
+
+    @Test
+    void skipsAnIssueThatAWorkItemHoldsAlready() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        // The second link belongs to a repository whose name the SQL pattern matches by its "_" wildcard.
+        found.add(existingWithHyperlink("EL-5", ISSUE_7, "https://github.com/acmeXtool/issues/8", "https://example.com"));
+        found.add("not a work item");
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.CREATED);
+        assertThat(result.getEntries().get(0).getWorkItemId()).isEqualTo("EL-5");
+        assertThat(created).hasSize(1);
+        assertThat(queries).containsExactly("SQL:(select WI.C_URI from WORKITEM WI"
+                + " inner join PROJECT P on P.C_URI = WI.FK_URI_PROJECT"
+                + " inner join STRUCT_WORKITEM_HYPERLINKS HL on HL.FK_URI_P_WORKITEM = WI.C_URI"
+                + " where P.C_ID = 'elibrary' and HL.C_URL like 'https://github.com/acme/tool/%')");
+    }
+
+    @Test
+    void doesNotCreateTheSameItemTwiceInOneRun() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(7, "Crash on start", ISSUE_7)));
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.CREATED, ImportStatus.EXISTS);
+        assertThat(result.getEntries().get(1).getWorkItemId()).isEqualTo("EL-100");
+    }
+
+    @Test
+    void onlyReportsInADryRun() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        found.add(existingWithHyperlink("EL-5", ISSUE_8));
+
+        ImportResult result = service.importRepository(PROJECT, settings(), true, null);
+
+        assertThat(result.isDryRun()).isTrue();
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW, ImportStatus.EXISTS);
+        assertThat(created).isEmpty();
+        assertThat(transactions).isZero();
+    }
+
+    @Test
+    void importsOnlyTheRequestedUrls() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, List.of(ISSUE_8));
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getUrl).containsExactly(ISSUE_8);
+        assertThat(created).hasSize(1);
+    }
+
+    @Test
+    void importsDiscussionsWithTheirOwnSettings() {
+        String discussion = "https://github.com/acme/tool/discussions/30";
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEnabled(false);
+        settings.setDiscussions(ItemSettings.builder()
+                .enabled(true)
+                .workItemType("task")
+                .titleTemplate("{repository} #{number} by {author}")
+                .descriptionTemplate("<p>{body}</p>")
+                .fields(Map.of("severity", "minor"))
+                .build());
+        when(githubClient.getOpenDiscussions("acme", "tool")).thenReturn(List.of(item(30, "How to <b>", discussion)));
+
+        ImportResult result = service.importRepository(PROJECT, settings, false, null);
+
+        assertThat(result.getEntries()).singleElement().satisfies(entry -> {
+            assertThat(entry.getKind()).isEqualTo(ItemKind.DISCUSSION);
+            assertThat(entry.getStatus()).isEqualTo(ImportStatus.CREATED);
+        });
+        IWorkItem workItem = created.get(0);
+        verify(workItem).setTitle("acme/tool #30 by alice");
+        ArgumentCaptor<Text> description = ArgumentCaptor.forClass(Text.class);
+        verify(workItem).setDescription(description.capture());
+        assertThat(description.getValue().getContent()).isEqualTo("<p>Body of 30</p>");
+        verify(polarionService).setFieldValue(workItem, "severity", "minor");
+        verify(githubClient, never()).getOpenIssues(anyString(), anyString());
+    }
+
+    @Test
+    void keepsTheUrlInACustomFieldWhenConfigured() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setDuplicateKey(DuplicateKey.CUSTOM_FIELD);
+        settings.getIssues().setDuplicateKeyField("githubUrl");
+        settings.getIssues().setDescriptionTemplate(" ");
+        settings.getIssues().setFields(null);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        IWorkItem existing = mock(IWorkItem.class);
+        when(existing.getId()).thenReturn("EL-5");
+        when(existing.getCustomField("githubUrl")).thenReturn(ISSUE_7);
+        found.add(existing);
+        found.add(mock(IWorkItem.class));
+
+        ImportResult result = service.importRepository(PROJECT, settings, false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.CREATED);
+        IWorkItem workItem = created.get(0);
+        verify(polarionService).setFieldValue(workItem, "githubUrl", ISSUE_8);
+        verify(workItem, never()).addHyperlink(anyString(), any());
+        verify(workItem, never()).setDescription(any());
+        assertThat(queries).containsExactly("SQL:(select WI.C_URI from WORKITEM WI"
+                + " inner join PROJECT P on P.C_URI = WI.FK_URI_PROJECT"
+                + " inner join CF_WORKITEM CF on CF.FK_URI_WORKITEM = WI.C_URI"
+                + " where P.C_ID = 'elibrary' and CF.C_NAME = 'githubUrl' and CF.C_STRING_VALUE like 'https://github.com/acme/tool/%')");
+    }
+
+    @Test
+    void linksEveryCreatedWorkItemToTheEpic() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEpicId("EL-1");
+        settings.getIssues().setEpicLinkRole("parent");
+        IWorkItem epic = mock(IWorkItem.class);
+        when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
+        IEnumeration<ILinkRoleOpt> roles = mock(IEnumeration.class);
+        ILinkRoleOpt role = mock(ILinkRoleOpt.class);
+        when(project.getWorkItemLinkRoleEnum()).thenReturn(roles);
+        when(roles.wrapOption("parent", type)).thenReturn(role);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0)).addLinkedItem(epic, role, null, false);
+    }
+
+    @Test
+    void rejectsALinkRoleTheProjectDoesNotHave() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEpicId("EL-1");
+        settings.getIssues().setEpicLinkRole("nothing");
+        IEnumeration<ILinkRoleOpt> roles = mock(IEnumeration.class);
+        ILinkRoleOpt phantom = mock(ILinkRoleOpt.class);
+        when(phantom.isPhantom()).thenReturn(true);
+        when(project.getWorkItemLinkRoleEnum()).thenReturn(roles);
+        when(roles.wrapOption("nothing", type)).thenReturn(phantom);
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, false, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no link role 'nothing'");
+        verify(githubClient, never()).getOpenIssues(anyString(), anyString());
+    }
+
+    @Test
+    void rejectsAWorkItemTypeTheProjectDoesNotHave() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setWorkItemType("nothing");
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, true, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no work item type 'nothing'");
+    }
+
+    @Test
+    void rejectsInvalidSettingsBeforeAnyRequest() {
+        RepositorySettingsModel settings = settings();
+        settings.setShortName("");
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, false, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(polarionService, never()).getTrackerProject(anyString());
+    }
+
+    @Test
+    void rejectsAFieldNameThatDoesNotFitAnSqlLiteral() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setDuplicateKey(DuplicateKey.CUSTOM_FIELD);
+        settings.getIssues().setDuplicateKeyField("x' or '1'='1");
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, false, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Not usable in a work item search");
+        assertThat(queries).isEmpty();
+    }
+
+    @Test
+    void reportsAnItemThatCannotBeSavedAndGoesOn() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        // doAnswer, because when(...) would run the answer of setUp once and count a work item.
+        doAnswer(invocation -> {
+            IWorkItem workItem = mock(IWorkItem.class);
+            when(workItem.getId()).thenReturn("EL-" + (100 + created.size()));
+            if (created.isEmpty()) {
+                doThrow(new IllegalStateException("The field severity is required")).when(workItem).save();
+            }
+            created.add(workItem);
+            return workItem;
+        }).when(trackerService).createWorkItem(project);
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.FAILED, ImportStatus.CREATED);
+        assertThat(result.getEntries().get(0).getMessage()).isEqualTo("The field severity is required");
+        assertThat(result.getEntries().get(0).getWorkItemId()).isNull();
+    }
+
+    @Test
+    void triesAFailedItemAgainWhenItComesTwice() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(7, "Crash on start", ISSUE_7)));
+        doThrow(new IllegalStateException("No")).when(trackerService).createWorkItem(project);
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.FAILED, ImportStatus.FAILED);
+    }
+
+    @Test
+    void namesTheExceptionWhenAFailureHasNoMessage() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        doThrow(new IllegalStateException()).when(trackerService).createWorkItem(project);
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).singleElement().satisfies(entry -> {
+            assertThat(entry.getStatus()).isEqualTo(ImportStatus.FAILED);
+            assertThat(entry.getMessage()).isEqualTo("IllegalStateException");
+        });
+    }
+
+    @Test
+    void refusesAnItemWhoseUrlIsNotInTheRepository() {
+        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor, item(10, "Elsewhere", "https://example.com/acme/tool/issues/10")));
+
+        ImportResult result = service.importRepository(PROJECT, settings(), false, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsOnly(ImportStatus.FAILED);
+        assertThat(result.getEntries()).extracting(ImportEntry::getMessage).containsOnly("The item has no URL in the repository");
+        assertThat(created).isEmpty();
+    }
+
+    @Test
+    void acceptsAnItemWithoutAnAuthor() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setTitleTemplate("{title} by [{author}]");
+        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0)).setTitle("Crash by []");
+    }
+}
