@@ -131,6 +131,14 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
 - **A save reloads the setting.** `reloadNames` answers before the content arrives, so a test that
   edits right after a save races the reload.
 
+- **Every state of a page has a visual reference.** `ui/test/*.visual.test.tsx` holds one test per
+  state: loaded, empty, error, outside a project, and each step of a flow. `test/captureApp.ts`
+  captures the app at its natural height. A new state of a page comes with its reference, generated
+  with `npm run test:update:docker` and looked at before the commit.
+- **An error message goes through `components/ErrorNotice`.** RSP styles `.alert` only inside
+  `.notifications`. A bare `<div class="alert alert-error">` renders as plain text, and only a
+  visual reference shows it.
+
 ## Review focus
 
 - A GitHub response is external input. Text from it reaches a work item only through the template

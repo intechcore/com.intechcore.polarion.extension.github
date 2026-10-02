@@ -42,6 +42,9 @@ npx tsc --noEmit        # vite build does not type-check
 The visual tests compare against reference images that are pixel-locked to a pinned Playwright
 Docker image. Regenerate them with `npm run test:update:docker`, never by hand.
 
+Every state of a page has a reference image in `ui/test/expected/<Page>/`. When you add a state,
+add its visual test, generate the reference, and look at the image before you commit it.
+
 CI runs actionlint and zizmor, the Maven build with all tests and SonarCloud, the pre-commit
 hooks and the commit message check for every pull request. A pull request from a fork gets no
 secrets, so its `build` job cannot fetch the Polarion artifacts and is skipped.
