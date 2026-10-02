@@ -11,8 +11,8 @@ the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 `com.intechcore.polarion.extension.timesheet`.
 
 Status: in development. The About page, the GitHub client, the repository settings and the import
-with its REST endpoint, the job and the `Repositories` page exist. The page for a manual import is
-not written yet.
+with its REST endpoint, the job and the pages `Repositories` and `Import` exist. System tests
+against a running Polarion and the first release are open.
 
 ## Build & verify
 
@@ -90,6 +90,8 @@ feature falls back to About.
 - `pages/Repositories.tsx` - the settings page of a project, on RSP's `ConfigurationsPane`,
   `ConfigurationButtons` and `RevisionsTable`. `components/ItemSettingsForm.tsx` is the block for
   issues or discussions. `services/settings.ts` holds the REST calls.
+- `pages/Import.tsx` - the manual import. `Read from GitHub` is a dry run of the import endpoint,
+  `Create work items` sends the selected URLs to the same endpoint.
 - `services/useRemote.ts` - REST hook. **The UI always calls `/internal/*` (in-session); external
   callers use `/api/*` with a bearer token.**
 
