@@ -9,3 +9,5 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - The extension skeleton: the administration entry with the About page, and the REST API base.
 - A client that reads the open issues and discussions of a public GitHub repository.
+- Repository settings per project: the repository, the short name, and how issues and discussions
+  become work items. The settings REST endpoints store and validate them.
