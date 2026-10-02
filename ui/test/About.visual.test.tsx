@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
-import { page } from 'vitest/browser';
 import App from '../src/App';
+import { captureApp } from './captureApp';
 import { installFetchMock } from './mockFetch';
-import { settleBeforeCapture, settleLayout } from './visualHelpers';
 
 // Docker-only full-page snapshot of the About page, this extension's administration-menu entry
 // (hivemodule.xml, extender `about`). The shared RSP About component fed this app's endpoints, mocked:
@@ -68,10 +67,6 @@ describe.skipIf(!__PIXEL_REFERENCES__)('About page visual', () => {
     render(<App />);
 
     await vi.waitFor(() => expect(document.querySelector('article.markdown-body')).not.toBeNull());
-    const app = document.querySelector('.app') as HTMLElement;
-    await settleLayout();
-    await page.viewport(1280, Math.ceil(app.scrollHeight) + 40);
-    await settleBeforeCapture();
-    await expect(page.elementLocator(app)).toMatchScreenshot('about-loaded');
+    await captureApp('about-loaded');
   });
 });

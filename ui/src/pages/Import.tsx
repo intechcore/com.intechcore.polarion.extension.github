@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
+import ErrorNotice from '../components/ErrorNotice';
 import useSettings from '../services/settings';
 import type { ImportEntry, ImportStatus, SettingName } from '../types';
 
@@ -106,7 +107,7 @@ export default function Import() {
   if (!projectId) {
     return (
       <PageLayout title="Import">
-        <div className="alert alert-error">The import runs in a project. Open this page from a project.</div>
+        <ErrorNotice>The import runs in a project. Open this page from a project.</ErrorNotice>
       </PageLayout>
     );
   }
@@ -115,7 +116,7 @@ export default function Import() {
 
   return (
     <PageLayout title="Import">
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <ErrorNotice>{error}</ErrorNotice>}
 
       {names.length === 0 ? (
         <p>This project has no repository setting. Create one on the Repositories page.</p>
