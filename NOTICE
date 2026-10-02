@@ -11,3 +11,12 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+This product includes the GitHub icon of Font Awesome Free (https://fontawesome.com),
+Copyright Fonticons, Inc., licensed under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). The fill color was changed. The files are
+ui/src/assets/app-icon.svg and
+src/main/resources/webapp/github-app/images/menu/30x30/_parent.svg.
+
+GitHub and the GitHub mark are trademarks of GitHub, Inc. This product is not affiliated with
+GitHub, Inc. and is not endorsed by it.
