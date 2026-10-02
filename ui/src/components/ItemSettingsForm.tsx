@@ -72,10 +72,13 @@ export default function ItemSettingsForm({
     };
   }, [loadFields, value.workItemType]);
 
-  const fieldOptions = fields.map((field) => ({ id: field.id, name: `${field.name} (${field.id})` }));
-  const urlKeyOptions = fields
-    .filter((field) => field.urlKey)
-    .map((field) => ({ id: field.id, name: `${field.name} (${field.id})` }));
+  // Polarion names a built-in field by its ID, so the ID is added only where it says something new.
+  const option = (field: ProjectField) => ({
+    id: field.id,
+    name: field.name === field.id ? field.id : `${field.name} (${field.id})`,
+  });
+  const fieldOptions = fields.map(option);
+  const urlKeyOptions = fields.filter((field) => field.urlKey).map(option);
 
   return (
     <div className="item-settings">
