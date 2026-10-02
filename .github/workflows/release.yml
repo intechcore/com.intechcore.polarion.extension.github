@@ -1,0 +1,128 @@
+---
+name: Release
+on:
+  push:
+    tags: [v*]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          java-version: '21'
+          distribution: temurin
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+      # An immutable release cannot take files later, so a rerun cannot repair it. Stop before
+      # Maven Central instead of publishing twice.
+      - name: Refuse an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::Release $GITHUB_REF_NAME exists already. Releases are immutable; bump to a new version."
+            exit 1
+          fi
+      # The notes come from the CHANGELOG.md section that bump-version.yml cut. A tag without that
+      # section fails here, before anything is published.
+      - name: Read the release notes from CHANGELOG.md
+        run: .github/scripts/changelog-section.sh "${GITHUB_REF_NAME#v}" "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/release-notes.md"
+      # The build runs pre-commit through the Maven lifecycle, the same as in ci.yml.
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Install pre-commit
+        run: |
+          pip install --only-binary=:all: --require-hashes -r .github/requirements/pre-commit.txt
+      # deploy walks the whole lifecycle, so the tests run here and the artifacts published are
+      # the ones that were tested. The two profiles come from the generic parent: gpg-sign adds
+      # the signatures Central requires, central-publishing uploads and releases the bundle.
+      - name: Test and publish to Maven Central
+        env:
+          NEXUS_URL: ${{ secrets.NEXUS_URL }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.SONATYPE_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn --batch-mode -s .mvn/settings.xml -P gpg-sign,central-publishing clean deploy
+      # Signs the provenance of the files deployed above, not of a rebuild. The gpg plugin
+      # copies pom.xml to target/ before it signs it, so target/*.pom is the deployed pom.
+      - name: Attest the build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: |
+            target/*.jar
+            target/*.pom
+      # The gh CLI of the runner, not a third-party action. Releases are immutable: one call
+      # creates the release with all its files. The signed provenance bundle travels with them,
+      # for the OpenSSF Scorecard Signed-Releases check.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE" "target/com.intechcore.polarion.extension.github-${GITHUB_REF_NAME#v}.intoto.jsonl"
+          gh release create "$GITHUB_REF_NAME" target/*.jar target/*.pom target/*.intoto.jsonl \
+            --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/release-notes.md"
+  bump-to-snapshot:
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write
+    steps:
+      # No token in .git/config: the Maven step below runs third-party plugins in the same
+      # working copy. PAT_TOKEN reaches the push step only.
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          java-version: '21'
+          distribution: temurin
+      - name: Calculate the next SNAPSHOT version
+        run: |
+          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          IFS='.' read -r major minor patch <<< "$RELEASE_VERSION"
+          echo "NEXT_VERSION=${major}.${minor}.$((patch + 1))-SNAPSHOT" >> "$GITHUB_ENV"
+      - name: Update to the SNAPSHOT version
+        env:
+          NEXUS_URL: ${{ secrets.NEXUS_URL }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: |
+          mvn --batch-mode -s .mvn/settings.xml versions:set \
+            -DnewVersion="$NEXT_VERSION" -DgenerateBackupPoms=false
+      - name: Commit and push
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |-
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pom.xml
+          git commit -m "chore: bump to $NEXT_VERSION for development"
+          # The token reaches git through GIT_ASKPASS, so the remote URL carries no credential:
+          # a URL with the token in it stands in the command line of the push, which every
+          # process on the runner can read, and in whatever git prints when a push fails.
+          # The helper file holds no secret either, it reads the one in the environment.
+          # shellcheck disable=SC2016  # $PAT_TOKEN is read when the helper runs, not written here
+          printf '#!/bin/sh\nexec echo "$PAT_TOKEN"\n' > "$RUNNER_TEMP/askpass.sh"
+          chmod +x "$RUNNER_TEMP/askpass.sh"
+          export GIT_ASKPASS="$RUNNER_TEMP/askpass.sh"
+          REMOTE="https://x-access-token@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$REMOTE" main

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module id="com.intechcore.polarion.extension.github" version="1.0.0">
+
+    <contribution configuration-id="com.polarion.xray.webui.administrationPageExtenders">
+        <extender id="about"
+                  name="About"
+                  parentNodeId="github"
+                  parentNodeName="GitHub"
+                  parentNodeIconUrl="/polarion/github-app/ui/images/menu/30x30/_parent.svg"
+                  iconUrl="/polarion/github-app/ui/images/menu/16x16/about.svg"
+                  pageUrl="/polarion/github-app/ui/app/index.html?feature=about&amp;embedded=true&amp;scope=$scope$"
+                  projectScope="true"
+                  projectGroupScope="false"
+                  repositoryScope="true"/>
+
+        <extender id="restapi"
+                  name="REST API"
+                  parentNodeId="github"
+                  iconUrl="/polarion/github-app/ui/images/menu/16x16/rest_api.svg"
+                  pageUrl="/polarion/github/rest/swagger"
+                  projectScope="true"
+                  projectGroupScope="false"
+                  repositoryScope="true"/>
+    </contribution>
+
+</module>
