@@ -13,8 +13,8 @@
 This Polarion extension creates work items from the open issues and discussions of GitHub
 repositories. It runs as a scheduled job or by hand from the administration pages.
 
-The extension is under development. This version installs the administration entry and the REST
-API base only.
+The extension is under development. The import works through the REST API and the scheduled job.
+The administration pages for the settings are not written yet.
 
 ## Build
 
@@ -37,6 +37,25 @@ mvn clean install -P local-install-into-polarion
 The `POLARION_HOME` environment variable must point to the Polarion installation folder.
 
 Changes take effect only after a restart of Polarion.
+
+## Scheduled import
+
+The job `github_import.job` imports the repositories configured in a project. Add it in the global
+`Administration` / `Scheduler`, with the scope of the project:
+
+```xml
+<job id="github_import.job" cronExpression="0 0 * * * ?" name="GitHub import" scope="project:myproject">
+    <dryRun>false</dryRun>
+</job>
+```
+
+| Parameter | Meaning |
+|---|---|
+| `repositories` | Comma-separated names of the repository settings to import. Without it the job imports every enabled one. |
+| `dryRun` | `true` to log what the import would do, without creating work items. |
+
+GitHub allows 60 requests per hour without a token, for the whole Polarion server. One repository
+costs one request per 100 open issues and one per 100 discussions. Schedule the job with that in mind.
 
 ## REST API
 
