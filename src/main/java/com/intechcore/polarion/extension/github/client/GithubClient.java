@@ -67,9 +67,17 @@ public class GithubClient {
      * The open discussions of a repository.
      */
     public @NotNull List<GithubItem> getOpenDiscussions(@NotNull String owner, @NotNull String repository) {
-        return readAll(repositoryUrl(owner, repository) + "/discussions?per_page=" + PAGE_SIZE).stream()
-                .filter(GithubItem::isOpen)
-                .toList();
+        List<GithubItem> discussions;
+        try {
+            discussions = readAll(repositoryUrl(owner, repository) + "/discussions?per_page=" + PAGE_SIZE);
+        } catch (GithubStatusException e) {
+            // GitHub answers "410 Gone" for a repository that has its discussions turned off.
+            if (e.getStatus() == 410) {
+                throw new GithubClientException("Discussions are turned off in the repository %s/%s".formatted(owner, repository), e);
+            }
+            throw e;
+        }
+        return discussions.stream().filter(GithubItem::isOpen).toList();
     }
 
     private String repositoryUrl(String owner, String repository) {
@@ -119,7 +127,7 @@ public class GithubClient {
             throw new GithubRateLimitException(resetTime(response));
         }
         if (response.statusCode() != 200) {
-            throw new GithubClientException("GitHub answered " + url + " with status " + response.statusCode());
+            throw new GithubStatusException(url, response.statusCode());
         }
         return response;
     }
