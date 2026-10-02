@@ -1,0 +1,68 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>intechcore/renovate-config"
+  ],
+  "pinDigests": false,
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "pre-commit": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Digest pinning belongs to GitHub Actions, where every workflow here already pins by digest with the version in a trailing comment. Applied globally it also reaches the pre-commit manager, which pins hook revisions to commit SHAs; that update fails and shows up as 'Error updating branch: update failure'. The zizmor version of zizmor-action is left out: the action accepts only a plain X.Y.Z, see the shared preset.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "!ghcr.io/zizmorcore/zizmor"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "The committed reference screenshots are pixel-locked to the Playwright Docker image, and ui/scripts/docker-test.mjs derives that image tag from the installed playwright package. Vitest, its browser provider and playwright therefore belong in one pull request, which needs regenerated references (npm run test:update:docker) before it can be green. The end-to-end suite runs on the same Playwright.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "playwright",
+        "@playwright/test",
+        "vitest",
+        "@vitest/**"
+      ],
+      "groupName": "vitest and playwright",
+      "automerge": false
+    },
+    {
+      "description": "The generic parent carries the Polarion platform baseline. It travels alone and is reviewed by a person.",
+      "matchManagers": [
+        "maven"
+      ],
+      "matchPackageNames": [
+        "ch.sbb.polarion.extensions:ch.sbb.polarion.extension.generic"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "What ships to a Polarion installation is reviewed by a person. A runtime dependency is part of the published extension, so a compromised release of one would travel into it unread; the build-time ones stay on automerge, held back by minimumReleaseAge.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "automerge": false
+    }
+  ],
+  "lockFileMaintenance": {
+    "description": "Refreshes the transitive packages of ui/package-lock.json, or they stay pinned to vulnerable versions. A person reviews the pull request, as for the runtime dependencies.",
+    "enabled": true,
+    "automerge": false
+  },
+  "vulnerabilityAlerts": {
+    "description": "A fix for a known vulnerability is the one update which must not wait: minimumReleaseAge does not apply to it, and it opens a pull request at once.",
+    "minimumReleaseAge": null,
+    "dependencyDashboardApproval": false
+  }
+}
