@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.service;
 
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.client.GithubClient;
+import com.intechcore.polarion.extension.github.client.GithubClientException;
 import com.intechcore.polarion.extension.github.client.GithubItem;
 import com.intechcore.polarion.extension.github.settings.DuplicateKey;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
@@ -309,6 +310,18 @@ class ImportServiceTest {
         assertThatThrownBy(() -> service.importRepository(PROJECT, settings, true, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no work item type 'nothing'");
+    }
+
+    @Test
+    void createsNothingWhenGithubFailsForOneKind() {
+        RepositorySettingsModel settings = settings();
+        settings.setDiscussions(ItemSettings.builder().enabled(true).workItemType("task").build());
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        when(githubClient.getOpenDiscussions("acme", "tool")).thenThrow(new GithubClientException("Discussions are turned off"));
+
+        assertThatThrownBy(() -> service.importRepository(PROJECT, settings, false, null))
+                .isInstanceOf(GithubClientException.class);
+        assertThat(created).isEmpty();
     }
 
     @Test

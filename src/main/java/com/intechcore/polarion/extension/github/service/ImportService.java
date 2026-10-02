@@ -81,13 +81,18 @@ public class ImportService {
         String[] name = settings.getRepository().split("/");
         ImportResult result = new ImportResult(settings.getRepository(), dryRun);
 
-        if (isEnabled(settings.getIssues())) {
-            Target target = resolveTarget(project, settings.getIssues());
-            importItems(ItemKind.ISSUE, githubClient.getOpenIssues(name[0], name[1]), target, settings, result, onlyUrls);
+        // Everything that can fail as a whole happens before the first work item: a wrong setting or
+        // a GitHub failure then leaves the project untouched, and no outcome is lost.
+        Target issueTarget = isEnabled(settings.getIssues()) ? resolveTarget(project, settings.getIssues()) : null;
+        Target discussionTarget = isEnabled(settings.getDiscussions()) ? resolveTarget(project, settings.getDiscussions()) : null;
+        List<GithubItem> issues = issueTarget == null ? List.of() : githubClient.getOpenIssues(name[0], name[1]);
+        List<GithubItem> discussions = discussionTarget == null ? List.of() : githubClient.getOpenDiscussions(name[0], name[1]);
+
+        if (issueTarget != null) {
+            importItems(ItemKind.ISSUE, issues, issueTarget, settings, result, onlyUrls);
         }
-        if (isEnabled(settings.getDiscussions())) {
-            Target target = resolveTarget(project, settings.getDiscussions());
-            importItems(ItemKind.DISCUSSION, githubClient.getOpenDiscussions(name[0], name[1]), target, settings, result, onlyUrls);
+        if (discussionTarget != null) {
+            importItems(ItemKind.DISCUSSION, discussions, discussionTarget, settings, result, onlyUrls);
         }
         return result;
     }

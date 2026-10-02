@@ -121,6 +121,19 @@ class GithubClientTest {
     }
 
     @Test
+    void saysThatDiscussionsAreTurnedOff() {
+        answer("/repos/acme/tool/discussions", 410, Map.of(), "{}");
+        answer("/repos/acme/broken/discussions", 500, Map.of(), "{}");
+
+        assertThatThrownBy(() -> client.getOpenDiscussions("acme", "tool"))
+                .isExactlyInstanceOf(GithubClientException.class)
+                .hasMessage("Discussions are turned off in the repository acme/tool");
+        assertThatThrownBy(() -> client.getOpenDiscussions("acme", "broken"))
+                .isExactlyInstanceOf(GithubStatusException.class)
+                .hasMessageContaining("status 500");
+    }
+
+    @Test
     void reportsAnExhaustedRateLimitWithItsResetTime() {
         answer("/repos/acme/tool/issues", 403, Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", "1790948455"), "{}");
 
@@ -144,10 +157,10 @@ class GithubClientTest {
         answer("/repos/acme/private/issues", 403, Map.of("x-ratelimit-remaining", "12"), "{}");
 
         assertThatThrownBy(() -> client.getOpenIssues("acme", "tool"))
-                .isExactlyInstanceOf(GithubClientException.class)
+                .isInstanceOfSatisfying(GithubStatusException.class, e -> assertThat(e.getStatus()).isEqualTo(404))
                 .hasMessageContaining("status 404");
         assertThatThrownBy(() -> client.getOpenIssues("acme", "private"))
-                .isExactlyInstanceOf(GithubClientException.class)
+                .isExactlyInstanceOf(GithubStatusException.class)
                 .hasMessageContaining("status 403");
     }
 
