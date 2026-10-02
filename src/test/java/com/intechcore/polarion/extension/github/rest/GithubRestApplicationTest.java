@@ -1,17 +1,17 @@
 package com.intechcore.polarion.extension.github.rest;
 
+import ch.sbb.polarion.extension.generic.rest.controller.info.ExtensionInfoInternalController;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A controller missing from this set is not served, and the endpoint answers 404 on a running
- * server rather than failing the build.
+ * The extension has no controller of its own yet. The About page needs the ones generic brings.
  */
 class GithubRestApplicationTest {
 
     @Test
-    void registersNoControllerOfItsOwnYet() {
-        assertThat(new GithubRestApplication().getExtensionControllerClasses()).isEmpty();
+    void servesTheGenericControllers() {
+        assertThat(new GithubRestApplication().getClasses()).contains(ExtensionInfoInternalController.class);
     }
 }
