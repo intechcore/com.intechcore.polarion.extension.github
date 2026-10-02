@@ -14,7 +14,8 @@ limitations under the License.
 
 This product includes the GitHub icon of Font Awesome Free (https://fontawesome.com),
 Copyright Fonticons, Inc., licensed under CC BY 4.0
-(https://creativecommons.org/licenses/by/4.0/). The fill color was changed. The files are
+(https://creativecommons.org/licenses/by/4.0/). The icon was scaled and placed into the icon of the
+extension. The files are
 ui/src/assets/app-icon.svg and
 src/main/resources/webapp/github-app/images/menu/30x30/_parent.svg.
 
