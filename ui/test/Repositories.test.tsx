@@ -73,7 +73,6 @@ describe('Repositories page', () => {
     await mount();
 
     expect(input('short-name').value).toBe('Tool');
-    expect(input('enabled').checked).toBe(true);
     expect(input('issues-enabled').checked).toBe(true);
     expect(input('issues-title').value).toBe('[GitHub] {shortName} : {title}');
     expect(input('issues-epic').value).toBe('EL-1');
@@ -91,7 +90,6 @@ describe('Repositories page', () => {
     await mount();
     await userEvent.fill(input('repository'), ' acme/other ');
     await userEvent.fill(input('short-name'), 'Other');
-    await userEvent.click(input('enabled'));
     await userEvent.fill(input('issues-epic'), '');
 
     button('Save').click();
@@ -100,7 +98,6 @@ describe('Repositories page', () => {
     expect(savedBody()).toEqual({
       repository: 'acme/other',
       shortName: 'Other',
-      enabled: false,
       issues: {
         enabled: true,
         workItemType: 'task',
@@ -348,7 +345,6 @@ describe('Repositories page', () => {
         json: {
           repository: null,
           shortName: 'Old name',
-          enabled: false,
           issues: null,
           // A revision written by hand can miss every value.
           discussions: {

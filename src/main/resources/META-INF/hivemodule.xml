@@ -1,16 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module id="com.intechcore.polarion.extension.github" version="1.0.0">
 
-    <service-point id="githubImportJobUnitFactory" interface="com.polarion.platform.jobs.IJobUnitFactory">
-        <invoke-factory>
-            <construct class="com.intechcore.polarion.extension.github.job.GithubImportJobUnitFactory"/>
-        </invoke-factory>
-    </service-point>
-
-    <contribution configuration-id="com.polarion.platform.jobs.configuration">
-        <jobUnitFactory name="github_import.job" factory="githubImportJobUnitFactory"/>
-    </contribution>
-
     <contribution configuration-id="com.polarion.xray.webui.administrationPageExtenders">
         <extender id="about"
                   name="About"
@@ -33,10 +23,10 @@
                   repositoryScope="false"/>
 
         <extender id="import"
-                  name="Import"
+                  name="Issues and Discussions"
                   parentNodeId="github"
                   iconUrl="/polarion/github-app/ui/images/menu/16x16/import.svg"
-                  pageUrl="/polarion/github-app/ui/app/index.html?feature=import&amp;embedded=true&amp;scope=$scope$"
+                  pageUrl="/polarion/github-app/ui/app/index.html?feature=items&amp;embedded=true&amp;scope=$scope$"
                   projectScope="true"
                   projectGroupScope="false"
                   repositoryScope="false"/>
@@ -50,5 +40,16 @@
                   projectGroupScope="false"
                   repositoryScope="true"/>
     </contribution>
+
+    <!-- The topic GitHub in the navigation of a project, the same page as the administration entry. -->
+    <contribution configuration-id="com.polarion.xray.webui.customNavigationExtenders">
+        <extenders extender="githubNavigationExtender"/>
+    </contribution>
+
+    <service-point id="githubNavigationExtender" interface="com.polarion.alm.ui.server.navigation.NavigationExtender">
+        <invoke-factory>
+            <construct class="com.intechcore.polarion.extension.github.GithubNavigationExtender"/>
+        </invoke-factory>
+    </service-point>
 
 </module>

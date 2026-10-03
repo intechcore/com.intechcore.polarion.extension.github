@@ -5,14 +5,19 @@ Guidance for working in this repository.
 ## What this is
 
 `com.intechcore.polarion.extension.github` - a Polarion ALM extension that creates work items from
-the open issues and discussions of GitHub repositories, by a scheduled job or by hand. It builds on
+the open issues and discussions of GitHub repositories. A user creates them on the page of the
+project topic GitHub, in their own name. It builds on
 the SBB `ch.sbb.polarion.extension.generic` framework (parent POM) and targets
 **Polarion 2606 / Tomcat 11 / Jakarta EE 11**. The repository follows the layout of
 `com.intechcore.polarion.extension.timesheet`.
 
-Status: in development. The About page, the GitHub client, the repository settings and the import
-with its REST endpoint, the job and the pages `Repositories` and `Import` exist. System tests
-against a running Polarion and the first release are open.
+Status: in development. The About page, the GitHub client, the repository settings, the import with
+its REST endpoints, the page `Repositories` and the GitHub topic exist. A check on a running Polarion
+and the first release are open.
+
+There is no scheduled job on purpose. A job runs as the system user `polarion`, which may not write
+work items of a project under the default access rules of Polarion. The work items are created by
+the user on the page, with the user's permissions.
 
 ## Build & verify
 
@@ -80,10 +85,16 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   (`@Secured`, `/api`) - `POST /projects/{projectId}/repositories/{name}/import?dryRun=`. A dry run
   is the preview. `GithubClientExceptionMapper` answers a GitHub failure with 502, or 429 for the
   rate limit.
-- `job/GithubImportJobUnitImpl` - the job `github_import.job`, registered in `hivemodule.xml`. It
-  needs the scope of a project and imports its enabled repository settings. Polarion sets the
-  parameters through the setters of `GithubImportJobUnit`. The job stops at the GitHub rate limit
-  and fails when any item failed.
+- `GET /projects/{projectId}/items` on the same controllers - the dry run of every repository
+  setting of the project, for the GitHub topic. A setting that fails reports its reason in
+  `RepositoryState` and leaves the others readable.
+- `GithubNavigationExtender` - the topic GitHub in the navigation of a project, registered in
+  `hivemodule.xml`. It opens `?feature=items`, as the administration entry `Issues and Discussions` does.
+- `GithubClient` keeps every list it read for `CACHE_TIME` (5 minutes). The extension shares one
+  client, `GithubClient.shared()`. Without a token a conditional request with `ETag` costs a request
+  as well (checked against GitHub), so only the cache saves the 60 requests per hour.
+  `GithubClient.forget` drops the lists of a repository for `?refresh=true` of the items endpoint,
+  but only lists older than `REFRESH_PAUSE` (1 minute).
 - `rest/controller/ProjectInternalController` and `ProjectApiController` - the work item types,
   link roles and fields of a project, for the dropdowns of the settings page.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
@@ -94,8 +105,9 @@ feature falls back to About.
 - `pages/Repositories.tsx` - the settings page of a project, on RSP's `ConfigurationsPane`,
   `ConfigurationButtons` and `RevisionsTable`. `components/ItemSettingsForm.tsx` is the block for
   issues or discussions. `services/settings.ts` holds the REST calls.
-- `pages/Import.tsx` - the manual import. `Read from GitHub` is a dry run of the import endpoint,
-  `Create work items` sends the selected URLs to the same endpoint.
+- `pages/Items.tsx` - the GitHub topic and the administration entry: the items of all repository
+  settings, the filters (`services/itemFilters.ts`, in the browser), and `Create work items`, which
+  sends the selected URLs to the import endpoint, one request per repository setting.
 - `components/RulesEditor.tsx` and `components/FieldValues.tsx` - the rules of a block and the
   field value rows, which the block and every rule share. `Repositories` serves all their requests
   for the fields of one work item type from one request.

@@ -99,7 +99,6 @@ export default function Repositories() {
 
   const [repository, setRepository] = useState('');
   const [shortName, setShortName] = useState('');
-  const [enabled, setEnabled] = useState(false);
   const [issues, setIssues] = useState<ItemForm>(EMPTY_ITEM);
   const [discussions, setDiscussions] = useState<ItemForm>(EMPTY_ITEM);
 
@@ -130,7 +129,6 @@ export default function Repositories() {
   const applySettings = useCallback((model: RepositorySettings) => {
     setRepository(model.repository ?? '');
     setShortName(model.shortName ?? '');
-    setEnabled(model.enabled);
     setIssues(toForm(model.issues));
     setDiscussions(toForm(model.discussions));
   }, []);
@@ -163,7 +161,6 @@ export default function Repositories() {
       await settings.saveContent(name, scope, {
         repository: repository.trim(),
         shortName: shortName.trim(),
-        enabled,
         issues: toSettings(issues),
         discussions: toSettings(discussions),
       });
@@ -240,17 +237,6 @@ export default function Repositories() {
                 </td>
                 <td>
                   <input id="short-name" type="text" value={shortName} onChange={(e) => setShortName(e.target.value)} />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={2}>
-                  <input
-                    id="enabled"
-                    type="checkbox"
-                    checked={enabled}
-                    onChange={(e) => setEnabled(e.target.checked)}
-                  />
-                  <label htmlFor="enabled">Import with the scheduled job</label>
                 </td>
               </tr>
             </tbody>

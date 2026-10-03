@@ -3,7 +3,9 @@ package com.intechcore.polarion.extension.github.integration;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.polarion.alm.tracker.ITrackerService;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
+import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
+import com.polarion.alm.tracker.model.IStatusOpt;
 import com.polarion.alm.tracker.model.ILinkRoleOpt;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.ITypeOpt;
@@ -161,6 +163,19 @@ final class FakePolarion {
         }
         when(workItem.getHyperlinks()).thenReturn(hyperlinks);
         when(workItem.getCustomField(anyString())).thenAnswer(invocation -> state.fields.get(invocation.<String>getArgument(0)));
+        // What Polarion holds of a work item after the import: its type, a status and an assignee.
+        ITypeOpt type = mock(ITypeOpt.class);
+        when(type.getId()).thenReturn(state.type);
+        when(type.getName()).thenReturn(state.type.substring(0, 1).toUpperCase() + state.type.substring(1));
+        when(workItem.getType()).thenReturn(type);
+        IStatusOpt status = mock(IStatusOpt.class);
+        when(status.getName()).thenReturn("Open");
+        when(workItem.getStatus()).thenReturn(status);
+        IUser assignee = mock(IUser.class);
+        when(assignee.getName()).thenReturn("Rob Project");
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> List.of(assignee).iterator());
+        when(workItem.getAssignees()).thenReturn(assignees);
         return workItem;
     }
 }

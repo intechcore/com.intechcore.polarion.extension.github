@@ -58,7 +58,6 @@ class RepositorySettingsTest {
     void offersIssuesOnlyByDefault() {
         RepositorySettingsModel defaults = new RepositorySettings(mock(SettingsService.class)).defaultValues();
 
-        assertThat(defaults.isEnabled()).isFalse();
         assertThat(defaults.getIssues().isEnabled()).isTrue();
         assertThat(defaults.getIssues().getTitleTemplate()).isEqualTo(ItemSettings.DEFAULT_TITLE_TEMPLATE);
         assertThat(defaults.getDiscussions().isEnabled()).isFalse();

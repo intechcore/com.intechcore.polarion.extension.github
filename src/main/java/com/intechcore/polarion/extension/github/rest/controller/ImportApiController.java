@@ -3,6 +3,7 @@ package com.intechcore.polarion.extension.github.rest.controller;
 import ch.sbb.polarion.extension.generic.rest.filter.Secured;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
+import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
 import com.intechcore.polarion.extension.github.service.ImportResult;
 import com.intechcore.polarion.extension.github.service.ImportService;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
@@ -20,6 +21,11 @@ public class ImportApiController extends ImportInternalController {
 
     public ImportApiController(PolarionService polarionService, RepositorySettings repositorySettings, ImportService importService) {
         super(polarionService, repositorySettings, importService);
+    }
+
+    @Override
+    public ProjectItems getItems(String projectId, boolean refresh) {
+        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh));
     }
 
     @Override

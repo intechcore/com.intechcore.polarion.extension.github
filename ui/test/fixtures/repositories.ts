@@ -8,7 +8,6 @@ export const CONTENT = {
   bundleTimestamp: '2026-10-02 14:25',
   repository: 'acme/tool',
   shortName: 'Tool',
-  enabled: true,
   issues: {
     enabled: true,
     workItemType: 'task',

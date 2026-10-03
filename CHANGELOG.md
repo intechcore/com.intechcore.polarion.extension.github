@@ -16,13 +16,15 @@ All notable changes to this project are documented here. The format follows
   URL, and the import skips an item that a work item holds already.
 - The REST endpoint `POST /projects/{projectId}/repositories/{name}/import`, with a dry run and an
   optional list of URLs.
-- The job `github_import.job`. It imports the enabled repositories of a project on a schedule.
 - The administration page `Repositories`, in the administration of a project. It edits the
   repository settings: the work item type, the templates, where the GitHub URL is kept, the epic
   link and the field values, for issues and discussions each.
-- The administration page `Import`, in the administration of a project. It reads the open issues
-  and discussions of a repository, shows which have a work item, and creates work items for the
-  selected ones.
+- The topic `GitHub` in the navigation of a project, and the same page in its administration. It
+  lists the open issues and discussions of all repositories of the project with the state of their
+  work items, filters them by repository, kind, GitHub type, work item type, assignee and state, and
+  creates work items for the selected ones in the name of the user.
+- A cache of five minutes for the lists read from GitHub, shared by all pages and users. The button
+  `Update from GitHub` reads GitHub again, at most once a minute per repository.
 - Rules in the repository settings. A rule gives the issues with a label or an issue type, and the
   discussions with a label or a category, another work item type and field values, or leaves them
   out of the import. The first matching rule applies.

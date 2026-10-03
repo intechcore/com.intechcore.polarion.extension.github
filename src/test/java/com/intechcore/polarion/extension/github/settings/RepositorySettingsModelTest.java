@@ -16,7 +16,6 @@ class RepositorySettingsModelTest {
         return RepositorySettingsModel.builder()
                 .repository("acme/tool")
                 .shortName("Tool")
-                .enabled(true)
                 .issues(ItemSettings.builder()
                         .enabled(true)
                         .workItemType("task")
@@ -55,7 +54,6 @@ class RepositorySettingsModelTest {
         RepositorySettingsModel read = new RepositorySettingsModel();
         read.deserialize("");
 
-        assertThat(read.isEnabled()).isFalse();
         assertThat(read.getRepository()).isNull();
         assertThat(read.getIssues().isEnabled()).isFalse();
         assertThat(read.getIssues().getTitleTemplate()).isEqualTo("[GitHub] {shortName} : {title}");
