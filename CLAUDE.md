@@ -93,6 +93,8 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 - `GithubClient` keeps every list it read for `CACHE_TIME` (5 minutes). The extension shares one
   client, `GithubClient.shared()`. Without a token a conditional request with `ETag` costs a request
   as well (checked against GitHub), so only the cache saves the 60 requests per hour.
+  `GithubClient.forget` drops the lists of a repository for `?refresh=true` of the items endpoint,
+  but only lists older than `REFRESH_PAUSE` (1 minute).
 - `rest/controller/ProjectInternalController` and `ProjectApiController` - the work item types,
   link roles and fields of a project, for the dropdowns of the settings page.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.

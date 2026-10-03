@@ -104,6 +104,16 @@ public class ImportService {
         return result;
     }
 
+    /**
+     * Makes the next import of the repository read GitHub again instead of the cache, unless its
+     * lists were read within the last minute.
+     */
+    public void refresh(@NotNull RepositorySettingsModel settings) {
+        settings.validate();
+        String[] name = settings.getRepository().split("/");
+        githubClient.forget(name[0], name[1]);
+    }
+
     private static boolean isEnabled(@Nullable ItemSettings settings) {
         return settings != null && settings.isEnabled();
     }

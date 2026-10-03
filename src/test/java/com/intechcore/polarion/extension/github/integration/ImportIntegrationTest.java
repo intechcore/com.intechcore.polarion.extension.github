@@ -248,7 +248,7 @@ class ImportIntegrationTest {
         saveSetting("missing", ISSUES_AND_DISCUSSIONS.replace("acme/tool", "acme/missing"));
         importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7")));
 
-        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT);
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false);
 
         assertThat(items.getRepositories()).extracting(RepositoryState::getSetting, RepositoryState::getRepository, RepositoryState::getError)
                 .containsExactlyInAnyOrder(
@@ -280,6 +280,10 @@ class ImportIntegrationTest {
         JsonNode json = new ObjectMapper().valueToTree(items);
         assertThat(fieldNames(json)).containsExactlyInAnyOrder("repositories", "entries");
         assertThat(fieldNames(json.get("repositories").get(0))).containsExactlyInAnyOrder("setting", "repository", "readAt", "error");
+
+        // A list read within the last minute stays, so a refresh right away asks GitHub nothing new.
+        importEndpoint.getItems(FakePolarion.PROJECT, true);
+        assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
     }
 
     @Test

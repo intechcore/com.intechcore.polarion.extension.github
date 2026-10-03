@@ -52,7 +52,10 @@ public class ImportInternalController {
     @GET
     @Path("/projects/{projectId}/items")
     @Produces(MediaType.APPLICATION_JSON)
-    public ProjectItems getItems(@Parameter(description = "The project") @PathParam("projectId") String projectId) {
+    public ProjectItems getItems(@Parameter(description = "The project") @PathParam("projectId") String projectId,
+                                 @Parameter(description = "True to read GitHub again instead of the lists of the last five minutes."
+                                         + " A list read within the last minute stays.")
+                                 @QueryParam("refresh") @DefaultValue("false") boolean refresh) {
         String scope = ScopeUtils.getScopeFromProject(projectId);
         ProjectItems items = new ProjectItems();
         for (SettingName name : repositorySettings.readNames(scope)) {
@@ -61,6 +64,9 @@ public class ImportInternalController {
             try {
                 RepositorySettingsModel settings = repositorySettings.read(scope, SettingId.fromName(name.getName()), null);
                 state.setRepository(settings.getRepository());
+                if (refresh) {
+                    importService.refresh(settings);
+                }
                 ImportResult result = importService.importRepository(projectId, settings, true, null);
                 state.setReadAt(result.getReadAt());
                 items.getEntries().addAll(result.getEntries());

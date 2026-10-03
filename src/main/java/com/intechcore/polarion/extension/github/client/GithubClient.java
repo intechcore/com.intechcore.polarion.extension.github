@@ -47,6 +47,12 @@ public class GithubClient {
      */
     public static final Duration CACHE_TIME = Duration.ofMinutes(5);
 
+    /**
+     * How old a list must be before {@link #forget} drops it. A second click, or a second user, within
+     * that time gets the list just read instead of another request.
+     */
+    public static final Duration REFRESH_PAUSE = Duration.ofMinutes(1);
+
     private static final GithubClient SHARED = new GithubClient();
 
     private final String apiUrl;
@@ -81,6 +87,16 @@ public class GithubClient {
      */
     public static @NotNull GithubClient shared() {
         return SHARED;
+    }
+
+    /**
+     * Drops the lists of a repository from the cache, so the next read asks GitHub again. A list read
+     * within {@link #REFRESH_PAUSE} stays.
+     */
+    public void forget(@NotNull String owner, @NotNull String repository) {
+        String prefix = repositoryUrl(owner, repository) + "/";
+        Instant latest = clock.instant().minus(REFRESH_PAUSE);
+        cache.entrySet().removeIf(entry -> entry.getKey().startsWith(prefix) && !entry.getValue().readAt().isAfter(latest));
     }
 
     /**

@@ -98,7 +98,11 @@ A repository that cannot be read shows its reason above the list, and the others
 
 GitHub allows 60 requests per hour without a token, for the whole Polarion server. The server keeps a
 list it read from GitHub for 5 minutes and serves every page and user from it. The page shows when
-the lists were read. One repository costs one request per 100 open issues and one per 100
+the lists were read.
+
+- `Refresh` reads the list again: the GitHub items from that cache, the work items from Polarion.
+- `Update from GitHub` reads GitHub again, for every repository of the project. A list read within
+  the last minute stays, so a second click costs nothing. One repository costs one request per 100 open issues and one per 100
 discussions.
 
 ## REST API

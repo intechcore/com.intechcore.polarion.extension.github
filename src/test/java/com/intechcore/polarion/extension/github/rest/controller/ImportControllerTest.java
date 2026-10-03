@@ -91,9 +91,15 @@ class ImportControllerTest {
             when(importService.importRepository("elibrary", draft, true, null)).thenThrow(new IllegalArgumentException("The repository must be given as owner/name"));
 
             com.intechcore.polarion.extension.github.rest.model.ProjectItems items =
-                    new ImportInternalController(polarionService, repositorySettings, importService).getItems("elibrary");
+                    new ImportInternalController(polarionService, repositorySettings, importService).getItems("elibrary", false);
 
             assertThat(items.getEntries()).extracting(com.intechcore.polarion.extension.github.service.ImportEntry::getNumber).containsExactly(7L);
+            verify(importService, never()).refresh(any());
+
+            new ImportInternalController(polarionService, repositorySettings, importService).getItems("elibrary", true);
+
+            verify(importService).refresh(tool);
+            verify(importService).refresh(broken);
             assertThat(items.getRepositories()).containsExactly(
                     new com.intechcore.polarion.extension.github.rest.model.RepositoryState("tool", "acme/tool", "2026-10-03T08:00:00Z", null),
                     new com.intechcore.polarion.extension.github.rest.model.RepositoryState("broken", "acme/broken", null, "Discussions are turned off in the repository acme/broken"),
@@ -107,7 +113,7 @@ class ImportControllerTest {
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<Object>) invocation.getArgument(0)).call());
         when(repositorySettings.readNames("project/elibrary/")).thenReturn(List.of());
 
-        assertThat(new ImportApiController(polarionService, repositorySettings, importService).getItems("elibrary").getEntries()).isEmpty();
+        assertThat(new ImportApiController(polarionService, repositorySettings, importService).getItems("elibrary", true).getEntries()).isEmpty();
         verify(polarionService).callPrivileged(any(Callable.class));
     }
 

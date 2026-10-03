@@ -39,20 +39,23 @@ export default function Items() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const items = await settings.loadItems(projectId);
-      setRepositories(items.repositories);
-      setEntries(items.entries);
-      setChecked(new Set());
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }, [settings, projectId]);
+  const load = useCallback(
+    async (refresh = false) => {
+      setBusy(true);
+      setError('');
+      try {
+        const items = await settings.loadItems(projectId, refresh);
+        setRepositories(items.repositories);
+        setEntries(items.entries);
+        setChecked(new Set());
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [settings, projectId],
+  );
 
   useEffect(() => {
     if (projectId) {
@@ -163,8 +166,23 @@ export default function Items() {
       ) : (
         <>
           <div className="items-toolbar">
-            <button type="button" className="sbb-btn sbb-btn--control" disabled={busy} onClick={() => void load()}>
+            <button
+              type="button"
+              className="sbb-btn sbb-btn--control"
+              disabled={busy}
+              title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
+              onClick={() => void load()}
+            >
               Refresh
+            </button>
+            <button
+              type="button"
+              className="sbb-btn sbb-btn--control"
+              disabled={busy}
+              title="Reads GitHub again instead of the lists of the last five minutes. Each repository costs requests of the hourly GitHub limit."
+              onClick={() => void load(true)}
+            >
+              Update from GitHub
             </button>
             <button
               type="button"
@@ -177,7 +195,8 @@ export default function Items() {
             {busy && <span>Working...</span>}
             {time && (
               <span className="items-read-at">
-                Read from GitHub at {time}. The server keeps the lists for 5 minutes.
+                Read from GitHub at {time}. The server keeps the lists for 5 minutes, and Update from GitHub reads them
+                again.
               </span>
             )}
           </div>

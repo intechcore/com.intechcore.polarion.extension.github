@@ -24,8 +24,8 @@ public class ImportApiController extends ImportInternalController {
     }
 
     @Override
-    public ProjectItems getItems(String projectId) {
-        return polarionService.callPrivileged(() -> super.getItems(projectId));
+    public ProjectItems getItems(String projectId, boolean refresh) {
+        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh));
     }
 
     @Override

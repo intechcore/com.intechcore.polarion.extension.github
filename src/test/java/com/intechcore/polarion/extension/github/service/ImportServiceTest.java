@@ -522,6 +522,22 @@ class ImportServiceTest {
     }
 
     @Test
+    void refreshesTheListsOfTheRepositoryOfASetting() {
+        service.refresh(settings());
+
+        verify(githubClient).forget("acme", "tool");
+    }
+
+    @Test
+    void refusesToRefreshAnInvalidSetting() {
+        RepositorySettingsModel settings = settings();
+        settings.setRepository("");
+
+        assertThatThrownBy(() -> service.refresh(settings)).isInstanceOf(IllegalArgumentException.class);
+        verify(githubClient, never()).forget(anyString(), anyString());
+    }
+
+    @Test
     void rejectsInvalidSettingsBeforeAnyRequest() {
         RepositorySettingsModel settings = settings();
         settings.setShortName("");

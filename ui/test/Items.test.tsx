@@ -203,12 +203,20 @@ describe('GitHub items page', () => {
     await vi.waitFor(() => expect(alerts()).toContain('docs: No permission'));
   });
 
-  it('reads the items again on Refresh', async () => {
+  it('reads the items again on Refresh, and GitHub again on Update from GitHub', async () => {
     await mount();
 
     button('Refresh').click();
-
     await vi.waitFor(() => expect(fetchMock.mock.calls.filter((c) => /\/items$/.test(String(c[0])))).toHaveLength(2));
+
+    // The buttons stay disabled while a read runs.
+    await vi.waitFor(() => expect(button('Update from GitHub').disabled).toBe(false));
+    button('Update from GitHub').click();
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls.map((c) => String(c[0]))).toContain(
+        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true',
+      ),
+    );
   });
 
   it('shows why the items did not load', async () => {

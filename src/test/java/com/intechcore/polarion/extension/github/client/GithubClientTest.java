@@ -142,6 +142,47 @@ class GithubClientTest {
     }
 
     @Test
+    void forgetsTheListsOfARepositoryOnlyAfterAMinute() {
+        answer("/repos/acme/tool/issues", 200, Map.of(), "[{\"number\": 1, \"state\": \"open\"}]");
+        answer("/repos/acme/tool/discussions", 200, Map.of(), "[]");
+        java.util.concurrent.atomic.AtomicReference<Instant> now = new java.util.concurrent.atomic.AtomicReference<>(Instant.parse("2026-10-03T08:00:00Z"));
+        GithubClient cached = new GithubClient(baseUrl, new java.time.Clock() {
+            @Override
+            public java.time.ZoneId getZone() {
+                return java.time.ZoneOffset.UTC;
+            }
+
+            @Override
+            public java.time.Clock withZone(java.time.ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return now.get();
+            }
+        });
+        cached.getOpenIssues("acme", "tool");
+        cached.getOpenDiscussions("acme", "tool");
+
+        now.set(now.get().plusSeconds(59));
+        cached.forget("acme", "tool");
+        cached.getOpenIssues("acme", "tool");
+        assertThat(requests).hasSize(2);
+
+        now.set(now.get().plusSeconds(1));
+        cached.forget("acme", "other");
+        cached.getOpenIssues("acme", "tool");
+        assertThat(requests).hasSize(2);
+
+        cached.forget("acme", "tool");
+        cached.getOpenIssues("acme", "tool");
+        cached.getOpenDiscussions("acme", "tool");
+        assertThat(requests).hasSize(4);
+        assertThat(cached.readAt("acme", "tool")).isEqualTo(Instant.parse("2026-10-03T08:01:00Z"));
+    }
+
+    @Test
     void followsTheNextLinkUntilTheLastPage() {
         server.createContext("/repos/acme/tool/issues", exchange -> {
             String uri = exchange.getRequestURI().toString();

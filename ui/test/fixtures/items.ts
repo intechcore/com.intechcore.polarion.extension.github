@@ -117,7 +117,7 @@ const created = (entry: ImportEntry, workItemId: string): ImportEntry => ({ ...e
 export function itemsRoutes(overrides: Route[] = []): Route[] {
   return [
     ...overrides,
-    { method: 'GET', match: /\/projects\/elibrary\/items$/, json: ITEMS },
+    { method: 'GET', match: /\/projects\/elibrary\/items(\?refresh=true)?$/, json: ITEMS },
     {
       method: 'POST',
       match: /\/repositories\/tool\/import\?dryRun=false/,

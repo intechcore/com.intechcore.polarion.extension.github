@@ -110,6 +110,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "True to read GitHub again instead of the lists of the last five minutes. A list read within the last minute stays.",
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

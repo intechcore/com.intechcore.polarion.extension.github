@@ -142,10 +142,15 @@ export default function useSettings() {
     [sendRequest],
   );
 
-  /** The open items of all repository settings of a project, with what the import would do with each. */
+  /**
+   * The open items of all repository settings of a project, with what the import would do with each.
+   * `refresh` makes the server read GitHub again instead of the lists of the last five minutes.
+   */
   const loadItems = useCallback(
-    (projectId: string): Promise<ProjectItems> =>
-      sendRequest({ method: 'GET', url: projectPath(projectId, '/items') }).then((r) => jsonOrThrow<ProjectItems>(r)),
+    (projectId: string, refresh = false): Promise<ProjectItems> =>
+      sendRequest({ method: 'GET', url: projectPath(projectId, refresh ? '/items?refresh=true' : '/items') }).then(
+        (r) => jsonOrThrow<ProjectItems>(r),
+      ),
     [sendRequest],
   );
 
