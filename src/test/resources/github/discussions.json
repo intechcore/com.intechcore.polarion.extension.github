@@ -1,0 +1,22 @@
+[
+  {
+    "html_url": "https://github.com/acme/tool/discussions/30",
+    "number": 30,
+    "title": "How to configure",
+    "user": {"login": "erin", "id": 5},
+    "labels": [],
+    "state": "open",
+    "category": {"id": 41866506, "name": "Q&A", "slug": "q-a", "is_answerable": true},
+    "body": "Where is the setting?"
+  },
+  {
+    "html_url": "https://github.com/acme/tool/discussions/29",
+    "number": 29,
+    "title": "Solved question",
+    "user": {"login": "frank", "id": 6},
+    "labels": [],
+    "state": "closed",
+    "category": {"id": 41866506, "name": "Q&A", "slug": "q-a"},
+    "body": "Done."
+  }
+]

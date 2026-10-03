@@ -28,6 +28,23 @@ running Polarion: they start their own Vite server and answer the REST calls the
 The build compiles the React user interface in `ui/` and bundles it under
 `webapp/github-app`. Polarion loads a new jar only after a restart.
 
+### Integration tests
+
+`src/test/java/.../integration` runs the import end to end, with no Polarion and no network:
+
+- the settings go in as JSON through the settings endpoint of generic, as the Repositories page sends them;
+- the import endpoint and the job run the real import;
+- the client talks HTTP to a local server that answers like GitHub, from the bodies in
+  `src/test/resources/github`;
+- the work items land in an in-memory Polarion. Its search reads the SQL the import sends, so a
+  changed query fails the tests.
+
+They run with the other Java tests, in CI as well. Run them alone with:
+
+```bash
+mvn test -Dtest='*IntegrationTest' -Dsurefire.failIfNoSpecifiedTests=false
+```
+
 ### The user interface
 
 ```bash
