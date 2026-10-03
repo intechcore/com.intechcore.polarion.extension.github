@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://api.github.com/repos/acme/tool/issues/10",
+    "html_url": "https://github.com/acme/tool/issues/10",
+    "number": 10,
+    "title": "Export to CSV",
+    "user": {"login": "dave", "id": 4},
+    "labels": [{"id": 13, "name": "enhancement"}, {"id": 14, "name": "help wanted"}],
+    "state": "open",
+    "body": "Please add CSV."
+  }
+]

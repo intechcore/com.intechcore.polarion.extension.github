@@ -151,6 +151,13 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
 - **RSP's dropdown carries its `aria-label` twice**, on the hidden `<select>` and on the trigger. A
   test addresses the trigger: `input.sd-trigger[aria-label="..."]`.
 
+- **Integration tests replace Polarion, nothing else.** `integration/FakePolarion` reads the two SQL
+  shapes of `ImportService.findExisting` with regular expressions and throws on anything else. A
+  change of that SQL has to change the fake in the same commit, and the test then shows the new
+  shape. `FakeGithub` answers from `src/test/resources/github/*.json`, which follow real GitHub
+  answers. `InMemorySettingsService` keeps a revision counter shared by all instances: generic caches
+  setting names by location and revision across instances.
+
 ## Review focus
 
 - A GitHub response is external input. Text from it reaches a work item only through the template
