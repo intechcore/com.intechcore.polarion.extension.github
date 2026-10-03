@@ -35,7 +35,6 @@ export interface RepositorySettings {
   bundleTimestamp?: string;
   repository: string | null;
   shortName: string | null;
-  enabled: boolean;
   issues: ItemSettings | null;
   discussions: ItemSettings | null;
 }
@@ -67,11 +66,40 @@ export interface ImportEntry {
   status: ImportStatus;
   workItemId: string | null;
   message: string | null;
+  setting: string | null;
+  repository: string | null;
+  /** The issue type, or the category of a discussion. */
+  githubType: string | null;
+  labels: string[] | null;
+  /** GitHub logins. */
+  assignees: string[] | null;
+  /** The type of the work item, or the one the import would create. */
+  workItemType: string | null;
+  workItemTypeName: string | null;
+  workItemStatus: string | null;
+  /** Polarion user names. */
+  workItemAssignees: string[] | null;
 }
 
 /** The outcome of the import of one repository (service.ImportResult). */
 export interface ImportResult {
   repository: string;
   dryRun: boolean;
+  entries: ImportEntry[];
+  /** ISO-8601. GitHub lists serve from a cache of the server for five minutes. */
+  readAt: string | null;
+}
+
+/** How the reading of one repository setting went (rest.model.RepositoryState). */
+export interface RepositoryState {
+  setting: string;
+  repository: string | null;
+  readAt: string | null;
+  error: string | null;
+}
+
+/** The open GitHub items of all repository settings of a project (rest.model.ProjectItems). */
+export interface ProjectItems {
+  repositories: RepositoryState[];
   entries: ImportEntry[];
 }

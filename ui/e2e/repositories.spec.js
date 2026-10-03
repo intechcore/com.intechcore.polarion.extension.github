@@ -5,7 +5,6 @@ const SCOPE = 'project/elibrary/';
 const CONTENT = {
   repository: 'acme/tool',
   shortName: 'Tool',
-  enabled: true,
   issues: {
     enabled: true,
     workItemType: 'task',

@@ -67,6 +67,57 @@ class ImportControllerTest {
     }
 
     @Test
+    void collectsTheItemsOfEverySettingAndTheReasonOfAFailure() {
+        try (org.mockito.MockedStatic<ch.sbb.polarion.extension.generic.util.ScopeUtils> scopeUtils =
+                     org.mockito.Mockito.mockStatic(ch.sbb.polarion.extension.generic.util.ScopeUtils.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            when(repositorySettings.readNames("project/elibrary/")).thenReturn(List.of(
+                    ch.sbb.polarion.extension.generic.settings.SettingName.builder().name("tool").scope("project/elibrary/").build(),
+                    ch.sbb.polarion.extension.generic.settings.SettingName.builder().name("broken").scope("project/elibrary/").build(),
+                    ch.sbb.polarion.extension.generic.settings.SettingName.builder().name("draft").scope("project/elibrary/").build()));
+            RepositorySettingsModel tool = RepositorySettingsModel.builder().repository("acme/tool").build();
+            RepositorySettingsModel broken = RepositorySettingsModel.builder().repository("acme/broken").build();
+            RepositorySettingsModel draft = RepositorySettingsModel.builder().repository("").build();
+            when(repositorySettings.read(eq("project/elibrary/"), any(), org.mockito.ArgumentMatchers.isNull())).thenAnswer(invocation -> switch (invocation.<SettingId>getArgument(1).getIdentifier()) {
+                case "tool" -> tool;
+                case "broken" -> broken;
+                default -> draft;
+            });
+            ImportResult toolResult = new ImportResult("acme/tool", true);
+            toolResult.setReadAt("2026-10-03T08:00:00Z");
+            toolResult.getEntries().add(com.intechcore.polarion.extension.github.service.ImportEntry.builder().number(7).build());
+            when(importService.importRepository("elibrary", tool, true, null)).thenReturn(toolResult);
+            when(importService.importRepository("elibrary", broken, true, null))
+                    .thenThrow(new com.intechcore.polarion.extension.github.client.GithubClientException("Discussions are turned off in the repository acme/broken"));
+            when(importService.importRepository("elibrary", draft, true, null)).thenThrow(new IllegalArgumentException("The repository must be given as owner/name"));
+
+            com.intechcore.polarion.extension.github.rest.model.ProjectItems items =
+                    new ImportInternalController(polarionService, repositorySettings, importService).getItems("elibrary", false);
+
+            assertThat(items.getEntries()).extracting(com.intechcore.polarion.extension.github.service.ImportEntry::getNumber).containsExactly(7L);
+            verify(importService, never()).refresh(any());
+
+            new ImportInternalController(polarionService, repositorySettings, importService).getItems("elibrary", true);
+
+            verify(importService).refresh(tool);
+            verify(importService).refresh(broken);
+            assertThat(items.getRepositories()).containsExactly(
+                    new com.intechcore.polarion.extension.github.rest.model.RepositoryState("tool", "acme/tool", "2026-10-03T08:00:00Z", null),
+                    new com.intechcore.polarion.extension.github.rest.model.RepositoryState("broken", "acme/broken", null, "Discussions are turned off in the repository acme/broken"),
+                    new com.intechcore.polarion.extension.github.rest.model.RepositoryState("draft", "", null, "The repository must be given as owner/name"));
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void readsTheItemsPrivilegedThroughTheTokenEndpoint() {
+        when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<Object>) invocation.getArgument(0)).call());
+        when(repositorySettings.readNames("project/elibrary/")).thenReturn(List.of());
+
+        assertThat(new ImportApiController(polarionService, repositorySettings, importService).getItems("elibrary", true).getEntries()).isEmpty();
+        verify(polarionService).callPrivileged(any(Callable.class));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void runsTheTokenEndpointPrivileged() {
         when(importService.importRepository("elibrary", settings, false, null)).thenReturn(result);

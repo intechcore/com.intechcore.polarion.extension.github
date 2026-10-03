@@ -98,6 +98,47 @@
         ]
       }
     },
+    "/api/projects/{projectId}/items": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "True to read GitHub again instead of the lists of the last five minutes. A list read within the last minute stays.",
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectItems"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the open issues and discussions of all repository settings of a project, with what the import would do with each",
+        "tags": [
+          "Import"
+        ]
+      }
+    },
     "/api/projects/{projectId}/link-roles": {
       "get": {
         "operationId": "getLinkRoles",
@@ -419,6 +460,18 @@
       "ImportEntry": {
         "description": "The outcome of the import for one GitHub item",
         "properties": {
+          "assignees": {
+            "description": "The GitHub logins the item is assigned to",
+            "items": {
+              "description": "The GitHub logins the item is assigned to",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "githubType": {
+            "description": "The issue type, or the category of a discussion",
+            "type": "string"
+          },
           "kind": {
             "description": "Issue or discussion",
             "enum": [
@@ -426,6 +479,14 @@
               "DISCUSSION"
             ],
             "type": "string"
+          },
+          "labels": {
+            "description": "The labels of the item",
+            "items": {
+              "description": "The labels of the item",
+              "type": "string"
+            },
+            "type": "array"
           },
           "message": {
             "description": "The reason of a failure",
@@ -435,6 +496,14 @@
             "description": "The number of the item in its repository",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The repository as owner/name",
+            "type": "string"
+          },
+          "setting": {
+            "description": "The name of the repository setting",
+            "type": "string"
           },
           "status": {
             "description": "What the import did, or would do",
@@ -455,8 +524,28 @@
             "description": "The URL of the item on GitHub",
             "type": "string"
           },
+          "workItemAssignees": {
+            "description": "The names of the users the work item is assigned to",
+            "items": {
+              "description": "The names of the users the work item is assigned to",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "workItemId": {
             "description": "The ID of the work item, when one exists or was created",
+            "type": "string"
+          },
+          "workItemStatus": {
+            "description": "The status of the work item",
+            "type": "string"
+          },
+          "workItemType": {
+            "description": "The ID of the work item type: of the work item, or the one the import would create",
+            "type": "string"
+          },
+          "workItemTypeName": {
+            "description": "The name of that work item type",
             "type": "string"
           }
         },
@@ -490,6 +579,10 @@
             },
             "type": "array"
           },
+          "readAt": {
+            "description": "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant. Lists serve from a cache for five minutes.",
+            "type": "string"
+          },
           "repository": {
             "description": "The repository as owner/name",
             "type": "string"
@@ -517,6 +610,26 @@
         },
         "type": "object"
       },
+      "ProjectItems": {
+        "description": "The open GitHub items of all repository settings of a project",
+        "properties": {
+          "entries": {
+            "description": "The open issues and discussions, with what the import would do with each",
+            "items": {
+              "$ref": "#/components/schemas/ImportEntry"
+            },
+            "type": "array"
+          },
+          "repositories": {
+            "description": "One state per repository setting",
+            "items": {
+              "$ref": "#/components/schemas/RepositoryState"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "ProjectOption": {
         "description": "A work item type or a link role of a project",
         "properties": {
@@ -524,6 +637,28 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RepositoryState": {
+        "description": "How the reading of one repository setting went",
+        "properties": {
+          "error": {
+            "description": "Why the repository could not be read",
+            "type": "string"
+          },
+          "readAt": {
+            "description": "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant",
+            "type": "string"
+          },
+          "repository": {
+            "description": "The repository as owner/name",
+            "type": "string"
+          },
+          "setting": {
+            "description": "The name of the repository setting",
             "type": "string"
           }
         },

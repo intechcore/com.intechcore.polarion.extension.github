@@ -10,8 +10,8 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=intechcore_com.intechcore.polarion.extension.github&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=intechcore_com.intechcore.polarion.extension.github)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=intechcore_com.intechcore.polarion.extension.github&metric=coverage)](https://sonarcloud.io/summary/new_code?id=intechcore_com.intechcore.polarion.extension.github)
 
-This Polarion extension creates work items from the open issues and discussions of GitHub
-repositories. It runs as a scheduled job or by hand from the administration pages.
+This Polarion extension shows the open issues and discussions of GitHub repositories in a project.
+A user selects some of them and creates work items from them.
 
 
 ## Polarion configuration
@@ -72,35 +72,38 @@ The `POLARION_HOME` environment variable must point to the Polarion installation
 
 Changes take effect only after a restart of Polarion.
 
-## Manual import
+## Issues and discussions
 
-Open the administration of a project, then `GitHub` / `Import`.
+Open the topic `GitHub` in the navigation of a project. The administration of a project has the same
+page under `GitHub` / `Issues and Discussions`.
 
-1. Select the repository setting.
-2. Select `Read from GitHub`. The page lists the open issues and discussions. An item that has a
-   work item already shows its ID.
-3. Clear the items you do not want. Every new item starts selected.
-4. Select `Create work items`. The list shows the ID of each created work item, or the reason of
-   a failure.
+The page lists the open issues and discussions of all repository settings of the project:
 
-## Scheduled import
+- the repository, the item with a link to GitHub, its issue type or discussion category, its labels
+  and its GitHub assignees;
+- what the import does with it: `New`, `Has a work item` or `Left out` by a rule;
+- the work item, with a link, its type, status and assignees in Polarion. For a new item the type is
+  the one the rules choose.
 
-The job `github_import.job` imports the repositories configured in a project. Add it in the global
-`Administration` / `Scheduler`, with the scope of the project:
+Filter the list by repository, kind, GitHub type, work item type, GitHub assignee, Polarion assignee
+and state, or search the title, the number, the work item and the labels.
 
-```xml
-<job id="github_import.job" cronExpression="0 0 * * * ?" name="GitHub import" scope="project:myproject">
-    <dryRun>false</dryRun>
-</job>
-```
+To create work items:
 
-| Parameter | Meaning |
-|---|---|
-| `repositories` | Comma-separated names of the repository settings to import. Without it the job imports every enabled one. |
-| `dryRun` | `true` to log what the import would do, without creating work items. |
+1. Select the new items. The box in the table head selects all new items the filters show.
+2. Select `Create work items`. The work items are created in your name and with your permissions.
+3. The list shows the ID of each created work item, or the reason of a failure.
 
-GitHub allows 60 requests per hour without a token, for the whole Polarion server. One repository
-costs one request per 100 open issues and one per 100 discussions. Schedule the job with that in mind.
+A repository that cannot be read shows its reason above the list, and the others stay readable.
+
+GitHub allows 60 requests per hour without a token, for the whole Polarion server. The server keeps a
+list it read from GitHub for 5 minutes and serves every page and user from it. The page shows when
+the lists were read.
+
+- `Refresh` reads the list again: the GitHub items from that cache, the work items from Polarion.
+- `Update from GitHub` reads GitHub again, for every repository of the project. A list read within
+  the last minute stays, so a second click costs nothing. One repository costs one request per 100 open issues and one per 100
+discussions.
 
 ## REST API
 

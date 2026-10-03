@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * The outcome of the import for one GitHub item.
  */
@@ -36,4 +38,31 @@ public class ImportEntry {
 
     @Schema(description = "The reason of a failure")
     private String message;
+
+    @Schema(description = "The name of the repository setting")
+    private String setting;
+
+    @Schema(description = "The repository as owner/name")
+    private String repository;
+
+    @Schema(description = "The issue type, or the category of a discussion")
+    private String githubType;
+
+    @Schema(description = "The labels of the item")
+    private List<String> labels;
+
+    @Schema(description = "The GitHub logins the item is assigned to")
+    private List<String> assignees;
+
+    @Schema(description = "The ID of the work item type: of the work item, or the one the import would create")
+    private String workItemType;
+
+    @Schema(description = "The name of that work item type")
+    private String workItemTypeName;
+
+    @Schema(description = "The status of the work item")
+    private String workItemStatus;
+
+    @Schema(description = "The names of the users the work item is assigned to")
+    private List<String> workItemAssignees;
 }

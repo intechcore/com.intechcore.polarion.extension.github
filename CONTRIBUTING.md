@@ -33,7 +33,7 @@ The build compiles the React user interface in `ui/` and bundles it under
 `src/test/java/.../integration` runs the import end to end, with no Polarion and no network:
 
 - the settings go in as JSON through the settings endpoint of generic, as the Repositories page sends them;
-- the import endpoint and the job run the real import;
+- the import endpoint and the endpoint of the GitHub topic run the real import;
 - the client talks HTTP to a local server that answers like GitHub, from the bodies in
   `src/test/resources/github`;
 - the work items land in an in-memory Polarion. Its search reads the SQL the import sends, so a

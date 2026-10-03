@@ -12,10 +12,14 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,21 +41,74 @@ public class GithubClient {
     private static final TypeReference<List<GithubItem>> ITEMS = new TypeReference<>() {
     };
 
+    /**
+     * How long a list read from GitHub serves again. Without a token GitHub allows 60 requests per
+     * hour for the whole server, and a conditional request costs one as well, so only a cache saves them.
+     */
+    public static final Duration CACHE_TIME = Duration.ofMinutes(5);
+
+    /**
+     * How old a list must be before {@link #forget} drops it. A second click, or a second user, within
+     * that time gets the list just read instead of another request.
+     */
+    public static final Duration REFRESH_PAUSE = Duration.ofMinutes(1);
+
+    private static final GithubClient SHARED = new GithubClient();
+
     private final String apiUrl;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Clock clock;
+    private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
+
+    private record CachedList(Instant readAt, List<GithubItem> items) {
+    }
 
     public GithubClient() {
         this(DEFAULT_API_URL);
     }
 
     public GithubClient(@NotNull String apiUrl) {
+        this(apiUrl, Clock.systemUTC());
+    }
+
+    GithubClient(@NotNull String apiUrl, @NotNull Clock clock) {
+        this.clock = clock;
         this.apiUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
                 .proxy(ProxySelector.getDefault())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+    }
+
+    /**
+     * The client of the extension. Its cache serves every page and every user.
+     */
+    public static @NotNull GithubClient shared() {
+        return SHARED;
+    }
+
+    /**
+     * Drops the lists of a repository from the cache, so the next read asks GitHub again. A list read
+     * within {@link #REFRESH_PAUSE} stays.
+     */
+    public void forget(@NotNull String owner, @NotNull String repository) {
+        String prefix = repositoryUrl(owner, repository) + "/";
+        Instant latest = clock.instant().minus(REFRESH_PAUSE);
+        cache.entrySet().removeIf(entry -> entry.getKey().startsWith(prefix) && !entry.getValue().readAt().isAfter(latest));
+    }
+
+    /**
+     * When the oldest list of a repository in the cache was read from GitHub, or null when none is.
+     */
+    public @Nullable Instant readAt(@NotNull String owner, @NotNull String repository) {
+        String prefix = repositoryUrl(owner, repository) + "/";
+        return cache.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix))
+                .map(entry -> entry.getValue().readAt())
+                .min(Comparator.naturalOrder())
+                .orElse(null);
     }
 
     /**
@@ -93,6 +150,18 @@ public class GithubClient {
     }
 
     private List<GithubItem> readAll(String firstPageUrl) {
+        Instant now = clock.instant();
+        cache.values().removeIf(cached -> cached.readAt().plus(CACHE_TIME).isBefore(now));
+        CachedList cached = cache.get(firstPageUrl);
+        if (cached != null) {
+            return cached.items();
+        }
+        List<GithubItem> items = readAllPages(firstPageUrl);
+        cache.put(firstPageUrl, new CachedList(now, List.copyOf(items)));
+        return items;
+    }
+
+    private List<GithubItem> readAllPages(String firstPageUrl) {
         List<GithubItem> items = new ArrayList<>();
         String url = firstPageUrl;
         for (int page = 0; url != null && page < MAX_PAGES; page++) {

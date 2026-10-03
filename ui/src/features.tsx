@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import About from './pages/About';
-import Import from './pages/Import';
+import Items from './pages/Items';
 import Repositories from './pages/Repositories';
 
 /**
@@ -23,10 +23,10 @@ export const FEATURES: Feature[] = [
     component: Repositories,
   },
   {
-    id: 'import',
-    label: 'Import',
-    description: 'Reads the open issues and discussions of a repository and creates work items.',
-    component: Import,
+    id: 'items',
+    label: 'Issues and discussions',
+    description: 'The open GitHub items of all repositories of a project. A user creates work items from them.',
+    component: Items,
   },
   {
     id: 'about',

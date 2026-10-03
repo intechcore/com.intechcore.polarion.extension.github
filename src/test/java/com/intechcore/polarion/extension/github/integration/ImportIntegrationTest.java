@@ -10,33 +10,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intechcore.polarion.extension.github.client.GithubClient;
 import com.intechcore.polarion.extension.github.client.GithubClientException;
-import com.intechcore.polarion.extension.github.job.GithubImportJobUnitImpl;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
+import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
+import com.intechcore.polarion.extension.github.rest.model.RepositoryState;
 import com.intechcore.polarion.extension.github.service.ImportEntry;
 import com.intechcore.polarion.extension.github.service.ImportResult;
 import com.intechcore.polarion.extension.github.service.ImportService;
 import com.intechcore.polarion.extension.github.service.ImportStatus;
 import com.intechcore.polarion.extension.github.service.WriteTransaction;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
-import com.polarion.alm.projects.IProjectService;
-import com.polarion.alm.projects.model.IProject;
-import com.polarion.platform.context.IContext;
-import com.polarion.platform.jobs.IJob;
-import com.polarion.platform.jobs.IJobStatus;
-import com.polarion.platform.jobs.IJobUnitFactory;
-import com.polarion.platform.jobs.ILogger;
-import com.polarion.platform.jobs.IProgressMonitor;
-import com.polarion.subterra.base.data.identification.IContextId;
 import com.polarion.subterra.base.location.Location;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -47,15 +38,11 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Runs the import end to end, as the pages and the job drive it: the settings go in as JSON through
- * the settings endpoint of generic, the import endpoint and the job run the real import, the client
+ * the settings endpoint of generic, the import endpoint runs the real import, the client
  * talks HTTP to a server that answers like GitHub, and the work items land in an in-memory Polarion
  * whose search reads the SQL the import sends. Only Polarion itself is replaced, so these run in CI.
  */
@@ -118,7 +105,6 @@ class ImportIntegrationTest {
             {
               "repository": "acme/tool",
               "shortName": "Tool",
-              "enabled": true,
               "issues": {
                 "enabled": true,
                 "workItemType": "task",
@@ -240,9 +226,10 @@ class ImportIntegrationTest {
         JsonNode json = new ObjectMapper().valueToTree(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null));
 
         // The fields of ImportResult and ImportEntry in ui/src/types.ts.
-        assertThat(fieldNames(json)).containsExactlyInAnyOrder("repository", "dryRun", "entries");
-        assertThat(fieldNames(json.get("entries").get(1)))
-                .containsExactlyInAnyOrder("kind", "number", "title", "url", "status", "workItemId", "message");
+        assertThat(fieldNames(json)).containsExactlyInAnyOrder("repository", "dryRun", "entries", "readAt");
+        assertThat(fieldNames(json.get("entries").get(1))).containsExactlyInAnyOrder(
+                "kind", "number", "title", "url", "status", "workItemId", "message", "setting", "repository", "githubType",
+                "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees");
         assertThat(json.get("entries").get(1).get("status").asText()).isEqualTo("SKIPPED");
         assertThat(json.get("entries").get(0).get("kind").asText()).isEqualTo("ISSUE");
     }
@@ -253,6 +240,50 @@ class ImportIntegrationTest {
             names.add(it.next());
         }
         return names;
+    }
+
+    @Test
+    void theTopicShowsTheItemsOfAllSettingsWithTheStateOfTheirWorkItems() throws Exception {
+        saveSetting("tool", ISSUES_AND_DISCUSSIONS);
+        saveSetting("missing", ISSUES_AND_DISCUSSIONS.replace("acme/tool", "acme/missing"));
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7")));
+
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false);
+
+        assertThat(items.getRepositories()).extracting(RepositoryState::getSetting, RepositoryState::getRepository, RepositoryState::getError)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("tool", "acme/tool", null),
+                        org.assertj.core.groups.Tuple.tuple("missing", "acme/missing",
+                                "GitHub answered " + github.url() + "/repos/acme/missing/issues?state=open&per_page=100 with status 404"));
+        assertThat(items.getRepositories()).filteredOn(state -> "tool".equals(state.getSetting()))
+                .singleElement().extracting(RepositoryState::getReadAt).isNotNull();
+        assertThat(items.getEntries()).extracting(ImportEntry::getNumber).containsExactly(7L, 9L, 10L, 30L);
+
+        ImportEntry bug = items.getEntries().get(0);
+        assertThat(bug.getStatus()).isEqualTo(ImportStatus.EXISTS);
+        assertThat(bug.getSetting()).isEqualTo("tool");
+        assertThat(bug.getGithubType()).isEqualTo("Bug");
+        assertThat(bug.getAssignees()).containsExactly("alice", "bob");
+        assertThat(bug.getWorkItemTypeName()).isEqualTo("Defect");
+        assertThat(bug.getWorkItemStatus()).isEqualTo("Open");
+        assertThat(bug.getWorkItemAssignees()).containsExactly("Rob Project");
+
+        ImportEntry enhancement = items.getEntries().get(2);
+        assertThat(enhancement.getStatus()).isEqualTo(ImportStatus.NEW);
+        assertThat(enhancement.getLabels()).containsExactly("enhancement", "help wanted");
+        assertThat(enhancement.getAssignees()).isEmpty();
+        assertThat(enhancement.getWorkItemType()).isEqualTo("changerequest");
+        assertThat(items.getEntries().get(3).getGithubType()).isEqualTo("Q&A");
+
+        // The page reads the lists of the cache: the import and the topic together read GitHub once.
+        assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
+        JsonNode json = new ObjectMapper().valueToTree(items);
+        assertThat(fieldNames(json)).containsExactlyInAnyOrder("repositories", "entries");
+        assertThat(fieldNames(json.get("repositories").get(0))).containsExactlyInAnyOrder("setting", "repository", "readAt", "error");
+
+        // A list read within the last minute stays, so a refresh right away asks GitHub nothing new.
+        importEndpoint.getItems(FakePolarion.PROJECT, true);
+        assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
     }
 
     @Test
@@ -289,37 +320,5 @@ class ImportIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Rule 1 for issues compares what these items do not have");
         assertThat(settingsEndpoint.readSettingNames(RepositorySettings.FEATURE_NAME, SCOPE)).isEmpty();
-    }
-
-    @Test
-    void theJobImportsTheEnabledSettingsOfItsProject() {
-        saveSetting("tool", ISSUES_AND_DISCUSSIONS);
-        saveSetting("paused", ISSUES_AND_DISCUSSIONS.replace("\"enabled\": true,\n  \"issues\"", "\"enabled\": false,\n  \"issues\""));
-        assertThat(settingsEndpoint.readSettingNames(RepositorySettings.FEATURE_NAME, SCOPE)).hasSize(2);
-
-        IProjectService projectService = mock(IProjectService.class);
-        IProject project = mock(IProject.class);
-        IContext scope = mock(IContext.class);
-        IContextId contextId = mock(IContextId.class);
-        when(polarion.polarionService.getProjectService()).thenReturn(projectService);
-        when(scope.getId()).thenReturn(contextId);
-        when(projectService.getProjectForContextId(contextId)).thenReturn(project);
-        when(project.getId()).thenReturn(FakePolarion.PROJECT);
-        ILogger logger = mock(ILogger.class);
-        GithubImportJobUnitImpl job = new GithubImportJobUnitImpl("import", mock(IJobUnitFactory.class),
-                polarion.polarionService, repositorySettings, importService);
-        job.setScope(scope);
-        job.setLogger(logger);
-        job.setJob(mock(IJob.class));
-
-        IJobStatus status = job.run(mock(IProgressMonitor.class));
-
-        assertThat(status.getType()).isEqualTo(IJobStatus.JobStatusType.STATUS_TYPE_OK);
-        assertThat(polarion.saved).hasSize(3);
-        ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
-        verify(logger, atLeastOnce()).info(lines.capture());
-        assertThat(lines.getAllValues())
-                .contains("Repository setting 'paused' is disabled, skipped")
-                .contains("Repository setting 'tool' (acme/tool): 3 created, 0 new, 0 existing, 1 left out, 0 failed");
     }
 }
