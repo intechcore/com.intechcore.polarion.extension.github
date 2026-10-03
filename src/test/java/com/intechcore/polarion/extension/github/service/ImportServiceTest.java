@@ -106,7 +106,8 @@ class ImportServiceTest {
 
     private static GithubItem item(long number, String title, String url) {
         return new GithubItem(number, title, "Body of " + number, "open", url, null, null,
-                new GithubItem.User("alice"), List.of(), null, null, null);
+                new GithubItem.User("alice"), List.of(new GithubItem.Label("bug")), null, Map.of("name", "Bug"), null,
+                List.of(new GithubItem.User("alice"), new GithubItem.User("bob")));
     }
 
     private static RepositorySettingsModel settings() {
@@ -118,8 +119,17 @@ class ImportServiceTest {
                 .build();
     }
 
-    private static IWorkItem existingWithHyperlink(String id, String... urls) {
+    /** A work item as Polarion returns it: its assignees are never null, at most empty. */
+    private static IWorkItem workItem() {
         IWorkItem workItem = mock(IWorkItem.class);
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> List.of().iterator());
+        when(workItem.getAssignees()).thenReturn(assignees);
+        return workItem;
+    }
+
+    private static IWorkItem existingWithHyperlink(String id, String... urls) {
+        IWorkItem workItem = workItem();
         when(workItem.getId()).thenReturn(id);
         List<IHyperlinkStruct> hyperlinks = new ArrayList<>();
         for (String url : urls) {
@@ -160,6 +170,72 @@ class ImportServiceTest {
         // One transaction per work item: a failure of one item leaves the others in place.
         assertThat(transactions).isEqualTo(2);
         verify(githubClient, never()).getOpenDiscussions(anyString(), anyString());
+    }
+
+    @Test
+    void reportsWhatThePageShowsOfANewItem() {
+        RepositorySettingsModel settings = settings();
+        settings.setName("tool");
+        when(type.getId()).thenReturn("task");
+        when(type.getName()).thenReturn("Task");
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        when(githubClient.readAt("acme", "tool")).thenReturn(java.time.Instant.parse("2026-10-03T08:00:00Z"));
+
+        ImportResult result = service.importRepository(PROJECT, settings, true, null);
+
+        assertThat(result.getReadAt()).isEqualTo("2026-10-03T08:00:00Z");
+        assertThat(result.getEntries()).singleElement().satisfies(entry -> {
+            assertThat(entry.getSetting()).isEqualTo("tool");
+            assertThat(entry.getRepository()).isEqualTo("acme/tool");
+            assertThat(entry.getGithubType()).isEqualTo("Bug");
+            assertThat(entry.getLabels()).containsExactly("bug");
+            assertThat(entry.getAssignees()).containsExactly("alice", "bob");
+            assertThat(entry.getWorkItemType()).isEqualTo("task");
+            assertThat(entry.getWorkItemTypeName()).isEqualTo("Task");
+            assertThat(entry.getWorkItemStatus()).isNull();
+        });
+    }
+
+    @Test
+    void reportsTheTypeStatusAndAssigneesOfAnExistingWorkItem() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem existing = existingWithHyperlink("EL-5", ISSUE_7);
+        ITypeOpt defect = mock(ITypeOpt.class);
+        when(defect.getId()).thenReturn("defect");
+        when(defect.getName()).thenReturn("Defect");
+        when(existing.getType()).thenReturn(defect);
+        com.polarion.alm.tracker.model.IStatusOpt open = mock(com.polarion.alm.tracker.model.IStatusOpt.class);
+        when(open.getName()).thenReturn("Open");
+        when(existing.getStatus()).thenReturn(open);
+        com.polarion.alm.projects.model.IUser named = mock(com.polarion.alm.projects.model.IUser.class);
+        when(named.getName()).thenReturn("Alice Admin");
+        com.polarion.alm.projects.model.IUser unnamed = mock(com.polarion.alm.projects.model.IUser.class);
+        when(unnamed.getId()).thenReturn("bob");
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> List.of(named, unnamed, "not a user").iterator());
+        when(existing.getAssignees()).thenReturn(assignees);
+        found.add(existing);
+
+        ImportEntry entry = service.importRepository(PROJECT, settings(), true, null).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.EXISTS);
+        assertThat(entry.getWorkItemType()).isEqualTo("defect");
+        assertThat(entry.getWorkItemTypeName()).isEqualTo("Defect");
+        assertThat(entry.getWorkItemStatus()).isEqualTo("Open");
+        assertThat(entry.getWorkItemAssignees()).containsExactly("Alice Admin", "bob");
+        assertThat(service.importRepository(PROJECT, settings(), true, null).getReadAt()).isNull();
+    }
+
+    @Test
+    void readsAnExistingWorkItemWithoutTypeStatusOrAssignees() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        found.add(existingWithHyperlink("EL-5", ISSUE_7));
+
+        ImportEntry entry = service.importRepository(PROJECT, settings(), true, null).getEntries().get(0);
+
+        assertThat(entry.getWorkItemType()).isNull();
+        assertThat(entry.getWorkItemStatus()).isNull();
+        assertThat(entry.getWorkItemAssignees()).isEmpty();
     }
 
     @Test
@@ -250,11 +326,11 @@ class ImportServiceTest {
         settings.getIssues().setDescriptionTemplate(" ");
         settings.getIssues().setFields(null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
-        IWorkItem existing = mock(IWorkItem.class);
+        IWorkItem existing = workItem();
         when(existing.getId()).thenReturn("EL-5");
         when(existing.getCustomField("githubUrl")).thenReturn(ISSUE_7);
         found.add(existing);
-        found.add(mock(IWorkItem.class));
+        found.add(workItem());
 
         ImportResult result = service.importRepository(PROJECT, settings, false, null);
 
@@ -328,7 +404,7 @@ class ImportServiceTest {
 
     private static GithubItem labeled(long number, String url, Object type, Object category, String... labels) {
         return new GithubItem(number, "Item " + number, null, "open", url, null, null, null,
-                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category);
+                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category, null);
     }
 
     private ITypeOpt type(String id) {
@@ -514,7 +590,7 @@ class ImportServiceTest {
 
     @Test
     void refusesAnItemWhoseUrlIsNotInTheRepository() {
-        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor, item(10, "Elsewhere", "https://example.com/acme/tool/issues/10")));
 
         ImportResult result = service.importRepository(PROJECT, settings(), false, null);
@@ -528,7 +604,7 @@ class ImportServiceTest {
     void acceptsAnItemWithoutAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setTitleTemplate("{title} by [{author}]");
-        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
 
         service.importRepository(PROJECT, settings, false, null);

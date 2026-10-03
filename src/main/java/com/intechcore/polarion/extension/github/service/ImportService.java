@@ -9,7 +9,9 @@ import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
 import com.polarion.alm.shared.api.transaction.TransactionalExecutor;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
+import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
+import com.polarion.alm.tracker.model.IStatusOpt;
 import com.polarion.alm.tracker.model.ILinkRoleOpt;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.ITypeOpt;
@@ -18,6 +20,7 @@ import com.polarion.core.util.types.Text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -53,7 +56,7 @@ public class ImportService {
     private final WriteTransaction writeTransaction;
 
     public ImportService() {
-        this(new PolarionService(), new GithubClient(), new WriteTransaction() {
+        this(new PolarionService(), GithubClient.shared(), new WriteTransaction() {
             @Override
             public <T> T execute(Supplier<T> action) {
                 return TransactionalExecutor.executeInWriteTransaction(transaction -> action.get());
@@ -96,6 +99,8 @@ public class ImportService {
         if (discussionTarget != null) {
             importItems(ItemKind.DISCUSSION, discussions, discussionTarget, settings, result, onlyUrls);
         }
+        Instant readAt = githubClient.readAt(name[0], name[1]);
+        result.setReadAt(readAt == null ? null : readAt.toString());
         return result;
     }
 
@@ -159,24 +164,34 @@ public class ImportService {
     private void importItems(ItemKind kind, List<GithubItem> items, Target target, RepositorySettingsModel settings,
                              ImportResult result, @Nullable Collection<String> onlyUrls) {
         String urlPrefix = GITHUB_URL + settings.getRepository() + "/";
-        Map<String, String> existing = findExisting(target, urlPrefix);
+        Map<String, Existing> existing = findExisting(target, urlPrefix);
         for (GithubItem item : items) {
             String url = item.htmlUrl();
             if (onlyUrls != null && !onlyUrls.contains(url)) {
                 continue;
             }
-            ImportEntry entry = ImportEntry.builder().kind(kind).number(item.number()).title(item.title()).url(url).build();
+            ImportEntry entry = ImportEntry.builder()
+                    .kind(kind).number(item.number()).title(item.title()).url(url)
+                    .setting(settings.getName()).repository(settings.getRepository())
+                    .githubType(kind == ItemKind.ISSUE ? item.typeName() : item.categoryName())
+                    .labels(item.labelNames()).assignees(item.assigneeLogins())
+                    .build();
             result.getEntries().add(entry);
             if (url == null || !url.startsWith(urlPrefix)) {
                 entry.setStatus(ImportStatus.FAILED);
                 entry.setMessage("The item has no URL in the repository");
             } else if (existing.containsKey(url)) {
+                Existing workItem = existing.get(url);
                 entry.setStatus(ImportStatus.EXISTS);
-                entry.setWorkItemId(existing.get(url));
+                entry.setWorkItemId(workItem.id());
+                entry.setWorkItemType(workItem.type());
+                entry.setWorkItemTypeName(workItem.typeName());
+                entry.setWorkItemStatus(workItem.status());
+                entry.setWorkItemAssignees(workItem.assignees());
             } else {
                 importNewItem(entry, item, target, settings, result.isDryRun());
                 if (entry.getStatus() == ImportStatus.CREATED) {
-                    existing.put(url, entry.getWorkItemId());
+                    existing.put(url, new Existing(entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(), null, List.of()));
                 }
             }
         }
@@ -191,10 +206,15 @@ public class ImportService {
         if (rule != null && rule.outcome() == null) {
             entry.setStatus(ImportStatus.SKIPPED);
             entry.setMessage("by the rule " + rule.rule().describe());
-        } else if (dryRun) {
+            return;
+        }
+        Outcome outcome = rule == null ? target.fallback() : rule.outcome();
+        entry.setWorkItemType(outcome.type().getId());
+        entry.setWorkItemTypeName(outcome.type().getName());
+        if (dryRun) {
             entry.setStatus(ImportStatus.NEW);
         } else {
-            create(entry, item, target, rule == null ? target.fallback() : rule.outcome(), settings);
+            create(entry, item, target, outcome, settings);
         }
     }
 
@@ -248,11 +268,11 @@ public class ImportService {
     }
 
     /**
-     * The GitHub URLs the work items of the project hold already, with the ID of the work item.
+     * The GitHub URLs the work items of the project hold already, with what the page shows of the work item.
      * The search goes through SQL: the Lucene index does not hold hyperlinks.
      */
     @SuppressWarnings("unchecked") // ITrackerService.queryWorkItems is declared with a raw IPObjectList
-    private Map<String, String> findExisting(Target target, String urlPrefix) {
+    private Map<String, Existing> findExisting(Target target, String urlPrefix) {
         ItemSettings settings = target.settings();
         boolean customField = settings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD;
         String projectId = sqlLiteral(target.project().getId());
@@ -260,7 +280,7 @@ public class ImportService {
                 ? SQL_CUSTOM_FIELD.formatted(projectId, sqlLiteral(settings.getDuplicateKeyField()), sqlLiteral(urlPrefix))
                 : SQL_HYPERLINK.formatted(projectId, sqlLiteral(urlPrefix));
 
-        Map<String, String> existing = new LinkedHashMap<>();
+        Map<String, Existing> existing = new LinkedHashMap<>();
         List<Object> found = polarionService.getTrackerService().queryWorkItems(query, "id");
         for (Object object : found) {
             if (object instanceof IWorkItem workItem) {
@@ -276,10 +296,10 @@ public class ImportService {
         return existing;
     }
 
-    private static void addExisting(Map<String, String> existing, @Nullable Object url, IWorkItem workItem, String urlPrefix) {
+    private static void addExisting(Map<String, Existing> existing, @Nullable Object url, IWorkItem workItem, String urlPrefix) {
         // The SQL pattern is a prefix match where "_" matches any character, so check again here.
         if (url != null && url.toString().startsWith(urlPrefix)) {
-            existing.putIfAbsent(url.toString(), workItem.getId());
+            existing.computeIfAbsent(url.toString(), key -> Existing.of(workItem));
         }
     }
 
@@ -288,6 +308,25 @@ public class ImportService {
             throw new IllegalArgumentException("Not usable in a work item search: " + value);
         }
         return value;
+    }
+
+    /** A work item that holds a GitHub URL, as the page shows it. */
+    private record Existing(String id, @Nullable String type, @Nullable String typeName, @Nullable String status, List<String> assignees) {
+
+        @SuppressWarnings("unchecked") // IWorkItem.getAssignees is declared with a raw IPObjectList
+        static Existing of(IWorkItem workItem) {
+            ITypeOpt type = workItem.getType();
+            IStatusOpt status = workItem.getStatus();
+            List<String> assignees = new ArrayList<>();
+            List<Object> users = workItem.getAssignees();
+            for (Object user : users) {
+                if (user instanceof IUser assignee) {
+                    assignees.add(assignee.getName() == null ? assignee.getId() : assignee.getName());
+                }
+            }
+            return new Existing(workItem.getId(), type == null ? null : type.getId(), type == null ? null : type.getName(),
+                    status == null ? null : status.getName(), assignees);
+        }
     }
 
     /** What the import needs of one block of the settings, looked up in the project. */

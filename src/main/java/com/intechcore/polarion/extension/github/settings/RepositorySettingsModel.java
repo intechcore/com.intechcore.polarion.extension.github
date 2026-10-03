@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.github.settings;
 
 import ch.sbb.polarion.extension.generic.settings.SettingsModel;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -9,7 +10,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -21,12 +21,13 @@ import java.util.regex.Pattern;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 @JsonInclude(JsonInclude.Include.NON_NULL)
+// A field this version does not know, such as the dropped job flag, must not refuse the setting.
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "The import settings of one GitHub repository")
 public class RepositorySettingsModel extends SettingsModel {
 
     private static final String REPOSITORY_ENTRY = "REPOSITORY";
     private static final String SHORT_NAME_ENTRY = "SHORT_NAME";
-    private static final String ENABLED_ENTRY = "ENABLED";
     private static final String ISSUES_ENTRY = "ISSUES";
     private static final String DISCUSSIONS_ENTRY = "DISCUSSIONS";
 
@@ -38,9 +39,6 @@ public class RepositorySettingsModel extends SettingsModel {
     @Schema(description = "The short project name used in work item titles")
     private String shortName;
 
-    @Schema(description = "Whether the scheduled job imports this repository")
-    private boolean enabled;
-
     @Schema(description = "How issues become work items")
     private ItemSettings issues;
 
@@ -51,7 +49,6 @@ public class RepositorySettingsModel extends SettingsModel {
     protected String serializeModelData() {
         return serializeEntry(REPOSITORY_ENTRY, repository) +
                 serializeEntry(SHORT_NAME_ENTRY, shortName) +
-                serializeEntry(ENABLED_ENTRY, enabled) +
                 serializeEntry(ISSUES_ENTRY, issues) +
                 serializeEntry(DISCUSSIONS_ENTRY, discussions);
     }
@@ -60,7 +57,6 @@ public class RepositorySettingsModel extends SettingsModel {
     protected void deserializeModelData(String serializedString) {
         repository = deserializeEntry(REPOSITORY_ENTRY, serializedString);
         shortName = deserializeEntry(SHORT_NAME_ENTRY, serializedString);
-        enabled = Objects.equals(Boolean.TRUE.toString(), deserializeEntry(ENABLED_ENTRY, serializedString));
         issues = deserializeEntry(ISSUES_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
         discussions = deserializeEntry(DISCUSSIONS_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
     }

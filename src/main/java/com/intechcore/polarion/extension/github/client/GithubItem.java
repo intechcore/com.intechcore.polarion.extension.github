@@ -26,7 +26,8 @@ public record GithubItem(
         List<Label> labels,
         @JsonProperty("pull_request") Object pullRequest,
         Object type,
-        Object category) {
+        Object category,
+        List<User> assignees) {
 
     public static final String STATE_OPEN = "open";
 
@@ -51,6 +52,10 @@ public record GithubItem(
      */
     public @Nullable String categoryName() {
         return nameOf(category);
+    }
+
+    public @NotNull List<String> assigneeLogins() {
+        return assignees == null ? List.of() : assignees.stream().filter(Objects::nonNull).map(User::login).filter(Objects::nonNull).toList();
     }
 
     public @NotNull List<String> labelNames() {

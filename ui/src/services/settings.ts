@@ -1,5 +1,13 @@
 import { useCallback, useMemo } from 'react';
-import type { ImportResult, ProjectField, ProjectOption, RepositorySettings, Revision, SettingName } from '../types';
+import type {
+  ImportResult,
+  ProjectField,
+  ProjectItems,
+  ProjectOption,
+  RepositorySettings,
+  Revision,
+  SettingName,
+} from '../types';
 import useRemote from './useRemote';
 
 /** The named-settings feature id (the backend `{feature}` path, settings.RepositorySettings). */
@@ -134,6 +142,13 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** The open items of all repository settings of a project, with what the import would do with each. */
+  const loadItems = useCallback(
+    (projectId: string): Promise<ProjectItems> =>
+      sendRequest({ method: 'GET', url: projectPath(projectId, '/items') }).then((r) => jsonOrThrow<ProjectItems>(r)),
+    [sendRequest],
+  );
+
   /** Runs the import of one repository setting. A dry run only reports what the import would do. */
   const runImport = useCallback(
     (projectId: string, name: string, dryRun: boolean, urls?: string[]): Promise<ImportResult> =>
@@ -159,6 +174,7 @@ export default function useSettings() {
       loadLinkRoles,
       loadFields,
       runImport,
+      loadItems,
     }),
     [
       loadConfigurationNames,
@@ -172,6 +188,7 @@ export default function useSettings() {
       loadLinkRoles,
       loadFields,
       runImport,
+      loadItems,
     ],
   );
 }
