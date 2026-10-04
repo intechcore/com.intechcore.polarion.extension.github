@@ -15,8 +15,8 @@ import ItemSettingsForm, { type ItemForm } from '../components/ItemSettingsForm'
 import useSettings from '../services/settings';
 import type { ItemSettings, ProjectField, ProjectOption, RepositorySettings, Revision } from '../types';
 
-const DEFAULT_TITLE = '[GitHub] {shortName} : {title}';
-const DEFAULT_DESCRIPTION = '<a href="{url}">{url}</a>';
+const DEFAULT_TITLE = '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}';
+const DEFAULT_DESCRIPTION = '<a href="{{ URL }}">{{ URL }}</a>';
 
 const EMPTY_ITEM: ItemForm = {
   enabled: false,
@@ -282,11 +282,12 @@ export default function Repositories() {
           <div className="quick-help">
             <h3>Templates</h3>
             <p>
-              The title and the description take these placeholders: <code>{'{shortName}'}</code>,{' '}
-              <code>{'{repository}'}</code>, <code>{'{number}'}</code>, <code>{'{title}'}</code>,{' '}
-              <code>{'{author}'}</code>, <code>{'{url}'}</code>, <code>{'{labels}'}</code>, <code>{'{type}'}</code>,{' '}
-              <code>{'{category}'}</code>. The description also takes <code>{'{body}'}</code>. The description is HTML,
-              and every value is escaped.
+              The title and the description take these placeholders: <code>{'{{ SHORT_NAME }}'}</code>,{' '}
+              <code>{'{{ REPOSITORY }}'}</code>, <code>{'{{ NUMBER }}'}</code>, <code>{'{{ TITLE }}'}</code>,{' '}
+              <code>{'{{ AUTHOR }}'}</code>, <code>{'{{ URL }}'}</code>, <code>{'{{ LABELS }}'}</code>,{' '}
+              <code>{'{{ TYPE }}'}</code>, <code>{'{{ CATEGORY }}'}</code>. The description also takes{' '}
+              <code>{'{{ BODY }}'}</code>. The description is HTML, and every value is escaped. A name ignores case,
+              underscores and the spaces inside the braces.
             </p>
             <h3>Rules</h3>
             <p>

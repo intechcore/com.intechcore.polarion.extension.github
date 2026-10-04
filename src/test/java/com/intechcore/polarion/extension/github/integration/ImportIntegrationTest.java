@@ -108,8 +108,8 @@ class ImportIntegrationTest {
               "issues": {
                 "enabled": true,
                 "workItemType": "task",
-                "titleTemplate": "[GitHub] {shortName} : {title}",
-                "descriptionTemplate": "<a href=\\"{url}\\">{url}</a><p>{body}</p>",
+                "titleTemplate": "[GitHub] {{ SHORT_NAME }} : {{ TITLE }}",
+                "descriptionTemplate": "<a href=\\"{{ URL }}\\">{{ URL }}</a><p>{{ BODY }}</p>",
                 "duplicateKey": "HYPERLINK",
                 "epicId": "EL-1",
                 "epicLinkRole": "parent",
@@ -123,7 +123,7 @@ class ImportIntegrationTest {
               "discussions": {
                 "enabled": true,
                 "workItemType": "task",
-                "titleTemplate": "[GitHub discussion] {shortName} : {category} : {title}",
+                "titleTemplate": "[GitHub discussion] {{ SHORT_NAME }} : {{ CATEGORY }} : {{ TITLE }}",
                 "rules": [{"match": "CATEGORY", "value": "Q&A", "workItemType": "question"}]
               }
             }""";
@@ -186,7 +186,7 @@ class ImportIntegrationTest {
     void aCustomFieldCanKeepTheUrl() {
         saveSetting("tool", """
                 {"repository": "acme/tool", "shortName": "Tool",
-                 "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "{title}",
+                 "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "{{ TITLE }}",
                             "duplicateKey": "CUSTOM_FIELD", "duplicateKeyField": "githubUrl"}}""");
 
         importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
@@ -315,7 +315,7 @@ class ImportIntegrationTest {
     void theSettingsEndpointRefusesASettingTheImportCannotRun() {
         assertThatThrownBy(() -> saveSetting("tool", """
                 {"repository": "acme/tool", "shortName": "Tool",
-                 "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "{title}",
+                 "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "{{ TITLE }}",
                             "rules": [{"match": "CATEGORY", "value": "Q&A", "workItemType": "task"}]}}"""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Rule 1 for issues compares what these items do not have");

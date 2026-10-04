@@ -56,9 +56,9 @@ class RepositorySettingsModelTest {
 
         assertThat(read.getRepository()).isNull();
         assertThat(read.getIssues().isEnabled()).isFalse();
-        assertThat(read.getIssues().getTitleTemplate()).isEqualTo("[GitHub] {shortName} : {title}");
+        assertThat(read.getIssues().getTitleTemplate()).isEqualTo("[GitHub] {{ SHORT_NAME }} : {{ TITLE }}");
         assertThat(read.getIssues().getDuplicateKey()).isEqualTo(DuplicateKey.HYPERLINK);
-        assertThat(read.getDiscussions().getDescriptionTemplate()).isEqualTo("<a href=\"{url}\">{url}</a>");
+        assertThat(read.getDiscussions().getDescriptionTemplate()).isEqualTo("<a href=\"{{ URL }}\">{{ URL }}</a>");
     }
 
     @Test

@@ -11,8 +11,8 @@ export const CONTENT = {
   issues: {
     enabled: true,
     workItemType: 'task',
-    titleTemplate: '[GitHub] {shortName} : {title}',
-    descriptionTemplate: '<a href="{url}">{url}</a>',
+    titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}',
+    descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
     duplicateKey: 'HYPERLINK',
     duplicateKeyField: null,
     epicId: 'EL-1',
@@ -26,8 +26,8 @@ export const CONTENT = {
   discussions: {
     enabled: false,
     workItemType: null,
-    titleTemplate: '[GitHub] {shortName} : {title}',
-    descriptionTemplate: '<a href="{url}">{url}</a>',
+    titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}',
+    descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
     duplicateKey: 'HYPERLINK',
     duplicateKeyField: null,
     epicId: null,
