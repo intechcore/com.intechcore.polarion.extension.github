@@ -13,30 +13,39 @@ class TemplateRendererTest {
     void fillsThePlaceholdersOfATitle() {
         Map<String, String> values = Map.of("shortName", "Tool", "title", "Crash on start");
 
-        assertThat(TemplateRenderer.renderText("[GitHub] {shortName} : {title}", values))
+        assertThat(TemplateRenderer.renderText("[GitHub] {{ SHORT_NAME }} : {{ TITLE }}", values))
                 .isEqualTo("[GitHub] Tool : Crash on start");
     }
 
     @Test
+    void readsANameWithoutRegardToCaseUnderscoresOrSpaces() {
+        Map<String, String> values = Map.of("shortName", "Tool");
+
+        assertThat(TemplateRenderer.renderText("{{SHORT_NAME}} {{ shortName }} {{  short_name  }} {{ ShortName }}", values))
+                .isEqualTo("Tool Tool Tool Tool");
+    }
+
+    @Test
     void keepsATitleOnOneLine() {
-        assertThat(TemplateRenderer.renderText("{title}", Map.of("title", " two\nlines\t here ")))
+        assertThat(TemplateRenderer.renderText("{{ TITLE }}", Map.of("title", " two\nlines\t here ")))
                 .isEqualTo("two lines here");
     }
 
     @Test
-    void leavesAnUnknownPlaceholderAndFillsAMissingValueWithNothing() {
+    void leavesAnUnknownPlaceholderAndTheOldFormAndFillsAMissingValueWithNothing() {
         Map<String, String> values = new HashMap<>();
         values.put("body", null);
+        values.put("title", "T");
 
-        assertThat(TemplateRenderer.renderText("{unknown} [{body}] {not a placeholder}", values))
-                .isEqualTo("{unknown} [] {not a placeholder}");
+        assertThat(TemplateRenderer.renderText("{{ UNKNOWN }} [{{ BODY }}] {title} {{ not a placeholder }} {{TITLE", values))
+                .isEqualTo("{{ UNKNOWN }} [] {title} {{ not a placeholder }} {{TITLE");
     }
 
     @Test
     void doesNotReadAValueAsATemplate() {
-        Map<String, String> values = Map.of("title", "{url} $1 \\", "url", "https://github.com/acme/tool/issues/7");
+        Map<String, String> values = Map.of("title", "{{ URL }} $1 \\", "url", "https://github.com/acme/tool/issues/7");
 
-        assertThat(TemplateRenderer.renderText("{title}", values)).isEqualTo("{url} $1 \\");
+        assertThat(TemplateRenderer.renderText("{{ TITLE }}", values)).isEqualTo("{{ URL }} $1 \\");
     }
 
     @Test
@@ -45,7 +54,7 @@ class TemplateRendererTest {
                 "url", "https://github.com/acme/tool/issues/7?a=1&b=\"2\"",
                 "body", "<script>alert('x')</script>\r\nsecond line\nthird");
 
-        assertThat(TemplateRenderer.renderHtml("<a href=\"{url}\">{url}</a><p>{body}</p>", values))
+        assertThat(TemplateRenderer.renderHtml("<a href=\"{{ URL }}\">{{ URL }}</a><p>{{ BODY }}</p>", values))
                 .isEqualTo("<a href=\"https://github.com/acme/tool/issues/7?a=1&amp;b=&quot;2&quot;\">"
                         + "https://github.com/acme/tool/issues/7?a=1&amp;b=&quot;2&quot;</a>"
                         + "<p>&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;<br/>second line<br/>third</p>");

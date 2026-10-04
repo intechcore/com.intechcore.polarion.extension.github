@@ -23,8 +23,8 @@ import java.util.Map;
 @Schema(description = "How issues or discussions become work items")
 public class ItemSettings {
 
-    public static final String DEFAULT_TITLE_TEMPLATE = "[GitHub] {shortName} : {title}";
-    public static final String DEFAULT_DESCRIPTION_TEMPLATE = "<a href=\"{url}\">{url}</a>";
+    public static final String DEFAULT_TITLE_TEMPLATE = "[GitHub] {{ SHORT_NAME }} : {{ TITLE }}";
+    public static final String DEFAULT_DESCRIPTION_TEMPLATE = "<a href=\"{{ URL }}\">{{ URL }}</a>";
 
     @Schema(description = "Whether the import creates work items for this kind of item")
     private boolean enabled;
@@ -32,11 +32,11 @@ public class ItemSettings {
     @Schema(description = "The type of the created work items")
     private String workItemType;
 
-    @Schema(description = "The title template. Placeholders: {shortName}, {repository}, {number}, {title}, {author}, {url}, {labels}, {type}, {category}")
+    @Schema(description = "The title template. Placeholders: {{ SHORT_NAME }}, {{ REPOSITORY }}, {{ NUMBER }}, {{ TITLE }}, {{ AUTHOR }}, {{ URL }}, {{ LABELS }}, {{ TYPE }}, {{ CATEGORY }}")
     @Builder.Default
     private String titleTemplate = DEFAULT_TITLE_TEMPLATE;
 
-    @Schema(description = "The HTML description template. Placeholders: the ones of the title, and {body}")
+    @Schema(description = "The HTML description template. Placeholders: the ones of the title, and {{ BODY }}")
     @Builder.Default
     private String descriptionTemplate = DEFAULT_DESCRIPTION_TEMPLATE;
 

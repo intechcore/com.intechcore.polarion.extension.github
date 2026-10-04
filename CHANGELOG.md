@@ -28,4 +28,5 @@ All notable changes to this project are documented here. The format follows
 - Rules in the repository settings. A rule gives the issues with a label or an issue type, and the
   discussions with a label or a category, another work item type and field values, or leaves them
   out of the import. The first matching rule applies.
-- The placeholders `{labels}`, `{type}` and `{category}` for the title and description templates.
+- The placeholders `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}` for the title and description templates.
+- Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces.

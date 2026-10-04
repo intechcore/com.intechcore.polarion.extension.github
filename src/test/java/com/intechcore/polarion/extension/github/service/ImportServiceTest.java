@@ -297,8 +297,8 @@ class ImportServiceTest {
         settings.setDiscussions(ItemSettings.builder()
                 .enabled(true)
                 .workItemType("task")
-                .titleTemplate("{repository} #{number} by {author}")
-                .descriptionTemplate("<p>{body}</p>")
+                .titleTemplate("{{ REPOSITORY }} #{{ NUMBER }} by {{ AUTHOR }}")
+                .descriptionTemplate("<p>{{ BODY }}</p>")
                 .fields(Map.of("severity", "minor"))
                 .build());
         when(githubClient.getOpenDiscussions("acme", "tool")).thenReturn(List.of(item(30, "How to <b>", discussion)));
@@ -472,7 +472,7 @@ class ImportServiceTest {
         settings.setDiscussions(ItemSettings.builder()
                 .enabled(true)
                 .workItemType("task")
-                .titleTemplate("{category} [{labels}] [{type}] {title}")
+                .titleTemplate("{{ CATEGORY }} [{{ LABELS }}] [{{ TYPE }}] {{ TITLE }}")
                 .rules(List.of(ItemRule.builder().match(RuleMatch.CATEGORY).value("q&a").workItemType("question").build()))
                 .build());
         String base = "https://github.com/acme/tool/discussions/";
@@ -619,7 +619,7 @@ class ImportServiceTest {
     @Test
     void acceptsAnItemWithoutAnAuthor() {
         RepositorySettingsModel settings = settings();
-        settings.getIssues().setTitleTemplate("{title} by [{author}]");
+        settings.getIssues().setTitleTemplate("{{ TITLE }} by [{{ AUTHOR }}]");
         GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
 

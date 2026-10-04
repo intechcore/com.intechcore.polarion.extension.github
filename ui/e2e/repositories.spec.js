@@ -8,8 +8,8 @@ const CONTENT = {
   issues: {
     enabled: true,
     workItemType: 'task',
-    titleTemplate: '[GitHub] {shortName} : {title}',
-    descriptionTemplate: '<a href="{url}">{url}</a>',
+    titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}',
+    descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
     duplicateKey: 'HYPERLINK',
     duplicateKeyField: null,
     epicId: null,

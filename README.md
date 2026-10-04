@@ -37,9 +37,10 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 8. Add rules for the items that need another work item type, see below.
 9. Select `Save`.
 
-The templates take the placeholders `{shortName}`, `{repository}`, `{number}`, `{title}`,
-`{author}`, `{url}`, `{labels}`, `{type}` and `{category}`. The description also takes `{body}`.
-The description is HTML, and the import escapes every value.
+The templates take the placeholders `{{ SHORT_NAME }}`, `{{ REPOSITORY }}`, `{{ NUMBER }}`, `{{ TITLE }}`,
+`{{ AUTHOR }}`, `{{ URL }}`, `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}`. The description also takes `{{ BODY }}`.
+The description is HTML, and the import escapes every value. A placeholder name ignores case,
+underscores and the spaces inside the braces: `{{ SHORT_NAME }}` and `{{shortName}}` are the same.
 
 ### Rules
 

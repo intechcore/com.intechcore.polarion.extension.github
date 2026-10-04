@@ -74,7 +74,7 @@ describe('Repositories page', () => {
 
     expect(input('short-name').value).toBe('Tool');
     expect(input('issues-enabled').checked).toBe(true);
-    expect(input('issues-title').value).toBe('[GitHub] {shortName} : {title}');
+    expect(input('issues-title').value).toBe('[GitHub] {{ SHORT_NAME }} : {{ TITLE }}');
     expect(input('issues-epic').value).toBe('EL-1');
     await vi.waitFor(() => expect(trigger('issues-role').value).toBe('has parent'));
     expect(trigger('issues-key').value).toBe('A hyperlink of the work item');
@@ -101,8 +101,8 @@ describe('Repositories page', () => {
       issues: {
         enabled: true,
         workItemType: 'task',
-        titleTemplate: '[GitHub] {shortName} : {title}',
-        descriptionTemplate: '<a href="{url}">{url}</a>',
+        titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}',
+        descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
         duplicateKey: 'HYPERLINK',
         duplicateKeyField: null,
         epicId: null,
@@ -117,8 +117,8 @@ describe('Repositories page', () => {
       discussions: {
         enabled: false,
         workItemType: null,
-        titleTemplate: '[GitHub] {shortName} : {title}',
-        descriptionTemplate: '<a href="{url}">{url}</a>',
+        titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}',
+        descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
         duplicateKey: 'HYPERLINK',
         duplicateKeyField: null,
         epicId: null,
@@ -160,8 +160,11 @@ describe('Repositories page', () => {
     await vi.waitFor(() =>
       expect(fetchMock.mock.calls.some((c) => /\/workitem-types\/issue\/fields/.test(String(c[0])))).toBe(true),
     );
-    await userEvent.fill(input('discussions-title'), 'Discussion {number}');
-    await userEvent.fill(document.getElementById('discussions-description') as HTMLTextAreaElement, '<p>{body}</p>');
+    await userEvent.fill(input('discussions-title'), 'Discussion {{ NUMBER }}');
+    await userEvent.fill(
+      document.getElementById('discussions-description') as HTMLTextAreaElement,
+      '<p>{{ BODY }}</p>',
+    );
     await userEvent.fill(input('discussions-epic'), 'EL-2');
     await pick(trigger('discussions-role'), 'relates to');
 
@@ -184,8 +187,8 @@ describe('Repositories page', () => {
     expect(savedBody().discussions).toEqual({
       enabled: true,
       workItemType: 'issue',
-      titleTemplate: 'Discussion {number}',
-      descriptionTemplate: '<p>{body}</p>',
+      titleTemplate: 'Discussion {{ NUMBER }}',
+      descriptionTemplate: '<p>{{ BODY }}</p>',
       duplicateKey: 'HYPERLINK',
       duplicateKeyField: null,
       epicId: 'EL-2',
