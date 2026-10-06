@@ -69,18 +69,33 @@ public class TemplateRenderer {
      * Line breaks of a value become {@code <br/>}.
      */
     public static @NotNull String renderHtml(@NotNull String template, @NotNull Map<String, String> values) {
-        return render(template, values, TemplateRenderer::escapeHtml);
+        return renderHtml(template, values, Map.of());
+    }
+
+    /**
+     * Renders an HTML template. A value of {@code html} goes in as it is: the caller cleaned it. Every
+     * other value is escaped.
+     */
+    public static @NotNull String renderHtml(@NotNull String template, @NotNull Map<String, String> values,
+                                             @NotNull Map<String, String> html) {
+        return render(template, values, TemplateRenderer::escapeHtml, html);
     }
 
     private static String render(String template, Map<String, String> values, UnaryOperator<String> encoder) {
+        return render(template, values, encoder, Map.of());
+    }
+
+    private static String render(String template, Map<String, String> values, UnaryOperator<String> encoder,
+                                 Map<String, String> html) {
         Map<String, String> byKey = new HashMap<>();
-        values.forEach((name, value) -> byKey.put(key(name), value));
+        values.forEach((name, value) -> byKey.put(key(name), encoder.apply(nullToEmpty(value))));
+        html.forEach((name, value) -> byKey.put(key(name), nullToEmpty(value)));
         Matcher matcher = PLACEHOLDER.matcher(template);
         StringBuilder result = new StringBuilder();
         while (matcher.find()) {
             String name = key(matcher.group(1));
             // An unknown placeholder stays as it is, so a typing error shows in the work item.
-            String replacement = byKey.containsKey(name) ? encoder.apply(nullToEmpty(byKey.get(name))) : matcher.group();
+            String replacement = byKey.containsKey(name) ? byKey.get(name) : matcher.group();
             matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(result);

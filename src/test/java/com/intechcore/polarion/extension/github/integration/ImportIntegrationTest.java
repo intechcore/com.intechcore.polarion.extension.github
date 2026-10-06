@@ -109,7 +109,7 @@ class ImportIntegrationTest {
                 "enabled": true,
                 "workItemType": "task",
                 "titleTemplate": "[GitHub] {{ SHORT_NAME }} : {{ TITLE }}",
-                "descriptionTemplate": "<a href=\\"{{ URL }}\\">{{ URL }}</a><p>{{ BODY }}</p>",
+                "descriptionTemplate": "<a href=\\"{{ URL }}\\">{{ URL }}</a><div>{{ BODY }}</div>",
                 "duplicateKey": "HYPERLINK",
                 "epicId": "EL-1",
                 "epicLinkRole": "parent",
@@ -159,7 +159,7 @@ class ImportIntegrationTest {
         assertThat(bug.type).isEqualTo("defect");
         assertThat(bug.title).isEqualTo("[GitHub] Tool : Crash on start");
         assertThat(bug.description.getContent()).isEqualTo(
-                "<a href=\"" + ISSUES + "7\">" + ISSUES + "7</a><p>It crashes &lt;b&gt;at once&lt;/b&gt;.</p>");
+                "<a href=\"" + ISSUES + "7\">" + ISSUES + "7</a><div><p>It crashes <b>at once</b>.</p></div>");
         assertThat(bug.hyperlinks).containsExactly(ISSUES + "7");
         assertThat(bug.fields).containsEntry("severity", "major").containsEntry("component", "core");
         assertThat(bug.links).containsExactly("parent:EL-1");

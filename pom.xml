@@ -54,6 +54,10 @@
         <maven-jar-plugin.Discover-Base-Package>com.intechcore.polarion.extension.github</maven-jar-plugin.Discover-Base-Package>
         <maven-jar-plugin.Configuration-Properties-Prefix>com.intechcore.polarion.extension.github</maven-jar-plugin.Configuration-Properties-Prefix>
 
+        <!-- Polarion ships jsoup. The import cleans the HTML of a GitHub item with it. -->
+        <maven-jar-plugin.Require-Bundle.extension>org.jsoup</maven-jar-plugin.Require-Bundle.extension>
+        <maven-jar-plugin.Require-Bundle>${maven-jar-plugin.Require-Bundle.common},${maven-jar-plugin.Require-Bundle.extension}</maven-jar-plugin.Require-Bundle>
+
         <!-- The Playwright end-to-end layer. It is this extension's own addition on top of the
              frontend build the parent contributes, so it carries its own skip flag. -->
         <skipE2eTests>false</skipE2eTests>
@@ -64,6 +68,13 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.polarion.thirdparty</groupId>
+            <artifactId>org.jsoup_1.21.2</artifactId>
+            <version>${polarion.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>ch.sbb.polarion.extensions</groupId>
             <artifactId>ch.sbb.polarion.extension.generic.app</artifactId>
