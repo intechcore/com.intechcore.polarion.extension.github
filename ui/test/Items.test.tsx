@@ -34,7 +34,7 @@ const button = (label: string): HTMLButtonElement => {
 };
 // The item cell as a reader sees it: the number and the title. The kind shows as an icon.
 const numbers = () =>
-  Array.from(document.querySelectorAll('.items-table tbody tr')).map(
+  Array.from(document.querySelectorAll('.items-table tbody tr:not(.items-empty-row)')).map(
     (row) => `${row.querySelector('.item-number')?.textContent} ${row.querySelector('.item-title')?.textContent}`,
   );
 const checkbox = (url: string) => document.querySelector<HTMLInputElement>(`[aria-label="Select ${url}"]`);
@@ -68,10 +68,11 @@ async function mount(overrides: Route[] = []) {
   await vi.waitFor(() => expect(numbers()).toHaveLength(7));
 }
 
+const settingsButton = () => document.querySelector<HTMLButtonElement>('button[aria-label="Table settings"]')!;
 const headers = () =>
-  Array.from(document.querySelectorAll('.items-table thead th:not([aria-label="Hide"])')).map((th) => th.textContent);
+  Array.from(document.querySelectorAll('.items-table thead th:not(.table-settings-cell)')).map((th) => th.textContent);
 const columnBox = (label: string) =>
-  Array.from(document.querySelectorAll<HTMLLabelElement>('.columns-panel label'))
+  Array.from(document.querySelectorAll<HTMLLabelElement>('.table-settings-panel .columns-row label'))
     .find((l) => l.textContent === label)!
     .querySelector('input')!;
 
@@ -153,8 +154,8 @@ describe('GitHub items page', () => {
 
   it('hides and moves columns, and keeps the layout for the next visit', async () => {
     await mount();
-    await userEvent.click(button('Columns'));
-    expect(document.querySelector('.columns-panel')).not.toBeNull();
+    await userEvent.click(settingsButton());
+    expect(document.querySelector('.table-settings-panel')).not.toBeNull();
 
     await userEvent.click(columnBox('GitHub type'));
     await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Move Labels up"]')!);
@@ -183,14 +184,14 @@ describe('GitHub items page', () => {
     await userEvent.click(button('Reset columns'));
     await vi.waitFor(() => expect(headers()).toContain('GitHub type'));
     expect(headers()[3]).toBe('GitHub type');
-    await userEvent.click(button('Columns'));
-    expect(document.querySelector('.columns-panel')).toBeNull();
+    await userEvent.click(settingsButton());
+    expect(document.querySelector('.table-settings-panel')).toBeNull();
   });
 
   it('keeps the last visible column', async () => {
     await mount();
-    await userEvent.click(button('Columns'));
-    expect(document.querySelector('.columns-panel')).not.toBeNull();
+    await userEvent.click(settingsButton());
+    expect(document.querySelector('.table-settings-panel')).not.toBeNull();
 
     for (const label of ['Repository', 'GitHub type', 'Labels', 'GitHub assignees', 'State', 'Work item', 'Status']) {
       await userEvent.click(columnBox(label));
@@ -215,11 +216,14 @@ describe('GitHub items page', () => {
     // A hidden item leaves the selection.
     expect(button('Create work items').disabled).toBe(true);
 
-    const show = Array.from(document.querySelectorAll<HTMLLabelElement>('.items-show-hidden')).find((l) =>
-      l.textContent?.includes('Show hidden (2)'),
-    )!;
+    await userEvent.click(settingsButton());
+    const show = document.querySelector<HTMLLabelElement>('.table-settings-hidden')!;
+    expect(show.textContent).toBe('Show hidden items (2)');
     await userEvent.click(show.querySelector('input')!);
     await vi.waitFor(() => expect(numbers()).toHaveLength(8));
+    // A click outside closes the table settings.
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await vi.waitFor(() => expect(document.querySelector('.table-settings-panel')).toBeNull());
     expect(document.querySelectorAll('.items-table tr.item-hidden')).toHaveLength(2);
     expect(document.querySelector('.items-summary')!.textContent).toBe('8 of 8 open item(s) shown.');
 
@@ -269,12 +273,19 @@ describe('GitHub items page', () => {
     );
   });
 
-  it('gives the search box the height of the filters beside it', async () => {
+  it('gives the search box and the filters the control height of 23 pixels', async () => {
     await mount();
 
     const filter = document.querySelector<HTMLElement>('.item-filter .sd-trigger-multi')!.getBoundingClientRect();
     const search = document.querySelector<HTMLElement>('[aria-label="Search"]')!.getBoundingClientRect();
     expect(search.height).toBe(filter.height);
+    expect(search.height).toBe(23);
+    // A selected value shows as a chip in the same height.
+    await choose('Repository', 'Tool');
+    await vi.waitFor(() => expect(document.querySelector('.item-filter .sd-chip')).not.toBeNull());
+    expect(document.querySelector<HTMLElement>('.item-filter .sd-trigger-multi')!.getBoundingClientRect().height).toBe(
+      23,
+    );
   });
 
   it('filters by repository, type, assignee and state, and searches', async () => {
@@ -304,7 +315,12 @@ describe('GitHub items page', () => {
     button('Clear filters').click();
 
     await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Search"]')!, 'nothing like this');
-    await vi.waitFor(() => expect(document.querySelector('.items-table')).toBeNull());
+    // The header stays with its table settings, and one row says why the table is empty.
+    await vi.waitFor(() =>
+      expect(document.querySelector('.items-empty')?.textContent).toBe('No item matches the filters.'),
+    );
+    expect(numbers()).toEqual([]);
+    expect(document.querySelector('[aria-label="Table settings"]')).not.toBeNull();
     expect(document.querySelector('.items-summary')!.textContent).toBe('0 of 8 open item(s) shown. 1 hidden.');
   });
 
