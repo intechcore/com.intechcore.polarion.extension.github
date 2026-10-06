@@ -192,11 +192,6 @@ body {
   white-space: nowrap;
 }
 
-.work-item-planned {
-  color: #6b6b6b;
-  font-style: italic;
-}
-
 .type-icon {
   width: 16px;
   height: 16px;
@@ -228,4 +223,55 @@ body {
 
 .rule-fields {
   margin-left: 20px;
+}
+
+/* The list of the table columns opens under its button, above the table. */
+.columns-menu {
+  position: relative;
+}
+
+.columns-panel {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid #d5d5d5;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 15%);
+}
+
+.columns-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.columns-row label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.columns-move {
+  padding: 2px 6px;
+  border: 1px solid #d5d5d5;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.columns-move:disabled {
+  color: #b0b0b0;
+  cursor: default;
+}
+
+.columns-panel .sbb-btn {
+  margin-top: 6px;
 }

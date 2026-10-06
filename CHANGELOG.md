@@ -33,3 +33,5 @@ All notable changes to this project are documented here. The format follows
 - The placeholders `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}` for the title and description templates.
 - Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces. Saving a
   setting and the import refuse an unknown placeholder and the earlier form `{name}`.
+- `Columns` on the GitHub page hides and moves the table columns. The browser keeps the layout.
+- The status of a work item shows with its icon. An item without a work item leaves the column empty.

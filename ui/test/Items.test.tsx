@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 import App from '../src/App';
+import { COLUMN_LABELS, loadLayout, visibleColumns } from '../src/services/columns';
 import {
   DEFECT_ICON,
   DISCUSSION_30,
   DOCS_3,
+  IN_PROGRESS_ICON,
   ISSUE_4,
   ISSUE_7,
   ISSUE_10,
@@ -64,7 +66,16 @@ async function mount(overrides: Route[] = []) {
   await vi.waitFor(() => expect(numbers()).toHaveLength(7));
 }
 
-beforeEach(() => setUrl(origUrl));
+const headers = () => Array.from(document.querySelectorAll('.items-table thead th')).map((th) => th.textContent);
+const columnBox = (label: string) =>
+  Array.from(document.querySelectorAll<HTMLLabelElement>('.columns-panel label'))
+    .find((l) => l.textContent === label)!
+    .querySelector('input')!;
+
+beforeEach(() => {
+  setUrl(origUrl);
+  window.localStorage.clear();
+});
 
 afterEach(() => {
   cleanup();
@@ -108,12 +119,13 @@ describe('GitHub items page', () => {
     expect(rows[1].querySelector('.item-title a')).toBeNull();
     expect(rows[1].querySelector<HTMLImageElement>('.work-item-cell img')!.getAttribute('src')).toBe(DEFECT_ICON);
     expect(rows[1].querySelector('.state-EXISTS svg')).not.toBeNull();
-    // A new item shows the type the import would create.
-    expect(cells(0)[7]).toBe('Defect');
-    expect(rows[0].querySelector('.work-item-planned')).not.toBeNull();
-    expect(cells(3)[7]).toBe('Change Request');
-    expect(rows[3].querySelector('.work-item-cell img')).toBeNull();
-    expect(cells(2)[7]).toBe('');
+    expect(rows[1].children[8].querySelector('img')!.getAttribute('src')).toBe(IN_PROGRESS_ICON);
+    // An item without a work item leaves the work item and the status empty.
+    expect([cells(0)[7], cells(0)[8]]).toEqual(['', '']);
+    expect(rows[0].querySelector('.work-item-cell')).toBeNull();
+    // A status without an icon shows its name alone.
+    expect(rows[6].children[8].textContent).toBe('Open');
+    expect(rows[6].children[8].querySelector('img')).toBeNull();
     // Labels take the colors of GitHub, with dark text on a light label and white on a dark one.
     const chips = Array.from(rows[0].querySelectorAll<HTMLElement>('.label-chip'));
     expect(chips.map((chip) => [chip.textContent, chip.style.backgroundColor, chip.style.color])).toEqual([
@@ -134,6 +146,56 @@ describe('GitHub items page', () => {
     expect(checkbox('https://github.com/acme/tool/issues/9')).toBeNull();
     expect(button('Create work items').disabled).toBe(true);
     expect(String(fetchMock.mock.calls[0][0])).toBe('/polarion/github/rest/internal/projects/elibrary/items');
+  });
+
+  it('hides and moves columns, and keeps the layout for the next visit', async () => {
+    await mount();
+    await userEvent.click(button('Columns'));
+    expect(document.querySelector('.columns-panel')).not.toBeNull();
+
+    await userEvent.click(columnBox('GitHub type'));
+    await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Move Labels up"]')!);
+    await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Move Status down"]')!);
+
+    const changed = [
+      '',
+      'Repository',
+      'Item',
+      'Labels',
+      'GitHub assignees',
+      'State',
+      'Work item',
+      'Polarion assignees',
+      'Status',
+    ];
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Move Status down"]')!.disabled).toBe(true);
+    expect(headers()).toEqual(changed);
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Move Repository up"]')!.disabled).toBe(true);
+    expect(document.querySelectorAll('.items-table tbody tr')[0].children[3].textContent).toBe('bughelp wanted');
+
+    // The next visit reads the layout from the browser.
+    expect(loadLayout()).toEqual(JSON.parse(window.localStorage.getItem('github-items-columns')!));
+    expect(visibleColumns(loadLayout()).map((id) => COLUMN_LABELS[id])).toEqual(changed.slice(1));
+
+    await userEvent.click(button('Reset columns'));
+    await vi.waitFor(() => expect(headers()).toContain('GitHub type'));
+    expect(headers()[3]).toBe('GitHub type');
+    await userEvent.click(button('Columns'));
+    expect(document.querySelector('.columns-panel')).toBeNull();
+  });
+
+  it('keeps the last visible column', async () => {
+    await mount();
+    await userEvent.click(button('Columns'));
+    expect(document.querySelector('.columns-panel')).not.toBeNull();
+
+    for (const label of ['Repository', 'GitHub type', 'Labels', 'GitHub assignees', 'State', 'Work item', 'Status']) {
+      await userEvent.click(columnBox(label));
+    }
+    await userEvent.click(columnBox('Polarion assignees'));
+
+    expect(headers()).toEqual(['', 'Item']);
+    expect(columnBox('Item').disabled).toBe(true);
   });
 
   it('gives the search box the height of the filters beside it', async () => {

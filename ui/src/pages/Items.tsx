@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
+import ColumnsMenu from '../components/ColumnsMenu';
 import ErrorNotice from '../components/ErrorNotice';
-import { ItemCell, LabelsCell, StateCell, WorkItemCell } from '../components/ItemCells';
+import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell } from '../components/ItemCells';
+import {
+  COLUMN_LABELS,
+  type ColumnId,
+  type ColumnLayout,
+  loadLayout,
+  saveLayout,
+  visibleColumns,
+} from '../services/columns';
 import {
   type ItemFilters,
   KIND_LABELS,
@@ -39,6 +49,12 @@ export default function Items() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [layout, setLayout] = useState<ColumnLayout>(loadLayout);
+
+  const changeLayout = (next: ColumnLayout) => {
+    setLayout(next);
+    saveLayout(next);
+  };
 
   const load = useCallback(
     async (refresh = false) => {
@@ -155,6 +171,53 @@ export default function Items() {
   // The filter offers the short names, as the table shows them, and filters by the setting.
   const shortNames = new Map(all.map((entry) => [entry.setting ?? '', entry.shortName ?? '']));
   const time = readTime(repositories);
+  const columns = visibleColumns(layout);
+  const cell = (id: ColumnId, entry: ImportEntry): ReactNode => {
+    switch (id) {
+      case 'repository':
+        return (
+          <td key={id} title={entry.repository ?? undefined}>
+            {entry.shortName || entry.setting}
+          </td>
+        );
+      case 'item':
+        return (
+          <td key={id}>
+            <ItemCell entry={entry} />
+          </td>
+        );
+      case 'githubType':
+        return <td key={id}>{entry.githubType}</td>;
+      case 'labels':
+        return (
+          <td key={id}>
+            <LabelsCell entry={entry} />
+          </td>
+        );
+      case 'assignees':
+        return <td key={id}>{join(entry.assignees)}</td>;
+      case 'state':
+        return (
+          <td key={id}>
+            <StateCell entry={entry} />
+          </td>
+        );
+      case 'workItem':
+        return (
+          <td key={id}>
+            <WorkItemCell entry={entry} projectId={projectId} />
+          </td>
+        );
+      case 'status':
+        return (
+          <td key={id}>
+            <StatusCell entry={entry} />
+          </td>
+        );
+      case 'workItemAssignees':
+        return <td key={id}>{join(entry.workItemAssignees)}</td>;
+    }
+  };
   const filterSelect = (
     label: string,
     key: Exclude<keyof ItemFilters, 'text'>,
@@ -225,6 +288,7 @@ export default function Items() {
             >
               Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
             </button>
+            <ColumnsMenu layout={layout} onChange={changeLayout} />
             {busy && <span>Working...</span>}
             {time && (
               <span className="items-read-at">
@@ -297,15 +361,9 @@ export default function Items() {
                       onChange={toggleAll}
                     />
                   </th>
-                  <th>Repository</th>
-                  <th>Item</th>
-                  <th>GitHub type</th>
-                  <th>Labels</th>
-                  <th>GitHub assignees</th>
-                  <th>State</th>
-                  <th>Work item</th>
-                  <th>Status</th>
-                  <th>Polarion assignees</th>
+                  {columns.map((id) => (
+                    <th key={id}>{COLUMN_LABELS[id]}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -321,23 +379,7 @@ export default function Items() {
                         />
                       )}
                     </td>
-                    <td title={entry.repository ?? undefined}>{entry.shortName || entry.setting}</td>
-                    <td>
-                      <ItemCell entry={entry} />
-                    </td>
-                    <td>{entry.githubType}</td>
-                    <td>
-                      <LabelsCell entry={entry} />
-                    </td>
-                    <td>{join(entry.assignees)}</td>
-                    <td>
-                      <StateCell entry={entry} />
-                    </td>
-                    <td>
-                      <WorkItemCell entry={entry} projectId={projectId} />
-                    </td>
-                    <td>{entry.workItemStatus}</td>
-                    <td>{join(entry.workItemAssignees)}</td>
+                    {columns.map((id) => cell(id, entry))}
                   </tr>
                 ))}
               </tbody>

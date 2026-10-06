@@ -105,8 +105,11 @@ The page lists the open issues and discussions of all repository settings of the
   discussion category, its labels in their GitHub colors and its GitHub assignees;
 - what the import does with it, with an icon: `New`, `Has a work item`, `Out of date` or `Left out`
   by a rule;
-- the work item with the icon of its type and a link, its status and assignees in Polarion. For a new
-  item the column shows the type the rules choose.
+- the work item with the icon of its type and a link, its status with its icon and its assignees in
+  Polarion. An item without a work item leaves these columns empty.
+
+`Columns` hides and shows a column and moves it up or down. The browser keeps the layout for the
+next visit, per user. `Reset columns` returns to the default.
 
 Filter the list by repository, kind, GitHub type, work item type, GitHub assignee, Polarion assignee
 and state, or search the title, the number, the work item and the labels.

@@ -46,6 +46,24 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-created');
   });
 
+  it('the list of columns, one column hidden', async () => {
+    window.localStorage.setItem(
+      'github-items-columns',
+      JSON.stringify({
+        order: ['item', 'repository', 'labels', 'state', 'workItem', 'status'],
+        hidden: ['githubType'],
+      }),
+    );
+    await open();
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
+
+    appButton('Columns').click();
+
+    await vi.waitFor(() => expect(document.querySelector('.columns-panel')).not.toBeNull());
+    await captureApp('items-columns');
+    window.localStorage.clear();
+  });
+
   it('a project without a repository setting', async () => {
     await open([{ method: 'GET', match: /\/items$/, json: { repositories: [], entries: [] } }]);
 
