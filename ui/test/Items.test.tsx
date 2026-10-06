@@ -280,6 +280,9 @@ describe('GitHub items page', () => {
     const search = document.querySelector<HTMLElement>('[aria-label="Search"]')!.getBoundingClientRect();
     expect(search.height).toBe(filter.height);
     expect(search.height).toBe(23);
+    // Clear filters stands level with the filters.
+    const clear = button('Clear filters').getBoundingClientRect();
+    expect([clear.top, clear.height]).toEqual([search.top, 23]);
     // A selected value shows as a chip in the same height.
     await choose('Repository', 'Tool');
     await vi.waitFor(() => expect(document.querySelector('.item-filter .sd-chip')).not.toBeNull());
