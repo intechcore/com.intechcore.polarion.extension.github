@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The outcome of the import for one GitHub item.
@@ -45,11 +46,17 @@ public class ImportEntry {
     @Schema(description = "The repository as owner/name")
     private String repository;
 
+    @Schema(description = "The short name of the repository, from its setting")
+    private String shortName;
+
     @Schema(description = "The issue type, or the category of a discussion")
     private String githubType;
 
     @Schema(description = "The labels of the item")
     private List<String> labels;
+
+    @Schema(description = "The color of each label as GitHub shows it, six hexadecimal digits by label name")
+    private Map<String, String> labelColors;
 
     @Schema(description = "The GitHub logins the item is assigned to")
     private List<String> assignees;
@@ -59,6 +66,9 @@ public class ImportEntry {
 
     @Schema(description = "The name of that work item type")
     private String workItemTypeName;
+
+    @Schema(description = "The URL of the icon of that work item type")
+    private String workItemTypeIcon;
 
     @Schema(description = "The status of the work item")
     private String workItemStatus;

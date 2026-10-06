@@ -19,5 +19,8 @@ extension. The files are
 ui/src/assets/app-icon.svg and
 src/main/resources/webapp/github-app/images/menu/30x30/_parent.svg.
 
+The page of the GitHub topic draws icons of Font Awesome Free, licensed under CC BY 4.0, through
+the npm packages @fortawesome/free-solid-svg-icons and @fortawesome/react-fontawesome.
+
 GitHub and the GitHub mark are trademarks of GitHub, Inc. This product is not affiliated with
 GitHub, Inc. and is not endorsed by it.

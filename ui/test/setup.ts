@@ -9,6 +9,7 @@
 // The Polarion-served stylesheets linked in index.html (presentation.css, github-markdown-light.css)
 // are not bundled and are not loaded here; they are baseline chrome / help-article styling. Also
 // registers the jest-dom matchers.
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import '@sbb-polarion/react-sbb-polarion/style.css';
 import '@testing-library/jest-dom/vitest';
 import '../src/App.css';

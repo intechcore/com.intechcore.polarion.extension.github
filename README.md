@@ -101,11 +101,11 @@ page under `GitHub` / `Issues and Discussions`.
 
 The page lists the open issues and discussions of all repository settings of the project:
 
-- the repository, the item with a link to GitHub, its issue type or discussion category, its labels
-  and its GitHub assignees;
-- what the import does with it: `New`, `Has a work item` or `Left out` by a rule;
-- the work item, with a link, its type, status and assignees in Polarion. For a new item the type is
-  the one the rules choose.
+- the short name of the repository, the item with its number as the link to GitHub, its issue type or
+  discussion category, its labels in their GitHub colors and its GitHub assignees;
+- what the import does with it, with an icon: `New`, `Has a work item` or `Left out` by a rule;
+- the work item with the icon of its type and a link, its status and assignees in Polarion. For a new
+  item the column shows the type the rules choose.
 
 Filter the list by repository, kind, GitHub type, work item type, GitHub assignee, Polarion assignee
 and state, or search the title, the number, the work item and the labels.

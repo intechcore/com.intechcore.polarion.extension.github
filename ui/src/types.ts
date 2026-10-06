@@ -68,14 +68,19 @@ export interface ImportEntry {
   message: string | null;
   setting: string | null;
   repository: string | null;
+  /** The short name of the repository, from its setting. */
+  shortName: string | null;
   /** The issue type, or the category of a discussion. */
   githubType: string | null;
   labels: string[] | null;
+  /** Six hexadecimal digits by label name, as GitHub colors the label. */
+  labelColors: Record<string, string> | null;
   /** GitHub logins. */
   assignees: string[] | null;
   /** The type of the work item, or the one the import would create. */
   workItemType: string | null;
   workItemTypeName: string | null;
+  workItemTypeIcon: string | null;
   workItemStatus: string | null;
   /** Polarion user names. */
   workItemAssignees: string[] | null;

@@ -41,7 +41,9 @@ test('the topic lists the items and creates the work item of the selected one', 
   });
 
   await page.goto(`/?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
-  await expect(page.getByRole('link', { name: 'Crash on start' })).toBeVisible();
+  // The number is the link to GitHub, the title is text beside it.
+  await expect(page.getByRole('link', { name: '#7' })).toHaveAttribute('href', ISSUE_7);
+  await expect(page.getByText('Crash on start')).toBeVisible();
   await page.getByLabel(`Select ${ISSUE_7}`).check();
   await page.getByRole('button', { name: 'Create work items (1)' }).click();
 
