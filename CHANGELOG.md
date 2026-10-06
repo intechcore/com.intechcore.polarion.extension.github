@@ -37,3 +37,5 @@ All notable changes to this project are documented here. The format follows
 - The status of a work item shows with its icon. An item without a work item leaves the column empty.
 - An item can be hidden on the GitHub page for the whole project, and `Show hidden` lists it again.
 - A rule can match the author of an item, for example `renovate[bot]`.
+- `{{ BODY }}` brings the body of an item as rich text: the HTML GitHub renders for its Markdown,
+  with only safe elements and attributes. Uploaded images keep their stable GitHub URL.

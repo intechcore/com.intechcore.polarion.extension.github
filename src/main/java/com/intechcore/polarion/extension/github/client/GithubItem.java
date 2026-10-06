@@ -12,6 +12,7 @@ import java.util.Objects;
 
 /**
  * An issue or a discussion of a GitHub repository. Both answer with the same fields in the REST API.
+ * {@code bodyHtml} is the body as GitHub renders its Markdown.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GithubItem(
@@ -27,7 +28,8 @@ public record GithubItem(
         @JsonProperty("pull_request") Object pullRequest,
         Object type,
         Object category,
-        List<User> assignees) {
+        List<User> assignees,
+        @JsonProperty("body_html") String bodyHtml) {
 
     public static final String STATE_OPEN = "open";
 

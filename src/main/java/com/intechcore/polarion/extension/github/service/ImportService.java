@@ -49,6 +49,7 @@ public class ImportService {
     private static final String EPIC_LINK = "epic link";
     // The name of the placeholder {{ TITLE }}, which happens to read like the part above.
     private static final String TITLE_PLACEHOLDER = "title";
+    private static final String BODY_PLACEHOLDER = "body";
 
     // Everything that goes into an SQL literal must match this. It leaves no quote and no escape.
     private static final Pattern SQL_SAFE = Pattern.compile("[A-Za-z0-9._:/-]+");
@@ -285,7 +286,7 @@ public class ImportService {
         ItemSettings itemSettings = target.settings();
         Map<String, String> values = templateValues(item, settings);
         String description = itemSettings.getDescriptionTemplate() == null || itemSettings.getDescriptionTemplate().isBlank()
-                ? null : TemplateRenderer.renderHtml(itemSettings.getDescriptionTemplate(), values);
+                ? null : renderDescription(itemSettings.getDescriptionTemplate(), item, values);
         return new Expected(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values), description);
     }
 
@@ -385,7 +386,7 @@ public class ImportService {
         workItem.setType(outcome.type());
         workItem.setTitle(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values));
         if (itemSettings.getDescriptionTemplate() != null && !itemSettings.getDescriptionTemplate().isBlank()) {
-            workItem.setDescription(Text.html(TemplateRenderer.renderHtml(itemSettings.getDescriptionTemplate(), values)));
+            workItem.setDescription(Text.html(renderDescription(itemSettings.getDescriptionTemplate(), item, values)));
         }
         outcome.fields().forEach((fieldId, value) -> polarionService.setFieldValue(workItem, fieldId, value));
         if (itemSettings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD) {
@@ -401,6 +402,15 @@ public class ImportService {
         return workItem.getId();
     }
 
+    /**
+     * The description from its template. The body goes in as the HTML GitHub renders for its Markdown,
+     * cleaned, and as escaped text when GitHub sent no HTML.
+     */
+    private static String renderDescription(String template, GithubItem item, Map<String, String> values) {
+        Map<String, String> html = item.bodyHtml() == null ? Map.of() : Map.of(BODY_PLACEHOLDER, GithubHtml.clean(item.bodyHtml()));
+        return TemplateRenderer.renderHtml(template, values, html);
+    }
+
     private static Map<String, String> templateValues(GithubItem item, RepositorySettingsModel settings) {
         Map<String, String> values = new HashMap<>();
         values.put("shortName", settings.getShortName());
@@ -409,7 +419,7 @@ public class ImportService {
         values.put(TITLE_PLACEHOLDER, item.title());
         values.put("author", item.user() == null ? "" : item.user().login());
         values.put("url", item.htmlUrl());
-        values.put("body", item.body());
+        values.put(BODY_PLACEHOLDER, item.body());
         values.put("labels", String.join(", ", item.labelNames()));
         values.put("type", item.typeName());
         values.put("category", item.categoryName());

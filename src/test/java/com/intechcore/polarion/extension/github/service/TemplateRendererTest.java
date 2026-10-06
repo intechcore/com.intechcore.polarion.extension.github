@@ -80,4 +80,12 @@ class TemplateRendererTest {
                         + "https://github.com/acme/tool/issues/7?a=1&amp;b=&quot;2&quot;</a>"
                         + "<p>&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;<br/>second line<br/>third</p>");
     }
+
+    @Test
+    void takesCleanedHtmlAsItIs() {
+        Map<String, String> values = Map.of("title", "<b>raw</b>", "body", "<b>markdown</b>");
+
+        assertThat(TemplateRenderer.renderHtml("{{ TITLE }}<div>{{ BODY }}</div>", values, Map.of("BODY", "<p><b>rich</b></p>")))
+                .isEqualTo("&lt;b&gt;raw&lt;/b&gt;<div><p><b>rich</b></p></div>");
+    }
 }
