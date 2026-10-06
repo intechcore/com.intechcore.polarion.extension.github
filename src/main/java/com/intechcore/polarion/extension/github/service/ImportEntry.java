@@ -73,6 +73,9 @@ public class ImportEntry {
     @Schema(description = "The status of the work item")
     private String workItemStatus;
 
+    @Schema(description = "The URL of the icon of that status")
+    private String workItemStatusIcon;
+
     @Schema(description = "The names of the users the work item is assigned to")
     private List<String> workItemAssignees;
 }

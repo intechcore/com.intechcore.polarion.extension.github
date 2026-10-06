@@ -82,6 +82,7 @@ export interface ImportEntry {
   workItemTypeName: string | null;
   workItemTypeIcon: string | null;
   workItemStatus: string | null;
+  workItemStatusIcon: string | null;
   /** Polarion user names. */
   workItemAssignees: string[] | null;
 }

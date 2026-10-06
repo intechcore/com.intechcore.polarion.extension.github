@@ -8,6 +8,7 @@ const square = (fill: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="${fill}"/></svg>`)}`;
 export const TASK_ICON = square('#2f7d32');
 export const DEFECT_ICON = square('#c62828');
+export const IN_PROGRESS_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#f9a825"/></svg>')}`;
 
 export { SCOPE };
 
@@ -25,6 +26,7 @@ const base: Omit<ImportEntry, 'kind' | 'number' | 'title' | 'url' | 'status'> = 
   workItemTypeName: 'Task',
   workItemTypeIcon: TASK_ICON,
   workItemStatus: null,
+  workItemStatusIcon: null,
   workItemAssignees: [],
 };
 
@@ -64,6 +66,7 @@ export const ENTRIES: ImportEntry[] = [
     workItemTypeName: 'Defect',
     workItemTypeIcon: DEFECT_ICON,
     workItemStatus: 'In Progress',
+    workItemStatusIcon: IN_PROGRESS_ICON,
     workItemAssignees: ['Rob Project'],
   },
   {

@@ -604,6 +604,10 @@
             "description": "The status of the work item",
             "type": "string"
           },
+          "workItemStatusIcon": {
+            "description": "The URL of the icon of that status",
+            "type": "string"
+          },
           "workItemType": {
             "description": "The ID of the work item type: of the work item, or the one the import would create",
             "type": "string"

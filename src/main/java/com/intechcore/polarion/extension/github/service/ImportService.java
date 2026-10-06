@@ -231,6 +231,7 @@ public class ImportService {
                 entry.setWorkItemTypeName(workItem.typeName());
                 entry.setWorkItemTypeIcon(workItem.typeIcon());
                 entry.setWorkItemStatus(workItem.status());
+                entry.setWorkItemStatusIcon(workItem.statusIcon());
                 entry.setWorkItemAssignees(workItem.assignees());
             } else if (mode == Mode.UPDATE) {
                 // An update leaves the new items alone, they wait for Create.
@@ -239,7 +240,7 @@ public class ImportService {
                 importNewItem(entry, item, target, settings, result.isDryRun());
                 if (entry.getStatus() == ImportStatus.CREATED) {
                     existing.put(url, new Existing(null, entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(),
-                            entry.getWorkItemTypeIcon(), null, List.of()));
+                            entry.getWorkItemTypeIcon(), null, null, List.of()));
                 }
             }
         }
@@ -469,7 +470,8 @@ public class ImportService {
 
     /** A work item that holds a GitHub URL, as the page shows it. */
     private record Existing(@Nullable IWorkItem workItem, String id, @Nullable String type, @Nullable String typeName,
-                            @Nullable String typeIcon, @Nullable String status, List<String> assignees) {
+                            @Nullable String typeIcon, @Nullable String status, @Nullable String statusIcon,
+                            List<String> assignees) {
 
         @SuppressWarnings("unchecked") // IWorkItem.getAssignees is declared with a raw IPObjectList
         static Existing of(IWorkItem workItem) {
@@ -483,13 +485,13 @@ public class ImportService {
                 }
             }
             return new Existing(workItem, workItem.getId(), type == null ? null : type.getId(), type == null ? null : type.getName(),
-                    iconOf(type), status == null ? null : status.getName(), assignees);
+                    iconOf(type), status == null ? null : status.getName(), iconOf(status), assignees);
         }
     }
 
-    /** The icon Polarion shows for a work item type, as configured in the project. */
-    private static @Nullable String iconOf(@Nullable ITypeOpt type) {
-        return type == null ? null : type.getProperty(IEnumOption.PROPERTY_KEY_ICON_URL);
+    /** The icon Polarion shows for a work item type or status, as configured in the project. */
+    private static @Nullable String iconOf(@Nullable IEnumOption option) {
+        return option == null ? null : option.getProperty(IEnumOption.PROPERTY_KEY_ICON_URL);
     }
 
     /** What the import needs of one block of the settings, looked up in the project. */
