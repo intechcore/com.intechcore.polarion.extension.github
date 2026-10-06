@@ -64,6 +64,18 @@ body {
   margin-bottom: 10px;
 }
 
+/* The read time stands in the middle of the buttons beside it. */
+.items-toolbar {
+  align-items: center;
+}
+
+/* Clear filters stands in the row of the filters, so it takes their height of 23px, not the 28px of
+   a button. */
+.item-filters .sbb-btn {
+  height: var(--sbb-control-height);
+  line-height: calc(var(--sbb-control-height) - 2px);
+}
+
 .items-read-at {
   color: #6b6b6b;
 }
