@@ -79,6 +79,9 @@ public class ImportEntry {
     @Schema(description = "The names of the users the work item is assigned to")
     private List<String> workItemAssignees;
 
+    @Schema(description = "The names of the failed checks of a pull request, separated by commas")
+    private String failedChecks;
+
     @Schema(description = "True when the project hides the item on its GitHub page")
     private boolean hidden;
 }

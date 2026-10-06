@@ -1,0 +1,9 @@
+{
+  "total_count": 4,
+  "check_runs": [
+    {"id": 1, "name": "build", "status": "completed", "conclusion": "failure", "head_sha": "5c935690be108c980c6996dd9b60d9800d30eb17"},
+    {"id": 2, "name": "CodeQL", "status": "completed", "conclusion": "success", "head_sha": "5c935690be108c980c6996dd9b60d9800d30eb17"},
+    {"id": 3, "name": "deploy-maven-central", "status": "completed", "conclusion": "skipped", "head_sha": "5c935690be108c980c6996dd9b60d9800d30eb17"},
+    {"id": 4, "name": "build", "status": "completed", "conclusion": "failure", "head_sha": "5c935690be108c980c6996dd9b60d9800d30eb17"}
+  ]
+}

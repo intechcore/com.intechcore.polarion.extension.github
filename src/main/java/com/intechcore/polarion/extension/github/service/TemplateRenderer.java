@@ -24,7 +24,7 @@ public class TemplateRenderer {
 
     /** The placeholders of a title. A description takes them and {@code {{ BODY }}}. */
     public static final List<String> TITLE_PLACEHOLDERS = List.of(
-            "SHORT_NAME", "REPOSITORY", "NUMBER", "TITLE", "AUTHOR", "URL", "LABELS", "TYPE", "CATEGORY");
+            "SHORT_NAME", "REPOSITORY", "NUMBER", "TITLE", "AUTHOR", "URL", "LABELS", "TYPE", "CATEGORY", "CHECKS");
     public static final String BODY = "BODY";
 
     // Anything between double braces, to tell a misspelled placeholder from text.

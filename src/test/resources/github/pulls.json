@@ -1,0 +1,49 @@
+[
+  {
+    "url": "https://api.github.com/repos/acme/tool/pulls/421",
+    "html_url": "https://github.com/acme/tool/pull/421",
+    "number": 421,
+    "state": "open",
+    "title": "fix(deps): update docx4j.version to v17.3.0",
+    "user": {"login": "renovate[bot]", "id": 29139614, "type": "Bot"},
+    "body": "This PR contains the following updates: docx4j 17.2.0 to 17.3.0.",
+    "body_html": "<p dir=\"auto\">This PR contains the following updates: docx4j 17.2.0 to 17.3.0.</p>",
+    "labels": [{"id": 21, "name": "dependencies", "color": "0366d6"}],
+    "assignees": [],
+    "draft": false,
+    "head": {"label": "acme:renovate/docx4j", "ref": "renovate/docx4j", "sha": "5c935690be108c980c6996dd9b60d9800d30eb17"},
+    "base": {"label": "acme:main", "ref": "main", "sha": "1111111111111111111111111111111111111111"},
+    "created_at": "2026-10-05T21:38:30Z",
+    "updated_at": "2026-10-06T07:00:00Z"
+  },
+  {
+    "url": "https://api.github.com/repos/acme/tool/pulls/422",
+    "html_url": "https://github.com/acme/tool/pull/422",
+    "number": 422,
+    "state": "open",
+    "title": "chore(deps): update actions/checkout digest",
+    "user": {"login": "renovate[bot]", "id": 29139614, "type": "Bot"},
+    "body": "Digest update.",
+    "labels": [],
+    "assignees": [],
+    "draft": false,
+    "head": {"ref": "renovate/checkout", "sha": "2222222222222222222222222222222222222222"},
+    "created_at": "2026-10-06T06:00:00Z",
+    "updated_at": "2026-10-06T06:10:00Z"
+  },
+  {
+    "url": "https://api.github.com/repos/acme/tool/pulls/423",
+    "html_url": "https://github.com/acme/tool/pull/423",
+    "number": 423,
+    "state": "open",
+    "title": "Add a language",
+    "user": {"login": "alice", "id": 1, "type": "User"},
+    "body": "Work in progress.",
+    "labels": [],
+    "assignees": [],
+    "draft": false,
+    "head": {"ref": "feature/language", "sha": "5c935690be108c980c6996dd9b60d9800d30eb17"},
+    "created_at": "2026-10-01T06:00:00Z",
+    "updated_at": "2026-10-01T06:10:00Z"
+  }
+]

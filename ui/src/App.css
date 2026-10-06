@@ -300,3 +300,14 @@ body {
   align-self: center;
   white-space: nowrap;
 }
+
+/* The failed checks of a pull request, under its title. */
+.item-checks {
+  display: block;
+  color: #b42318;
+  font-size: 12px;
+}
+
+.block-hint {
+  max-width: 900px;
+}

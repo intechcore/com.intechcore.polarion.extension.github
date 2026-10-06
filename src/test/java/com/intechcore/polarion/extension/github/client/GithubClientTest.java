@@ -148,6 +148,7 @@ class GithubClientTest {
     void forgetsTheListsOfARepositoryOnlyAfterAMinute() {
         answer("/repos/acme/tool/issues", 200, Map.of(), "[{\"number\": 1, \"state\": \"open\"}]");
         answer("/repos/acme/tool/discussions", 200, Map.of(), "[]");
+        answer("/repos/acme/tool/commits/" + SHA + "/check-runs", 200, Map.of(), "{\"check_runs\": []}");
         java.util.concurrent.atomic.AtomicReference<Instant> now = new java.util.concurrent.atomic.AtomicReference<>(Instant.parse("2026-10-03T08:00:00Z"));
         GithubClient cached = new GithubClient(baseUrl, new java.time.Clock() {
             @Override
@@ -167,6 +168,8 @@ class GithubClientTest {
         });
         cached.getOpenIssues("acme", "tool");
         cached.getOpenDiscussions("acme", "tool");
+        cached.getFailedChecks("acme", "tool", SHA);
+        requests.remove(requests.size() - 1);
 
         now.set(now.get().plusSeconds(59));
         cached.forget("acme", "tool");
@@ -182,7 +185,57 @@ class GithubClientTest {
         cached.getOpenIssues("acme", "tool");
         cached.getOpenDiscussions("acme", "tool");
         assertThat(requests).hasSize(4);
+        // The checks of the repository were dropped as well.
+        cached.getFailedChecks("acme", "tool", SHA);
+        assertThat(requests).hasSize(5);
+        requests.remove(4);
         assertThat(cached.readAt("acme", "tool")).isEqualTo(Instant.parse("2026-10-03T08:01:00Z"));
+    }
+
+    private static final String SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    @Test
+    void readsTheOpenPullRequestsWithTheirCommit() {
+        answer("/repos/acme/tool/pulls", 200, Map.of(), """
+                [{"number": 421, "state": "open", "title": "Update docx4j", "user": {"login": "renovate[bot]"},
+                  "html_url": "https://github.com/acme/tool/pull/421", "head": {"sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "ref": "renovate/docx4j"}},
+                 {"number": 422, "state": "open", "head": "unexpected"}]""");
+
+        List<GithubItem> pulls = client.getOpenPullRequests("acme", "tool");
+
+        assertThat(pulls).extracting(GithubItem::headSha).containsExactly(SHA, null);
+        assertThat(requests).containsExactly("/repos/acme/tool/pulls?state=open&per_page=100");
+    }
+
+    @Test
+    void namesEachFailedCheckOnceAndServesThemFromTheCache() {
+        answer("/repos/acme/tool/commits/" + SHA + "/check-runs", 200, Map.of(), """
+                {"total_count": 6, "check_runs": [
+                  {"name": "build", "status": "completed", "conclusion": "failure"},
+                  {"name": "build", "status": "completed", "conclusion": "failure"},
+                  {"name": "e2e", "status": "completed", "conclusion": "timed_out"},
+                  {"name": "lint", "status": "completed", "conclusion": "success"},
+                  {"name": "older", "status": "completed", "conclusion": "cancelled"},
+                  {"name": "sonar", "status": "in_progress", "conclusion": null},
+                  {"status": "completed", "conclusion": "failure"}, null]}""");
+
+        assertThat(client.getFailedChecks("acme", "tool", SHA)).containsExactly("build", "e2e");
+        assertThat(client.getFailedChecks("acme", "tool", SHA)).containsExactly("build", "e2e");
+        assertThat(requests).containsExactly("/repos/acme/tool/commits/" + SHA + "/check-runs?per_page=100");
+
+        // A refresh asks again, once the minute has passed: here the cache entry is older than none.
+        answer("/repos/acme/fresh/commits/" + SHA + "/check-runs", 200, Map.of(), "{\"check_runs\": null}");
+        assertThat(client.getFailedChecks("acme", "fresh", SHA)).isEmpty();
+    }
+
+    @Test
+    void refusesAnythingButACommitShaAndAnUnreadableAnswer() {
+        assertThatThrownBy(() -> client.getFailedChecks("acme", "tool", "../issues"))
+                .isInstanceOf(IllegalArgumentException.class);
+        answer("/repos/acme/tool/commits/" + SHA + "/check-runs", 200, Map.of(), "[]");
+        assertThatThrownBy(() -> client.getFailedChecks("acme", "tool", SHA))
+                .isInstanceOf(GithubClientException.class)
+                .hasMessageContaining("unreadable");
     }
 
     @Test

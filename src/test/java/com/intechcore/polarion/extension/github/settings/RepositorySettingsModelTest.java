@@ -26,6 +26,8 @@ class RepositorySettingsModelTest {
                         .fields(Map.of("severity", "major"))
                         .build())
                 .discussions(new ItemSettings())
+                .pullRequests(ItemSettings.builder().enabled(true).workItemType("task").build())
+                .pullRequestAuthors("renovate[bot], dependabot[bot]")
                 .build();
     }
 
@@ -197,5 +199,29 @@ class RepositorySettingsModelTest {
         model.getIssues().setDuplicateKeyField(null);
 
         assertThatCode(model::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void readsASettingSavedBeforePullRequestsWithTheBlockOff() {
+        RepositorySettingsModel model = valid();
+        model.setPullRequests(null);
+        model.setPullRequestAuthors(null);
+
+        RepositorySettingsModel read = new RepositorySettingsModel();
+        read.deserialize(model.serialize());
+
+        assertThat(read.getPullRequests().isEnabled()).isFalse();
+        assertThat(read.authors()).containsExactly(RepositorySettingsModel.DEFAULT_PULL_REQUEST_AUTHORS);
+    }
+
+    @Test
+    void namesTheAuthorsOfPullRequests() {
+        assertThat(valid().authors()).containsExactly("renovate[bot]", "dependabot[bot]");
+        assertRejected(model -> model.setPullRequestAuthors(" , "), "authors of the pull requests");
+        assertRejected(model -> model.setPullRequestAuthors(null), "authors of the pull requests");
+        assertRejected(model -> model.getPullRequests().setRules(List.of(rule(RuleMatch.CATEGORY, "Q&A", true, null))),
+                "Rule 1 for pull requests compares what these items do not have");
+        assertRejected(model -> model.getPullRequests().setRules(List.of(rule(RuleMatch.TYPE, "Bug", true, null))),
+                "Rule 1 for pull requests compares what these items do not have");
     }
 }

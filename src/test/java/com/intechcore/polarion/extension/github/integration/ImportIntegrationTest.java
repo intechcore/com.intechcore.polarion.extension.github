@@ -243,6 +243,41 @@ class ImportIntegrationTest {
         assertThat(polarion.saved).extracting(item -> item.title).containsExactly("[GitHub] Tool : Export to CSV");
     }
 
+    private static final String PULL_REQUESTS = """
+            {
+              "repository": "acme/tool",
+              "shortName": "Tool",
+              "issues": {"enabled": false},
+              "pullRequests": {
+                "enabled": true,
+                "workItemType": "task",
+                "titleTemplate": "[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}",
+                "descriptionTemplate": "<a href=\\"{{ URL }}\\">{{ URL }}</a><p>Failed: {{ CHECKS }}</p>"
+              },
+              "pullRequestAuthors": "renovate[bot]"
+            }""";
+
+    @Test
+    void createsAWorkItemForTheFailedPullRequestOfRenovateOnce() {
+        saveSetting("tool", PULL_REQUESTS);
+
+        ImportResult preview = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null);
+
+        // 422 passed its checks, and 423 is not by a watched author.
+        assertThat(outcome(preview)).containsExactly("PULL_REQUEST 421 NEW");
+        assertThat(preview.getEntries().get(0).getFailedChecks()).isEqualTo("build");
+
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
+
+        FakePolarion.WorkItem fix = polarion.saved.get(0);
+        assertThat(fix.title).isEqualTo("[GitHub] Tool : Fix the failed checks of fix(deps): update docx4j.version to v17.3.0");
+        assertThat(fix.description.getContent()).isEqualTo(
+                "<a href=\"https://github.com/acme/tool/pull/421\">https://github.com/acme/tool/pull/421</a><p>Failed: build</p>");
+        assertThat(fix.hyperlinks).containsExactly("https://github.com/acme/tool/pull/421");
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null))).containsExactly("PULL_REQUEST 421 EXISTS");
+        assertThat(polarion.saved).hasSize(1);
+    }
+
     @Test
     void hidesAnItemOnThePageAndShowsItAgain() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
@@ -280,7 +315,7 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json.get("entries").get(1))).containsExactlyInAnyOrder(
                 "kind", "number", "title", "url", "status", "workItemId", "message", "setting", "repository", "githubType",
                 "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees",
-                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon", "hidden");
+                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon", "hidden", "failedChecks");
         assertThat(json.get("entries").get(1).get("status").asText()).isEqualTo("SKIPPED");
         assertThat(json.get("entries").get(0).get("kind").asText()).isEqualTo("ISSUE");
     }

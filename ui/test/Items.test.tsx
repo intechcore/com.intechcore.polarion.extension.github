@@ -8,6 +8,7 @@ import {
   DEFECT_ICON,
   DISCUSSION_30,
   DOCS_3,
+  FAILED_PULL_REQUEST,
   IN_PROGRESS_ICON,
   ISSUE_4,
   ISSUE_7,
@@ -245,6 +246,27 @@ describe('GitHub items page', () => {
 
     await vi.waitFor(() => expect(alerts()).toContain('No permission'));
     expect(numbers()).toHaveLength(7);
+  });
+
+  it('shows a pull request with its failed checks, and filters it by its kind', async () => {
+    fetchMock = installFetchMock(
+      itemsRoutes([
+        { method: 'GET', match: /\/items$/, json: { ...ITEMS, entries: [...ITEMS.entries, FAILED_PULL_REQUEST] } },
+      ]),
+    );
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(8));
+
+    const row = document.querySelectorAll('.items-table tbody tr')[7];
+    expect(row.querySelector('.kind-PULL_REQUEST')).not.toBeNull();
+    expect(row.querySelector('.item-checks')!.textContent).toBe('Failed checks: build, e2e');
+    expect(checkbox(FAILED_PULL_REQUEST.url!)).not.toBeNull();
+
+    await choose('Kind', 'Pull request');
+    await vi.waitFor(() =>
+      expect(numbers()).toEqual(['#421 fix(deps): update docx4j.version to v17.3.0Failed checks: build, e2e']),
+    );
   });
 
   it('gives the search box the height of the filters beside it', async () => {

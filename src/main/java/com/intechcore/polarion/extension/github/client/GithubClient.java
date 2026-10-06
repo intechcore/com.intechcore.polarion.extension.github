@@ -1,5 +1,7 @@
 package com.intechcore.polarion.extension.github.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
@@ -19,13 +21,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reads the open issues and discussions of a public repository from the GitHub REST API, without
- * authentication.
+ * Reads the open issues, discussions and pull requests of a public repository, and the checks of a
+ * commit, from the GitHub REST API, without authentication.
  */
 public class GithubClient {
 
@@ -40,6 +43,7 @@ public class GithubClient {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Pattern NEXT_LINK = Pattern.compile("<([^>]+)>\\s*;\\s*rel=\"next\"");
     private static final Pattern NAME = Pattern.compile("(?!\\.+$)[A-Za-z0-9._-]+");
+    private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
     private static final TypeReference<List<GithubItem>> ITEMS = new TypeReference<>() {
     };
 
@@ -62,9 +66,17 @@ public class GithubClient {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock;
     private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedChecks> checksCache = new ConcurrentHashMap<>();
 
     private record CachedList(Instant readAt, List<GithubItem> items) {
     }
+
+    private record CachedChecks(Instant readAt, List<String> failed) {
+    }
+
+    // The conclusions of a check run that a person has to look at. A cancelled run is left out: a
+    // newer run of the same check usually cancelled it.
+    private static final Set<String> FAILED_CONCLUSIONS = Set.of("failure", "timed_out", "action_required", "startup_failure");
 
     public GithubClient() {
         this(DEFAULT_API_URL);
@@ -99,6 +111,7 @@ public class GithubClient {
         String prefix = repositoryUrl(owner, repository) + "/";
         Instant latest = clock.instant().minus(REFRESH_PAUSE);
         cache.entrySet().removeIf(entry -> entry.getKey().startsWith(prefix) && !entry.getValue().readAt().isAfter(latest));
+        checksCache.entrySet().removeIf(entry -> entry.getKey().startsWith(prefix) && !entry.getValue().readAt().isAfter(latest));
     }
 
     /**
@@ -137,6 +150,53 @@ public class GithubClient {
             throw e;
         }
         return discussions.stream().filter(GithubItem::isOpen).toList();
+    }
+
+    /**
+     * The open pull requests of a repository, with the commit each points to.
+     */
+    public @NotNull List<GithubItem> getOpenPullRequests(@NotNull String owner, @NotNull String repository) {
+        return readAll(repositoryUrl(owner, repository) + "/pulls?state=open&per_page=" + PAGE_SIZE);
+    }
+
+    /**
+     * The names of the check runs of a commit that failed, each once. A commit whose checks all
+     * passed, or still run, has none.
+     */
+    public @NotNull List<String> getFailedChecks(@NotNull String owner, @NotNull String repository, @NotNull String sha) {
+        if (!SHA.matcher(sha).matches()) {
+            throw new IllegalArgumentException("Not a commit SHA: " + sha);
+        }
+        String url = repositoryUrl(owner, repository) + "/commits/" + sha + "/check-runs?per_page=" + PAGE_SIZE;
+        Instant now = clock.instant();
+        checksCache.values().removeIf(cached -> cached.readAt().plus(CACHE_TIME).isBefore(now));
+        CachedChecks cached = checksCache.get(url);
+        if (cached != null) {
+            return cached.failed();
+        }
+        HttpResponse<String> response = send(url);
+        CheckRuns runs;
+        try {
+            runs = objectMapper.readValue(response.body(), CheckRuns.class);
+        } catch (IOException e) {
+            throw new GithubClientException("GitHub answered " + url + " with an unreadable body", e);
+        }
+        List<String> failed = runs.checkRuns() == null ? List.of() : runs.checkRuns().stream()
+                // A run that still runs has no conclusion yet.
+                .filter(run -> run != null && run.name() != null && run.conclusion() != null && FAILED_CONCLUSIONS.contains(run.conclusion()))
+                .map(CheckRun::name)
+                .distinct()
+                .toList();
+        checksCache.put(url, new CachedChecks(now, failed));
+        return failed;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record CheckRuns(@JsonProperty("check_runs") List<CheckRun> checkRuns) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record CheckRun(String name, String conclusion) {
     }
 
     private String repositoryUrl(String owner, String repository) {

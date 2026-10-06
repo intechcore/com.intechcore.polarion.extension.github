@@ -70,13 +70,17 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   holds the Vite bundle, the administration-menu icons and the generated `html/about.html`.
 - `rest/GithubRestApplication` - the REST application. It registers the repository settings, the import
   controllers and the GitHub error mapper.
-- `client/GithubClient` - reads the open issues and discussions of a public repository from the
-  GitHub REST API, without a token. Anonymous access allows 60 requests per hour.
+- `client/GithubClient` - reads the open issues, discussions and pull requests of a public repository
+  and the check runs of a commit from the GitHub REST API, without a token. Anonymous access allows
+  60 requests per hour. The search API's `status:failure` sees only commit statuses, not check runs,
+  so the failed checks of a pull request cost one request each.
 - `settings/RepositorySettings` - named settings under the feature `repositories`, one setting per
   repository, in the scope of a project only. `RepositorySettingsModel.validate()` runs before
   every save. The REST endpoints come from generic: `/settings/repositories/...`.
 - `service/ImportService` - creates one work item per GitHub item, in one write transaction per
-  work item. `TemplateRenderer` fills the `{name}` placeholders and escapes every value in HTML.
+  work item. Pull requests (`ItemKind.PULL_REQUEST`) count only when a watched author opened them and
+  a check run failed; `{{ CHECKS }}` names the failed checks. `GithubHtml` cleans the HTML GitHub
+  renders for `{{ BODY }}` with Polarion's jsoup and gives uploaded images their stable URL. `TemplateRenderer` fills the `{name}` placeholders and escapes every value in HTML.
 - `settings/ItemRule` - a rule of a block: what to compare (`RuleMatch`: label, issue type,
   category), the value, and either `skip` or a work item type with field values.
   `ImportService` resolves every rule against the project before the first request, applies the
@@ -89,6 +93,9 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   items of the given URLs. `ImportService` compares an existing work item with what the settings and
   GitHub say now (title, description, type, the configured field values, the epic link) and reports
   `OUTDATED` with the differences; an update changes those and nothing else, never the URL key.
+- `settings/HiddenItems` - the URLs a project hides on its GitHub page, one setting per project under
+  the feature `hidden-items`, apart from the repository settings. `POST /projects/{projectId}/hidden-items`
+  changes it; `GET .../items` marks each entry with `hidden`.
 - `GET /projects/{projectId}/items` on the same controllers - the dry run of every repository
   setting of the project, for the GitHub topic. A setting that fails reports its reason in
   `RepositoryState` and leaves the others readable.

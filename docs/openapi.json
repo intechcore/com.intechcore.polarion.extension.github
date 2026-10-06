@@ -581,6 +581,10 @@
             },
             "type": "array"
           },
+          "failedChecks": {
+            "description": "The names of the failed checks of a pull request, separated by commas",
+            "type": "string"
+          },
           "githubType": {
             "description": "The issue type, or the category of a discussion",
             "type": "string"
@@ -593,7 +597,8 @@
             "description": "Issue or discussion",
             "enum": [
               "ISSUE",
-              "DISCUSSION"
+              "DISCUSSION",
+              "PULL_REQUEST"
             ],
             "type": "string"
           },

@@ -39,7 +39,8 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 9. Select `Save`.
 
 The templates take the placeholders `{{ SHORT_NAME }}`, `{{ REPOSITORY }}`, `{{ NUMBER }}`, `{{ TITLE }}`,
-`{{ AUTHOR }}`, `{{ URL }}`, `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}`. The description also takes `{{ BODY }}`.
+`{{ AUTHOR }}`, `{{ URL }}`, `{{ LABELS }}`, `{{ TYPE }}`, `{{ CATEGORY }}` and `{{ CHECKS }}`, the failed checks
+of a pull request. The description also takes `{{ BODY }}`.
 The description is HTML. `{{ BODY }}` is the rich text GitHub shows for the Markdown of the item, so
 place it outside a paragraph, for example in a `<div>`. The import escapes every other value. GitHub
 renders the HTML, and the import keeps only safe elements and attributes of it. An uploaded image keeps
@@ -48,6 +49,20 @@ underscores and the spaces inside the braces: `{{ SHORT_NAME }}` and `{{shortNam
 `Save` refuses a template with an unknown placeholder, `{{ BODY }}` in a title, or a placeholder of
 the earlier form `{title}`. The import checks a setting the same way before it reads GitHub, so a
 setting saved before a check existed shows its reason on the GitHub page.
+
+### Pull requests with failed checks
+
+The block `Pull requests` lists the open pull requests of the watched authors whose checks failed.
+An example is an update that Renovate could not merge because the build broke. A work item from it
+asks a person to finish the update.
+
+1. Enter the watched authors, separated by commas. A new setting watches `renovate[bot]`.
+2. Turn on `Create work items from pull requests` and fill the block as for issues.
+
+A failed check is a check run that ended with `failure`, `timed_out`, `action_required` or
+`startup_failure`. A cancelled run does not count. Each pull request of a watched author costs one
+GitHub request for its checks, once per five minutes. A rule on a pull request can compare a label or
+the author.
 
 ### Rules
 
@@ -103,7 +118,8 @@ with `gh attestation verify <file> --repo intechcore/com.intechcore.polarion.ext
 Open the topic `GitHub` in the navigation of a project. The administration of a project has the same
 page under `GitHub` / `Issues and Discussions`.
 
-The page lists the open issues and discussions of all repository settings of the project:
+The page lists the open issues and discussions of all repository settings of the project, and the
+pull requests with failed checks. A pull request shows the names of its failed checks under its title:
 
 - the short name of the repository, the item with its number as the link to GitHub, its issue type or
   discussion category, its labels in their GitHub colors and its GitHub assignees;

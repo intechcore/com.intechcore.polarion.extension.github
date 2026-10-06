@@ -39,6 +39,11 @@ final class FakeGithub implements AutoCloseable {
                 new Answer(200, Map.of("Link", "<" + url() + "/repos/acme/tool/issues?state=open&per_page=100&page=2>; rel=\"next\""), resource("issues-page-1.json")));
         answer("/repos/acme/tool/issues?state=open&per_page=100&page=2", new Answer(200, Map.of(), resource("issues-page-2.json")));
         answer("/repos/acme/tool/discussions?per_page=100", new Answer(200, Map.of(), resource("discussions.json")));
+        answer("/repos/acme/tool/pulls?state=open&per_page=100", new Answer(200, Map.of(), resource("pulls.json")));
+        answer("/repos/acme/tool/commits/5c935690be108c980c6996dd9b60d9800d30eb17/check-runs?per_page=100",
+                new Answer(200, Map.of(), resource("check-runs-failed.json")));
+        answer("/repos/acme/tool/commits/2222222222222222222222222222222222222222/check-runs?per_page=100",
+                new Answer(200, Map.of(), resource("check-runs-passed.json")));
     }
 
     String url() {

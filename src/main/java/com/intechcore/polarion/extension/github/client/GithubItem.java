@@ -29,7 +29,8 @@ public record GithubItem(
         Object type,
         Object category,
         List<User> assignees,
-        @JsonProperty("body_html") String bodyHtml) {
+        @JsonProperty("body_html") String bodyHtml,
+        Object head) {
 
     public static final String STATE_OPEN = "open";
 
@@ -87,6 +88,13 @@ public record GithubItem(
             return map.get("name") instanceof String name ? name : null;
         }
         return value instanceof String name ? name : null;
+    }
+
+    /**
+     * The commit a pull request points to, or null. Only the pull requests endpoint sends it.
+     */
+    public @Nullable String headSha() {
+        return head instanceof Map<?, ?> map && map.get("sha") instanceof String sha ? sha : null;
     }
 
     public boolean isOpen() {

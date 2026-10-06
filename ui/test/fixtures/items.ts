@@ -28,6 +28,7 @@ const base: Omit<ImportEntry, 'kind' | 'number' | 'title' | 'url' | 'status'> = 
   workItemStatus: null,
   workItemStatusIcon: null,
   workItemAssignees: [],
+  failedChecks: null,
   hidden: false,
 };
 
@@ -139,6 +140,19 @@ export const ENTRIES: ImportEntry[] = [
     hidden: true,
   },
 ];
+
+/** An update of Renovate whose build failed, as the items endpoint answers for it. */
+export const FAILED_PULL_REQUEST: ImportEntry = {
+  ...base,
+  kind: 'PULL_REQUEST',
+  number: 421,
+  title: 'fix(deps): update docx4j.version to v17.3.0',
+  url: 'https://github.com/acme/tool/pull/421',
+  status: 'NEW',
+  labels: ['dependencies'],
+  labelColors: { dependencies: '0366d6' },
+  failedChecks: 'build, e2e',
+};
 
 export const ITEMS = {
   repositories: [
