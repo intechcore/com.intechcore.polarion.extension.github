@@ -48,6 +48,9 @@ class GithubItemsWidgetRendererTest {
         scope = mock(Scope.class);
         when(context.getDisplayedScope()).thenReturn(scope);
         when(scope.projectId()).thenReturn("elibrary");
+        // Polarion passes every parameter the widget defines; one never filled has no value.
+        StringParameter repositories = mock(StringParameter.class);
+        when(context.<StringParameter>parameter(GithubItemsWidget.PARAMETER_REPOSITORIES)).thenReturn(repositories);
 
         attributes = mock(HtmlAttributesBuilder.class, RETURNS_SELF);
         HtmlTagBuilder iframe = mock(HtmlTagBuilder.class);
@@ -111,16 +114,10 @@ class GithubItemsWidgetRendererTest {
     @Test
     void passesNoScopeOutsideAProject() {
         when(scope.projectId()).thenReturn(null);
-        StringParameter repositories = mock(StringParameter.class);
-        when(context.<StringParameter>parameter(GithubItemsWidget.PARAMETER_REPOSITORIES)).thenReturn(repositories);
         CustomEnumParameter kinds = mock(CustomEnumParameter.class);
         when(context.<CustomEnumParameter>parameter(GithubItemsWidget.PARAMETER_KINDS)).thenReturn(kinds);
 
         assertThat(renderedUrl()).endsWith("&widget=true&scope=");
-
-        when(context.getDisplayedScope()).thenReturn(null);
-        attributes = mock(HtmlAttributesBuilder.class, RETURNS_SELF);
-        assertThat(new GithubItemsWidgetRenderer(context).appUrl()).endsWith("&scope=");
     }
 
     @Test

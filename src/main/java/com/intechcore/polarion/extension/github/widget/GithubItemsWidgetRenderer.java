@@ -1,7 +1,6 @@
 package com.intechcore.polarion.extension.github.widget;
 
 import com.polarion.alm.server.api.model.rp.widget.AbstractWidgetRenderer;
-import com.polarion.alm.shared.api.Scope;
 import com.polarion.alm.shared.api.model.rp.parameter.BooleanParameter;
 import com.polarion.alm.shared.api.model.rp.parameter.CustomEnumParameter;
 import com.polarion.alm.shared.api.model.rp.parameter.StringParameter;
@@ -45,10 +44,9 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
 
     public GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context) {
         super(context);
-        Scope scope = context.getDisplayedScope();
-        projectId = scope == null ? null : scope.projectId();
+        projectId = context.getDisplayedScope().projectId();
         StringParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
-        String names = repositoriesParameter == null ? null : repositoriesParameter.value();
+        String names = repositoriesParameter.value();
         repositories = names == null ? List.of() : Arrays.stream(names.split(",")).map(String::trim).filter(name -> !name.isEmpty()).toList();
         kinds = values(context.parameter(GithubItemsWidget.PARAMETER_KINDS));
         states = values(context.parameter(GithubItemsWidget.PARAMETER_STATES));
