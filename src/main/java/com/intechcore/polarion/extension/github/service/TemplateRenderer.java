@@ -3,7 +3,11 @@ package com.intechcore.polarion.extension.github.service;
 import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.UnaryOperator;
@@ -18,7 +22,40 @@ import java.util.regex.Pattern;
 @UtilityClass
 public class TemplateRenderer {
 
+    /** The placeholders of a title. A description takes them and {@code {{ BODY }}}. */
+    public static final List<String> TITLE_PLACEHOLDERS = List.of(
+            "SHORT_NAME", "REPOSITORY", "NUMBER", "TITLE", "AUTHOR", "URL", "LABELS", "TYPE", "CATEGORY");
+    public static final String BODY = "BODY";
+
+    // Anything between double braces, to tell a misspelled placeholder from text.
+    private static final Pattern ANY_PLACEHOLDER = Pattern.compile("\\{\\{(.*?)}}");
+    // The form before {{ NAME }}: one brace around a camel case name, for example {shortName}.
+    private static final Pattern EARLIER_FORM = Pattern.compile("(?<!\\{)\\{([A-Za-z_]+)}(?!})");
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{\\s*([A-Za-z_]+)\\s*}}");
+
+    /**
+     * The reasons a template would not render as its author means, or none. A placeholder must be
+     * one of {@code allowed}, written as {@code {{ NAME }}}.
+     */
+    public static @NotNull List<String> problems(@NotNull String template, @NotNull List<String> allowed) {
+        Set<String> keys = new HashSet<>();
+        allowed.forEach(name -> keys.add(key(name)));
+        List<String> problems = new ArrayList<>();
+        Matcher any = ANY_PLACEHOLDER.matcher(template);
+        while (any.find()) {
+            String name = any.group(1).trim();
+            if (!name.matches("[A-Za-z_]+") || !keys.contains(key(name))) {
+                problems.add("has the unknown placeholder " + any.group());
+            }
+        }
+        Matcher earlier = EARLIER_FORM.matcher(template);
+        while (earlier.find()) {
+            String name = key(earlier.group(1));
+            allowed.stream().filter(candidate -> key(candidate).equals(name)).findFirst().ifPresent(known ->
+                    problems.add("writes " + earlier.group() + " in the earlier form. Write {{ " + known + " }}"));
+        }
+        return problems;
+    }
 
     /**
      * Renders a plain-text template. The values go in unchanged.
