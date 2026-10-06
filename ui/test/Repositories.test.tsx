@@ -234,12 +234,13 @@ describe('Repositories page', () => {
 
     addRule().click();
     await vi.waitFor(() => expect(byLabel('Value of rule 3 of issues')).not.toBeNull());
-    // An issue rule offers the label and the issue type, never the discussion category.
+    // An issue rule offers the label, the issue type and the author, never the discussion category.
     mousedown(dropdown('What rule 3 of issues compares'));
     await vi.waitFor(() =>
       expect(Array.from(document.querySelectorAll('.sd-portal .option')).map((o) => o.textContent?.trim())).toEqual([
         'Label',
         'Issue type',
+        'Author',
       ]),
     );
     await pick(dropdown('What rule 3 of issues compares'), 'Issue type');

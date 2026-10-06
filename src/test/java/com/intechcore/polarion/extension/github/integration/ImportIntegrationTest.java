@@ -13,6 +13,7 @@ import com.intechcore.polarion.extension.github.client.GithubClientException;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
+import com.intechcore.polarion.extension.github.rest.model.HideRequest;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
 import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
 import com.intechcore.polarion.extension.github.rest.model.RepositoryState;
@@ -21,6 +22,7 @@ import com.intechcore.polarion.extension.github.service.ImportResult;
 import com.intechcore.polarion.extension.github.service.ImportService;
 import com.intechcore.polarion.extension.github.service.ImportStatus;
 import com.intechcore.polarion.extension.github.service.WriteTransaction;
+import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import com.polarion.subterra.base.location.Location;
 import jakarta.ws.rs.core.Response;
@@ -57,6 +59,7 @@ class ImportIntegrationTest {
     private FakePolarion polarion;
     private MockedStatic<ScopeUtils> scopeUtils;
     private RepositorySettings repositorySettings;
+    private HiddenItems hiddenItems;
     private NamedSettingsInternalController settingsEndpoint;
     private ImportInternalController importEndpoint;
     private ImportService importService;
@@ -72,6 +75,7 @@ class ImportIntegrationTest {
                 .thenReturn(Location.getLocation("default:/Demo Projects/elibrary"));
 
         repositorySettings = new RepositorySettings(new InMemorySettingsService());
+        hiddenItems = new HiddenItems(new InMemorySettingsService());
         NamedSettingsRegistry.INSTANCE.getAll().removeIf(settings -> RepositorySettings.FEATURE_NAME.equals(settings.getFeatureName()));
         NamedSettingsRegistry.INSTANCE.register(List.of(repositorySettings));
         settingsEndpoint = new NamedSettingsInternalController(polarion.polarionService);
@@ -82,7 +86,7 @@ class ImportIntegrationTest {
                 return action.get();
             }
         });
-        importEndpoint = new ImportInternalController(polarion.polarionService, repositorySettings, importService);
+        importEndpoint = new ImportInternalController(polarion.polarionService, repositorySettings, importService, hiddenItems);
     }
 
     @AfterEach
@@ -240,10 +244,26 @@ class ImportIntegrationTest {
     }
 
     @Test
+    void hidesAnItemOnThePageAndShowsItAgain() {
+        saveSetting("tool", ISSUES_AND_DISCUSSIONS);
+
+        assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), true)))
+                .containsExactly(ISSUES + "7");
+
+        List<ImportEntry> entries = importEndpoint.getItems(FakePolarion.PROJECT, false).getEntries();
+        assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getUrl).containsExactly(ISSUES + "7");
+        // A hidden item stays importable: hiding changes only the page.
+        assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW);
+
+        assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), false))).isEmpty();
+        assertThat(importEndpoint.getItems(FakePolarion.PROJECT, false).getEntries()).noneMatch(ImportEntry::isHidden);
+    }
+
+    @Test
     void theTokenEndpointRunsTheSameImport() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
-        ImportResult result = new ImportApiController(polarion.polarionService, repositorySettings, importService)
+        ImportResult result = new ImportApiController(polarion.polarionService, repositorySettings, importService, hiddenItems)
                 .importRepository(FakePolarion.PROJECT, "tool", true, null);
 
         assertThat(result.getEntries()).hasSize(4);
@@ -260,7 +280,7 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json.get("entries").get(1))).containsExactlyInAnyOrder(
                 "kind", "number", "title", "url", "status", "workItemId", "message", "setting", "repository", "githubType",
                 "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees",
-                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon");
+                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon", "hidden");
         assertThat(json.get("entries").get(1).get("status").asText()).isEqualTo("SKIPPED");
         assertThat(json.get("entries").get(0).get("kind").asText()).isEqualTo("ISSUE");
     }

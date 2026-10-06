@@ -178,6 +178,18 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** Hides the items on the GitHub page of the project, or shows them again. Answers with all hidden URLs. */
+  const hideItems = useCallback(
+    (projectId: string, urls: string[], hidden: boolean): Promise<string[]> =>
+      sendRequest({
+        method: 'POST',
+        url: projectPath(projectId, '/hidden-items'),
+        contentType: 'application/json',
+        body: JSON.stringify({ urls, hidden }),
+      }).then((r) => jsonOrThrow<string[]>(r)),
+    [sendRequest],
+  );
+
   return useMemo(
     () => ({
       loadConfigurationNames,
@@ -193,6 +205,7 @@ export default function useSettings() {
       runImport,
       loadItems,
       runUpdate,
+      hideItems,
     }),
     [
       loadConfigurationNames,
@@ -208,6 +221,7 @@ export default function useSettings() {
       runImport,
       loadItems,
       runUpdate,
+      hideItems,
     ],
   );
 }

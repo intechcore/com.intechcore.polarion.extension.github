@@ -5,7 +5,7 @@ export type { Revision, SettingName } from '@sbb-polarion/react-sbb-polarion';
 export type DuplicateKey = 'HYPERLINK' | 'CUSTOM_FIELD';
 
 /** What a rule compares of a GitHub item (settings.RuleMatch). */
-export type RuleMatch = 'LABEL' | 'TYPE' | 'CATEGORY';
+export type RuleMatch = 'LABEL' | 'TYPE' | 'CATEGORY' | 'AUTHOR';
 
 /** A rule for the GitHub items that match it (settings.ItemRule). */
 export interface ItemRule {
@@ -85,6 +85,8 @@ export interface ImportEntry {
   workItemStatusIcon: string | null;
   /** Polarion user names. */
   workItemAssignees: string[] | null;
+  /** True when the project hides the item on its GitHub page. */
+  hidden: boolean;
 }
 
 /** The outcome of the import of one repository (service.ImportResult). */

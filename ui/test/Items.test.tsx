@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser';
 import App from '../src/App';
 import { COLUMN_LABELS, loadLayout, visibleColumns } from '../src/services/columns';
 import {
+  DASHBOARD_2,
   DEFECT_ICON,
   DISCUSSION_30,
   DOCS_3,
@@ -66,7 +67,8 @@ async function mount(overrides: Route[] = []) {
   await vi.waitFor(() => expect(numbers()).toHaveLength(7));
 }
 
-const headers = () => Array.from(document.querySelectorAll('.items-table thead th')).map((th) => th.textContent);
+const headers = () =>
+  Array.from(document.querySelectorAll('.items-table thead th:not([aria-label="Hide"])')).map((th) => th.textContent);
 const columnBox = (label: string) =>
   Array.from(document.querySelectorAll<HTMLLabelElement>('.columns-panel label'))
     .find((l) => l.textContent === label)!
@@ -136,7 +138,7 @@ describe('GitHub items page', () => {
     expect(document.querySelector<HTMLAnchorElement>('.items-table a[target="_top"]')!.getAttribute('href')).toBe(
       '/polarion/#/project/elibrary/workitem?id=EL-12',
     );
-    expect(document.querySelector('.items-summary')!.textContent).toBe('7 of 7 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('7 of 8 open item(s) shown. 1 hidden.');
     // A repository that failed is named with the reason. The others stay readable.
     expect(alerts()).toEqual(['broken (acme/broken): Discussions are turned off in the repository acme/broken']);
     expect(document.querySelector('.items-read-at')!.textContent).toContain('The server keeps the lists for 5 minutes');
@@ -198,6 +200,53 @@ describe('GitHub items page', () => {
     expect(columnBox('Item').disabled).toBe(true);
   });
 
+  it('hides an item for the project, lists the hidden ones on request and shows one again', async () => {
+    await mount();
+    expect(numbers()).not.toContain('#2 Dependency Dashboard');
+    await userEvent.click(checkbox(ISSUE_7)!);
+
+    await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Hide #7"]')!);
+
+    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
+    expect(document.querySelector('.items-summary')!.textContent).toBe('6 of 8 open item(s) shown. 2 hidden.');
+    const hides = fetchMock.mock.calls.filter((c) => /hidden-items$/.test(String(c[0])));
+    expect(hides.map((c) => JSON.parse(String(c[1]!.body)))).toEqual([{ urls: [ISSUE_7], hidden: true }]);
+    // A hidden item leaves the selection.
+    expect(button('Create work items').disabled).toBe(true);
+
+    const show = Array.from(document.querySelectorAll<HTMLLabelElement>('.items-show-hidden')).find((l) =>
+      l.textContent?.includes('Show hidden (2)'),
+    )!;
+    await userEvent.click(show.querySelector('input')!);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(8));
+    expect(document.querySelectorAll('.items-table tr.item-hidden')).toHaveLength(2);
+    expect(document.querySelector('.items-summary')!.textContent).toBe('8 of 8 open item(s) shown.');
+
+    await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Show #2"]')!);
+    await vi.waitFor(() => expect(document.querySelectorAll('.items-table tr.item-hidden')).toHaveLength(0));
+    expect(
+      JSON.parse(String(fetchMock.mock.calls.filter((c) => /hidden-items$/.test(String(c[0])))[1][1]!.body)),
+    ).toEqual({
+      urls: [DASHBOARD_2],
+      hidden: false,
+    });
+  });
+
+  it('reports an item that could not be hidden', async () => {
+    await mount([
+      {
+        method: 'POST',
+        match: /hidden-items$/,
+        respond: () => jsonResponse({ message: 'No permission' }, 403),
+      },
+    ]);
+
+    await userEvent.click(document.querySelector<HTMLButtonElement>('[aria-label="Hide #7"]')!);
+
+    await vi.waitFor(() => expect(alerts()).toContain('No permission'));
+    expect(numbers()).toHaveLength(7);
+  });
+
   it('gives the search box the height of the filters beside it', async () => {
     await mount();
 
@@ -215,7 +264,7 @@ describe('GitHub items page', () => {
     await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start', '#5 Old report']));
     await choose('State', 'New');
     await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start']));
-    expect(document.querySelector('.items-summary')!.textContent).toBe('1 of 7 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('1 of 8 open item(s) shown. 1 hidden.');
 
     button('Clear filters').click();
     await vi.waitFor(() => expect(numbers()).toHaveLength(7));
@@ -234,7 +283,7 @@ describe('GitHub items page', () => {
 
     await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Search"]')!, 'nothing like this');
     await vi.waitFor(() => expect(document.querySelector('.items-table')).toBeNull());
-    expect(document.querySelector('.items-summary')!.textContent).toBe('0 of 7 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('0 of 8 open item(s) shown. 1 hidden.');
   });
 
   it('creates the work items of the selected items, one request per repository', async () => {

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
 import ColumnsMenu from '../components/ColumnsMenu';
@@ -50,6 +52,7 @@ export default function Items() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [layout, setLayout] = useState<ColumnLayout>(loadLayout);
+  const [showHidden, setShowHidden] = useState(false);
 
   const changeLayout = (next: ColumnLayout) => {
     setLayout(next);
@@ -80,7 +83,14 @@ export default function Items() {
     }
   }, [load, projectId]);
 
-  const visible = useMemo(() => applyFilters(entries ?? [], filters), [entries, filters]);
+  const visible = useMemo(
+    () =>
+      applyFilters(
+        (entries ?? []).filter((entry) => showHidden || !entry.hidden),
+        filters,
+      ),
+    [entries, filters, showHidden],
+  );
   const selectable = visible.filter((entry) => (entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url);
   const count = (status: ImportStatus) =>
     (entries ?? []).filter((entry) => entry.status === status && entry.url && checked.has(entry.url)).length;
@@ -103,6 +113,20 @@ export default function Items() {
       selectable.forEach((entry) => (allSelected ? next.delete(entry.url as string) : next.add(entry.url as string)));
       return next;
     });
+
+  /** Hides an item on the page of the project, or shows a hidden one again, for every user. */
+  const toggleHidden = async (entry: ImportEntry) => {
+    setError('');
+    try {
+      const hidden = new Set(await settings.hideItems(projectId, [entry.url as string], !entry.hidden));
+      setEntries((current) =>
+        (current ?? []).map((other) => ({ ...other, hidden: !!other.url && hidden.has(other.url) })),
+      );
+      setChecked((current) => new Set([...current].filter((selected) => !hidden.has(selected))));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
 
   /**
    * Creates the work items of the selected new items, or updates those of the selected outdated ones:
@@ -171,6 +195,7 @@ export default function Items() {
   // The filter offers the short names, as the table shows them, and filters by the setting.
   const shortNames = new Map(all.map((entry) => [entry.setting ?? '', entry.shortName ?? '']));
   const time = readTime(repositories);
+  const hiddenCount = all.filter((entry) => entry.hidden).length;
   const columns = visibleColumns(layout);
   const cell = (id: ColumnId, entry: ImportEntry): ReactNode => {
     switch (id) {
@@ -340,11 +365,16 @@ export default function Items() {
             >
               Clear filters
             </button>
+            <label className="items-show-hidden">
+              <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
+              Show hidden ({hiddenCount})
+            </label>
           </div>
 
           {entries !== null && (
             <p className="items-summary">
               {visible.length} of {all.length} open item(s) shown.
+              {hiddenCount > 0 && !showHidden ? ` ${hiddenCount} hidden.` : ''}
             </p>
           )}
 
@@ -364,11 +394,15 @@ export default function Items() {
                   {columns.map((id) => (
                     <th key={id}>{COLUMN_LABELS[id]}</th>
                   ))}
+                  <th aria-label="Hide" />
                 </tr>
               </thead>
               <tbody>
                 {visible.map((entry) => (
-                  <tr key={`${entry.setting}-${entry.kind}-${entry.number}`}>
+                  <tr
+                    key={`${entry.setting}-${entry.kind}-${entry.number}`}
+                    className={entry.hidden ? 'item-hidden' : undefined}
+                  >
                     <td>
                       {(entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url && (
                         <input
@@ -380,6 +414,24 @@ export default function Items() {
                       )}
                     </td>
                     {columns.map((id) => cell(id, entry))}
+                    <td>
+                      {entry.url && (
+                        <button
+                          type="button"
+                          className="item-hide"
+                          aria-label={`${entry.hidden ? 'Show' : 'Hide'} #${entry.number}`}
+                          title={
+                            entry.hidden
+                              ? 'Shows the item again, for every user of the project'
+                              : 'Hides the item on this page, for every user of the project'
+                          }
+                          disabled={busy}
+                          onClick={() => void toggleHidden(entry)}
+                        >
+                          <FontAwesomeIcon icon={entry.hidden ? faEye : faEyeSlash} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
