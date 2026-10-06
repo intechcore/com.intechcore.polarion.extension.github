@@ -57,10 +57,12 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await open();
     await vi.waitFor(() => expect(rows()).toHaveLength(7));
 
-    appButton('Columns').click();
+    document.querySelector<HTMLButtonElement>('button[aria-label="Table settings"]')!.click();
 
-    await vi.waitFor(() => expect(document.querySelector('.columns-panel')).not.toBeNull());
-    await captureApp('items-columns');
+    await vi.waitFor(() => expect(document.querySelector('.table-settings-panel')).not.toBeNull());
+    // The panel hangs below the short table: room under the page keeps it in the capture.
+    document.querySelector<HTMLElement>('.items-table')!.style.marginBottom = '120px';
+    await captureApp('items-table-settings');
     window.localStorage.clear();
   });
 
@@ -68,7 +70,10 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await open();
     await vi.waitFor(() => expect(rows()).toHaveLength(7));
 
-    document.querySelector<HTMLInputElement>('.items-show-hidden input')!.click();
+    document.querySelector<HTMLButtonElement>('button[aria-label="Table settings"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.table-settings-hidden')).not.toBeNull());
+    document.querySelector<HTMLInputElement>('.table-settings-hidden input')!.click();
+    document.querySelector<HTMLButtonElement>('button[aria-label="Table settings"]')!.click();
 
     await vi.waitFor(() => expect(rows()).toHaveLength(8));
     await captureApp('items-show-hidden');

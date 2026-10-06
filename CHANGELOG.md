@@ -33,9 +33,9 @@ All notable changes to this project are documented here. The format follows
 - The placeholders `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}` for the title and description templates.
 - Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces. Saving a
   setting and the import refuse an unknown placeholder and the earlier form `{name}`.
-- `Columns` on the GitHub page hides and moves the table columns. The browser keeps the layout.
+- The gear in the header of the items table hides and moves its columns. The browser keeps the layout.
 - The status of a work item shows with its icon. An item without a work item leaves the column empty.
-- An item can be hidden on the GitHub page for the whole project, and `Show hidden` lists it again.
+- An item can be hidden on the GitHub page for the whole project, and `Show hidden items` in the table settings lists it again.
 - A rule can match the author of an item, for example `renovate[bot]`.
 - Pull requests with failed checks: the open pull requests of watched authors, by default
   `renovate[bot]`, whose check runs failed. They become work items like issues, and the placeholder

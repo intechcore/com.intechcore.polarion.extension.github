@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { faArrowDown, faArrowUp } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useRef, useState } from 'react';
+import { faArrowDown, faArrowUp, faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   COLUMN_LABELS,
@@ -10,26 +10,58 @@ import {
   visibleColumns,
 } from '../services/columns';
 
-/** A button that opens the list of the table columns: show or hide each one, and move it. */
-export default function ColumnsMenu({
+interface TableSettingsProps {
+  layout: ColumnLayout;
+  onChange: (layout: ColumnLayout) => void;
+  showHidden: boolean;
+  onShowHiddenChange: (showHidden: boolean) => void;
+  hiddenCount: number;
+}
+
+/**
+ * The settings of the items table behind a gear in its header: whether the hidden items show, and
+ * which columns show in which order.
+ */
+export default function TableSettings({
   layout,
   onChange,
-}: Readonly<{ layout: ColumnLayout; onChange: (layout: ColumnLayout) => void }>) {
+  showHidden,
+  onShowHiddenChange,
+  hiddenCount,
+}: Readonly<TableSettingsProps>) {
   const [open, setOpen] = useState(false);
   const lastVisible = visibleColumns(layout).length <= 1;
+  const root = useRef<HTMLDivElement>(null);
+
+  // A click outside closes the settings, as a menu does.
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
   return (
-    <div className="columns-menu">
+    <div className="table-settings" ref={root}>
       <button
         type="button"
-        className="sbb-btn sbb-btn--control"
+        className="table-settings-button"
+        aria-label="Table settings"
+        title="Table settings"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        Columns
+        <FontAwesomeIcon icon={faGear} />
       </button>
       {open && (
-        <div className="columns-panel" role="group" aria-label="Columns">
+        <div className="table-settings-panel" role="group" aria-label="Table settings">
+          <label className="table-settings-hidden">
+            <input type="checkbox" checked={showHidden} onChange={(e) => onShowHiddenChange(e.target.checked)} />
+            Show hidden items ({hiddenCount})
+          </label>
+          <div className="table-settings-title">Columns</div>
           {layout.order.map((id, index) => {
             const shown = !layout.hidden.includes(id);
             return (

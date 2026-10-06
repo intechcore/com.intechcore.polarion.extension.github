@@ -4,9 +4,9 @@ import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
-import ColumnsMenu from '../components/ColumnsMenu';
 import ErrorNotice from '../components/ErrorNotice';
 import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell } from '../components/ItemCells';
+import TableSettings from '../components/TableSettings';
 import {
   COLUMN_LABELS,
   type ColumnId,
@@ -313,7 +313,6 @@ export default function Items() {
             >
               Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
             </button>
-            <ColumnsMenu layout={layout} onChange={changeLayout} />
             {busy && <span>Working...</span>}
             {time && (
               <span className="items-read-at">
@@ -365,10 +364,6 @@ export default function Items() {
             >
               Clear filters
             </button>
-            <label className="items-show-hidden">
-              <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
-              Show hidden ({hiddenCount})
-            </label>
           </div>
 
           {entries !== null && (
@@ -378,7 +373,8 @@ export default function Items() {
             </p>
           )}
 
-          {visible.length > 0 && (
+          {/* The header stays while filters or hiding leave no row: it carries the table settings. */}
+          {all.length > 0 && (
             <table className="items-table">
               <thead>
                 <tr>
@@ -394,10 +390,25 @@ export default function Items() {
                   {columns.map((id) => (
                     <th key={id}>{COLUMN_LABELS[id]}</th>
                   ))}
-                  <th aria-label="Hide" />
+                  <th className="table-settings-cell">
+                    <TableSettings
+                      layout={layout}
+                      onChange={changeLayout}
+                      showHidden={showHidden}
+                      onShowHiddenChange={setShowHidden}
+                      hiddenCount={hiddenCount}
+                    />
+                  </th>
                 </tr>
               </thead>
               <tbody>
+                {visible.length === 0 && (
+                  <tr className="items-empty-row">
+                    <td className="items-empty" colSpan={columns.length + 2}>
+                      No item matches the filters.
+                    </td>
+                  </tr>
+                )}
                 {visible.map((entry) => (
                   <tr
                     key={`${entry.setting}-${entry.kind}-${entry.number}`}

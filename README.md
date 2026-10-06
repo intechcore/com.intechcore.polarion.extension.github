@@ -128,12 +128,13 @@ pull requests with failed checks. A pull request shows the names of its failed c
 - the work item with the icon of its type and a link, its status with its icon and its assignees in
   Polarion. An item without a work item leaves these columns empty.
 
-`Columns` hides and shows a column and moves it up or down. The browser keeps the layout for the
-next visit, per user. `Reset columns` returns to the default.
+The gear in the last header cell opens the table settings. They show or hide each column and move it
+up or down. The browser keeps the layout for the next visit, per user. `Reset columns` returns to the
+default.
 
 The eye at the end of a row hides an item on the page, for every user of the project. Use it for an
-item that stays open on purpose, such as the Dependency Dashboard of Renovate. `Show hidden` lists the
-hidden items again, and their eye shows them. Hiding changes only the page: the import still sees the
+item that stays open on purpose, such as the Dependency Dashboard of Renovate. `Show hidden items` in the
+table settings lists the hidden items again, and their eye shows them. Hiding changes only the page: the import still sees the
 item. The project keeps the hidden URLs in the setting `hidden-items`.
 
 Filter the list by repository, kind, GitHub type, work item type, GitHub assignee, Polarion assignee
