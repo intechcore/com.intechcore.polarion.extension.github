@@ -1,5 +1,29 @@
 import react from '@vitejs/plugin-react';
+import { copyFileSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { createLogger, defineConfig, loadEnv } from 'vite';
+
+// react-sbb-polarion's BreadcrumbInjector loads breadcrumb-bridge.js from next to the running page. It
+// runs in the Polarion shell window rather than in this app's frame, so it stays a classic script and
+// cannot be bundled - it is copied next to the built app instead. Without it the topic GitHub shows no
+// breadcrumb, silently, since the injector treats the shell as optional chrome.
+function copyRspShellScripts() {
+  const require = createRequire(import.meta.url);
+  const bridge = () => require.resolve('@sbb-polarion/react-sbb-polarion/breadcrumb-bridge.js');
+  return {
+    name: 'copy-rsp-shell-scripts',
+    // `vite dev` serves nothing out of the build output, so it serves the script itself.
+    configureServer(server) {
+      server.middlewares.use('/breadcrumb-bridge.js', (_req, res) => {
+        res.setHeader('Content-Type', 'text/javascript');
+        res.end(readFileSync(bridge()));
+      });
+    },
+    writeBundle(options) {
+      copyFileSync(bridge(), `${options.dir}/breadcrumb-bridge.js`);
+    },
+  };
+}
 
 // The app and react-sbb-polarion reference Polarion's own runtime assets by absolute path - the
 // petrel theme CSS, generic's stylesheets, the Selawik fonts, the spinner image. None of them exist
@@ -31,7 +55,7 @@ export default defineConfig(({ command, mode }) => {
 
   if (command === 'serve') {
     return {
-      plugins: [react()],
+      plugins: [react(), copyRspShellScripts()],
       resolve,
       server: {
         proxy: {
@@ -58,7 +82,7 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
-    plugins: [react()],
+    plugins: [react(), copyRspShellScripts()],
     resolve,
     // Never let a developer's personal access token reach a shipped bundle. VITE_BEARER_TOKEN is a
     // `vite dev` convenience (it switches useRemote to the token-authenticated /api endpoints); Vite

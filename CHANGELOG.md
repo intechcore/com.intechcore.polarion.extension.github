@@ -31,4 +31,5 @@ All notable changes to this project are documented here. The format follows
   discussions with a label or a category, another work item type and field values, or leaves them
   out of the import. The first matching rule applies.
 - The placeholders `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}` for the title and description templates.
-- Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces.
+- Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces. Saving a
+  setting and the import refuse an unknown placeholder and the earlier form `{name}`.
