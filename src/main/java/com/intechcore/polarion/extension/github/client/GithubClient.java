@@ -31,6 +31,8 @@ public class GithubClient {
 
     public static final String DEFAULT_API_URL = "https://api.github.com";
 
+    // The full representation carries the body twice: as Markdown and as the HTML GitHub renders.
+    private static final String ACCEPT = "application/vnd.github.full+json";
     private static final int PAGE_SIZE = 100;
     // A repository with more open items than this is not what the import is for. The limit also
     // ends a loop over "next" links that never stop.
@@ -179,7 +181,7 @@ public class GithubClient {
     private HttpResponse<String> send(String url) {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(TIMEOUT)
-                .header("Accept", "application/vnd.github+json")
+                .header("Accept", ACCEPT)
                 .header("X-GitHub-Api-Version", "2022-11-28")
                 .GET()
                 .build();
