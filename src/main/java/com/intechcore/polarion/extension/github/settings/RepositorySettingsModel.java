@@ -11,8 +11,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -33,6 +37,11 @@ public class RepositorySettingsModel extends SettingsModel {
     private static final String SHORT_NAME_ENTRY = "SHORT_NAME";
     private static final String ISSUES_ENTRY = "ISSUES";
     private static final String DISCUSSIONS_ENTRY = "DISCUSSIONS";
+    private static final String PULL_REQUESTS_ENTRY = "PULL_REQUESTS";
+    private static final String PULL_REQUEST_AUTHORS_ENTRY = "PULL_REQUEST_AUTHORS";
+
+    /** The bot whose pull requests a new setting watches. */
+    public static final String DEFAULT_PULL_REQUEST_AUTHORS = "renovate[bot]";
 
     private static final Pattern REPOSITORY_PATTERN = Pattern.compile("(?!\\.+/)[A-Za-z0-9._-]+/(?!\\.+$)[A-Za-z0-9._-]+");
 
@@ -48,12 +57,20 @@ public class RepositorySettingsModel extends SettingsModel {
     @Schema(description = "How discussions become work items")
     private ItemSettings discussions;
 
+    @Schema(description = "How open pull requests with failed checks become work items")
+    private ItemSettings pullRequests;
+
+    @Schema(description = "The GitHub logins whose pull requests the import watches, separated by commas", example = DEFAULT_PULL_REQUEST_AUTHORS)
+    private String pullRequestAuthors;
+
     @Override
     protected String serializeModelData() {
         return serializeEntry(REPOSITORY_ENTRY, repository) +
                 serializeEntry(SHORT_NAME_ENTRY, shortName) +
                 serializeEntry(ISSUES_ENTRY, issues) +
-                serializeEntry(DISCUSSIONS_ENTRY, discussions);
+                serializeEntry(DISCUSSIONS_ENTRY, discussions) +
+                serializeEntry(PULL_REQUESTS_ENTRY, pullRequests) +
+                serializeEntry(PULL_REQUEST_AUTHORS_ENTRY, pullRequestAuthors);
     }
 
     @Override
@@ -62,6 +79,8 @@ public class RepositorySettingsModel extends SettingsModel {
         shortName = deserializeEntry(SHORT_NAME_ENTRY, serializedString);
         issues = deserializeEntry(ISSUES_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
         discussions = deserializeEntry(DISCUSSIONS_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
+        pullRequests = deserializeEntry(PULL_REQUESTS_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
+        pullRequestAuthors = deserializeEntry(PULL_REQUEST_AUTHORS_ENTRY, serializedString, DEFAULT_PULL_REQUEST_AUTHORS);
     }
 
     /**
@@ -76,11 +95,21 @@ public class RepositorySettingsModel extends SettingsModel {
         if (isBlank(shortName)) {
             throw new IllegalArgumentException("The short name is required");
         }
-        validate("issues", issues, RuleMatch.CATEGORY);
-        validate("discussions", discussions, RuleMatch.TYPE);
+        validate("issues", issues, Set.of(RuleMatch.CATEGORY));
+        validate("discussions", discussions, Set.of(RuleMatch.TYPE));
+        validate("pull requests", pullRequests, Set.of(RuleMatch.TYPE, RuleMatch.CATEGORY));
+        if (pullRequests != null && pullRequests.isEnabled() && authors().isEmpty()) {
+            throw new IllegalArgumentException("The authors of the pull requests are required");
+        }
     }
 
-    private static void validate(String kind, ItemSettings settings, RuleMatch notForThisKind) {
+    /** The GitHub logins whose pull requests the import watches. */
+    public @NotNull List<String> authors() {
+        return pullRequestAuthors == null ? List.of() : Arrays.stream(pullRequestAuthors.split(","))
+                .map(String::trim).filter(author -> !author.isEmpty()).toList();
+    }
+
+    private static void validate(String kind, ItemSettings settings, Set<RuleMatch> notForThisKind) {
         if (settings == null || !settings.isEnabled()) {
             return;
         }
@@ -117,11 +146,11 @@ public class RepositorySettingsModel extends SettingsModel {
         }
     }
 
-    private static void validate(String rule, ItemRule settings, RuleMatch notForThisKind) {
+    private static void validate(String rule, ItemRule settings, Set<RuleMatch> notForThisKind) {
         if (settings == null || settings.getMatch() == null) {
             throw new IllegalArgumentException(rule + " needs what to compare");
         }
-        if (settings.getMatch() == notForThisKind) {
+        if (notForThisKind.contains(settings.getMatch())) {
             throw new IllegalArgumentException(rule + " compares what these items do not have");
         }
         if (isBlank(settings.getValue())) {

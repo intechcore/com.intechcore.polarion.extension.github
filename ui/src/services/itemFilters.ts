@@ -25,7 +25,11 @@ export const NO_FILTERS: ItemFilters = {
   text: '',
 };
 
-export const KIND_LABELS: Record<ItemKind, string> = { ISSUE: 'Issue', DISCUSSION: 'Discussion' };
+export const KIND_LABELS: Record<ItemKind, string> = {
+  ISSUE: 'Issue',
+  DISCUSSION: 'Discussion',
+  PULL_REQUEST: 'Pull request',
+};
 
 export const STATUS_LABELS: Record<ImportStatus, string> = {
   NEW: 'New',

@@ -5,6 +5,7 @@ import {
   faCircleCheck,
   faCircleDot,
   faCirclePlus,
+  faCodePullRequest,
   faComments,
   faLink,
   faTriangleExclamation,
@@ -13,7 +14,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { KIND_LABELS, STATUS_LABELS } from '../services/itemFilters';
 import type { ImportEntry, ImportStatus, ItemKind } from '../types';
 
-const KIND_ICONS: Record<ItemKind, IconDefinition> = { ISSUE: faCircleDot, DISCUSSION: faComments };
+const KIND_ICONS: Record<ItemKind, IconDefinition> = {
+  ISSUE: faCircleDot,
+  DISCUSSION: faComments,
+  PULL_REQUEST: faCodePullRequest,
+};
 
 const STATUS_ICONS: Record<ImportStatus, IconDefinition> = {
   NEW: faCirclePlus,
@@ -25,7 +30,7 @@ const STATUS_ICONS: Record<ImportStatus, IconDefinition> = {
   FAILED: faTriangleExclamation,
 };
 
-/** The item: an icon of its kind, its number as the link to GitHub, and its title. */
+/** The item: an icon of its kind, its number as the link to GitHub, its title, and the failed checks of a pull request. */
 export function ItemCell({ entry }: Readonly<{ entry: ImportEntry }>) {
   const kind = KIND_LABELS[entry.kind];
   return (
@@ -44,7 +49,10 @@ export function ItemCell({ entry }: Readonly<{ entry: ImportEntry }>) {
       ) : (
         <span className="item-number">#{entry.number}</span>
       )}
-      <span className="item-title">{entry.title}</span>
+      <span className="item-title">
+        {entry.title}
+        {entry.failedChecks && <span className="item-checks">Failed checks: {entry.failedChecks}</span>}
+      </span>
     </div>
   );
 }

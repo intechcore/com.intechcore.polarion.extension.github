@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * How one kind of GitHub item, issues or discussions, becomes work items.
+ * How one kind of GitHub item, issues, discussions or pull requests, becomes work items.
  */
 @Data
 @Builder
@@ -32,7 +32,7 @@ public class ItemSettings {
     @Schema(description = "The type of the created work items")
     private String workItemType;
 
-    @Schema(description = "The title template. Placeholders: {{ SHORT_NAME }}, {{ REPOSITORY }}, {{ NUMBER }}, {{ TITLE }}, {{ AUTHOR }}, {{ URL }}, {{ LABELS }}, {{ TYPE }}, {{ CATEGORY }}")
+    @Schema(description = "The title template. Placeholders: {{ SHORT_NAME }}, {{ REPOSITORY }}, {{ NUMBER }}, {{ TITLE }}, {{ AUTHOR }}, {{ URL }}, {{ LABELS }}, {{ TYPE }}, {{ CATEGORY }}, {{ CHECKS }}")
     @Builder.Default
     private String titleTemplate = DEFAULT_TITLE_TEMPLATE;
 

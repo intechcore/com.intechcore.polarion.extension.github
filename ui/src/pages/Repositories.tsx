@@ -31,6 +31,12 @@ const EMPTY_ITEM: ItemForm = {
   rules: [],
 };
 
+const DEFAULT_AUTHORS = 'renovate[bot]';
+const EMPTY_PULL_REQUESTS: ItemForm = {
+  ...EMPTY_ITEM,
+  titleTemplate: '[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}',
+};
+
 const toRows = (fields: Record<string, string> | null): FieldRow[] =>
   Object.entries(fields ?? {}).map(([id, value]) => ({ id, value }));
 
@@ -85,7 +91,7 @@ function toSettings(form: ItemForm): ItemSettings {
 
 /**
  * The repositories a project imports from. One named setting holds one repository, with one block
- * for its issues and one for its discussions.
+ * for its issues, one for its discussions and one for its pull requests with failed checks.
  */
 export default function Repositories() {
   const settings = useSettings();
@@ -101,6 +107,8 @@ export default function Repositories() {
   const [shortName, setShortName] = useState('');
   const [issues, setIssues] = useState<ItemForm>(EMPTY_ITEM);
   const [discussions, setDiscussions] = useState<ItemForm>(EMPTY_ITEM);
+  const [pullRequests, setPullRequests] = useState<ItemForm>(EMPTY_PULL_REQUESTS);
+  const [authors, setAuthors] = useState(DEFAULT_AUTHORS);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -131,6 +139,8 @@ export default function Repositories() {
     setShortName(model.shortName ?? '');
     setIssues(toForm(model.issues));
     setDiscussions(toForm(model.discussions));
+    setPullRequests(model.pullRequests ? toForm(model.pullRequests) : EMPTY_PULL_REQUESTS);
+    setAuthors(model.pullRequestAuthors ?? DEFAULT_AUTHORS);
   }, []);
 
   const handleSelectedChange = useCallback((name: string | null) => {
@@ -163,6 +173,8 @@ export default function Repositories() {
         shortName: shortName.trim(),
         issues: toSettings(issues),
         discussions: toSettings(discussions),
+        pullRequests: toSettings(pullRequests),
+        pullRequestAuthors: authors.trim(),
       });
       await paneRef.current?.reloadNames(name);
       setRevisionsToken((token) => token + 1);
@@ -262,6 +274,38 @@ export default function Repositories() {
             loadFields={loadFields}
           />
 
+          <h2>Pull requests</h2>
+          <p className="block-hint">
+            Lists the open pull requests of the watched authors whose checks failed, for example an update Renovate
+            could not merge. Each such pull request costs one GitHub request per five minutes for its checks.
+          </p>
+          <table className="settings-table">
+            <tbody>
+              <tr>
+                <td>
+                  <label htmlFor="pull-request-authors">Watched authors:</label>
+                </td>
+                <td>
+                  <input
+                    id="pull-request-authors"
+                    type="text"
+                    placeholder="renovate[bot], dependabot[bot]"
+                    value={authors}
+                    onChange={(e) => setAuthors(e.target.value)}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <ItemSettingsForm
+            kind="pull requests"
+            value={pullRequests}
+            onChange={setPullRequests}
+            workItemTypes={workItemTypes}
+            linkRoles={linkRoles}
+            loadFields={loadFields}
+          />
+
           <ConfigurationButtons
             onSave={() => void handleSave(selected)}
             onCancel={() => void handleCancel(selected)}
@@ -285,17 +329,18 @@ export default function Repositories() {
               The title and the description take these placeholders: <code>{'{{ SHORT_NAME }}'}</code>,{' '}
               <code>{'{{ REPOSITORY }}'}</code>, <code>{'{{ NUMBER }}'}</code>, <code>{'{{ TITLE }}'}</code>,{' '}
               <code>{'{{ AUTHOR }}'}</code>, <code>{'{{ URL }}'}</code>, <code>{'{{ LABELS }}'}</code>,{' '}
-              <code>{'{{ TYPE }}'}</code>, <code>{'{{ CATEGORY }}'}</code>. The description also takes{' '}
-              <code>{'{{ BODY }}'}</code>. The description is HTML. <code>{'{{ BODY }}'}</code> is the rich text GitHub
-              shows for the Markdown of the item, so place it outside a paragraph. Every other value is escaped. A name
-              ignores case, underscores and the spaces inside the braces.
+              <code>{'{{ TYPE }}'}</code>, <code>{'{{ CATEGORY }}'}</code>, <code>{'{{ CHECKS }}'}</code> (the failed
+              checks of a pull request). The description also takes <code>{'{{ BODY }}'}</code>. The description is
+              HTML. <code>{'{{ BODY }}'}</code> is the rich text GitHub shows for the Markdown of the item, so place it
+              outside a paragraph. Every other value is escaped. A name ignores case, underscores and the spaces inside
+              the braces.
             </p>
             <h3>Rules</h3>
             <p>
-              A rule applies to the items that carry a label, an issue type or a discussion category. It gives them
-              another work item type and field values, or leaves them out of the import. The first matching rule
-              applies. An item that matches no rule gets the work item type and the field values above. GitHub has issue
-              types only in organizations that use them.
+              A rule applies to the items that carry a label, an issue type or a discussion category, or to the items of
+              an author. It gives them another work item type and field values, or leaves them out of the import. The
+              first matching rule applies. An item that matches no rule gets the work item type and the field values
+              above. GitHub has issue types only in organizations that use them.
             </p>
           </div>
         </div>

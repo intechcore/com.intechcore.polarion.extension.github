@@ -45,6 +45,8 @@ export default function ItemSettingsForm({
   loadFields,
 }: Readonly<ItemSettingsFormProps>) {
   const set = (change: Partial<ItemForm>) => onChange({ ...value, ...change });
+  // The kind names the block in the labels; the element IDs take it without spaces.
+  const id = kind.replace(/\s+/g, '-');
   // Only the custom fields of the type String can keep the URL of a GitHub item.
   const urlKeyOptions = useFields(value.workItemType, loadFields)
     .filter((field) => field.urlKey)
@@ -54,12 +56,12 @@ export default function ItemSettingsForm({
     <div className="item-settings">
       <div className="item-settings-enabled">
         <input
-          id={`${kind}-enabled`}
+          id={`${id}-enabled`}
           type="checkbox"
           checked={value.enabled}
           onChange={(e) => set({ enabled: e.target.checked })}
         />
-        <label htmlFor={`${kind}-enabled`}>Create work items from {kind}</label>
+        <label htmlFor={`${id}-enabled`}>Create work items from {kind}</label>
       </div>
 
       {value.enabled && (
@@ -67,11 +69,11 @@ export default function ItemSettingsForm({
           <tbody>
             <tr>
               <td>
-                <label htmlFor={`${kind}-type`}>Work item type:</label>
+                <label htmlFor={`${id}-type`}>Work item type:</label>
               </td>
               <td>
                 <SearchableSelect
-                  id={`${kind}-type`}
+                  id={`${id}-type`}
                   value={value.workItemType}
                   onChange={(workItemType) => set({ workItemType })}
                   options={workItemTypes}
@@ -81,11 +83,11 @@ export default function ItemSettingsForm({
             </tr>
             <tr>
               <td>
-                <label htmlFor={`${kind}-title`}>Title:</label>
+                <label htmlFor={`${id}-title`}>Title:</label>
               </td>
               <td>
                 <input
-                  id={`${kind}-title`}
+                  id={`${id}-title`}
                   type="text"
                   value={value.titleTemplate}
                   onChange={(e) => set({ titleTemplate: e.target.value })}
@@ -94,11 +96,11 @@ export default function ItemSettingsForm({
             </tr>
             <tr>
               <td>
-                <label htmlFor={`${kind}-description`}>Description (HTML):</label>
+                <label htmlFor={`${id}-description`}>Description (HTML):</label>
               </td>
               <td>
                 <textarea
-                  id={`${kind}-description`}
+                  id={`${id}-description`}
                   rows={3}
                   value={value.descriptionTemplate}
                   onChange={(e) => set({ descriptionTemplate: e.target.value })}
@@ -107,11 +109,11 @@ export default function ItemSettingsForm({
             </tr>
             <tr>
               <td>
-                <label htmlFor={`${kind}-key`}>Keep the GitHub URL in:</label>
+                <label htmlFor={`${id}-key`}>Keep the GitHub URL in:</label>
               </td>
               <td>
                 <SearchableSelect
-                  id={`${kind}-key`}
+                  id={`${id}-key`}
                   value={value.duplicateKey}
                   onChange={(duplicateKey) => set({ duplicateKey: duplicateKey as DuplicateKey })}
                   options={DUPLICATE_KEYS}
@@ -122,11 +124,11 @@ export default function ItemSettingsForm({
             {value.duplicateKey === 'CUSTOM_FIELD' && (
               <tr>
                 <td>
-                  <label htmlFor={`${kind}-key-field`}>Custom field:</label>
+                  <label htmlFor={`${id}-key-field`}>Custom field:</label>
                 </td>
                 <td>
                   <SearchableSelect
-                    id={`${kind}-key-field`}
+                    id={`${id}-key-field`}
                     value={value.duplicateKeyField}
                     onChange={(duplicateKeyField) => set({ duplicateKeyField })}
                     options={urlKeyOptions}
@@ -138,11 +140,11 @@ export default function ItemSettingsForm({
             )}
             <tr>
               <td>
-                <label htmlFor={`${kind}-epic`}>Link to the work item:</label>
+                <label htmlFor={`${id}-epic`}>Link to the work item:</label>
               </td>
               <td>
                 <input
-                  id={`${kind}-epic`}
+                  id={`${id}-epic`}
                   type="text"
                   placeholder="The ID of an epic, optional"
                   value={value.epicId}
@@ -152,11 +154,11 @@ export default function ItemSettingsForm({
             </tr>
             <tr>
               <td>
-                <label htmlFor={`${kind}-role`}>Link role:</label>
+                <label htmlFor={`${id}-role`}>Link role:</label>
               </td>
               <td>
                 <SearchableSelect
-                  id={`${kind}-role`}
+                  id={`${id}-role`}
                   value={value.epicLinkRole}
                   onChange={(epicLinkRole) => set({ epicLinkRole })}
                   options={linkRoles}

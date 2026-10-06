@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 import App from '../src/App';
-import { SCOPE, repositoriesRoutes } from './fixtures/repositories';
+import { CONTENT, SCOPE, repositoriesRoutes } from './fixtures/repositories';
 import { type FetchMock, type Route, installFetchMock, jsonResponse } from './mockFetch';
 
 // Behavior tests for the Repositories page, driven through the real App (feature router + Toaster).
@@ -126,7 +126,48 @@ describe('Repositories page', () => {
         fields: {},
         rules: [],
       },
+      // A setting saved before pull requests existed gets the block off and Renovate as the author.
+      pullRequests: {
+        enabled: false,
+        workItemType: null,
+        titleTemplate: '[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}',
+        descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
+        duplicateKey: 'HYPERLINK',
+        duplicateKeyField: null,
+        epicId: null,
+        epicLinkRole: null,
+        fields: {},
+        rules: [],
+      },
+      pullRequestAuthors: 'renovate[bot]',
     });
+  });
+
+  it('watches the failed pull requests of the authors given', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/content/,
+        json: {
+          ...CONTENT,
+          pullRequests: { ...CONTENT.discussions, enabled: true, workItemType: 'task' },
+          pullRequestAuthors: 'dependabot[bot]',
+        },
+      },
+    ]);
+    await vi.waitFor(() => expect(input('pull-request-authors').value).toBe('dependabot[bot]'));
+    expect(input('pull-requests-enabled').checked).toBe(true);
+    expect(document.querySelector('label[for="pull-requests-enabled"]')!.textContent).toBe(
+      'Create work items from pull requests',
+    );
+    await userEvent.fill(input('pull-request-authors'), ' renovate[bot], dependabot[bot] ');
+
+    button('Save').click();
+
+    await vi.waitFor(() => expect(toastText()).toContain('successfully saved'));
+    expect(savedBody().pullRequestAuthors).toBe('renovate[bot], dependabot[bot]');
+    expect(savedBody().pullRequests.enabled).toBe(true);
+    expect(savedBody().pullRequests.workItemType).toBe('task');
   });
 
   it('offers only the fields that can keep a URL as the custom field', async () => {

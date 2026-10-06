@@ -16,6 +16,7 @@ import java.util.Objects;
 public class RepositorySettings extends GenericNamedSettings<RepositorySettingsModel> {
 
     public static final String FEATURE_NAME = "repositories";
+    public static final String PULL_REQUEST_TITLE_TEMPLATE = "[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}";
 
     public RepositorySettings() {
         super(FEATURE_NAME);
@@ -58,6 +59,8 @@ public class RepositorySettings extends GenericNamedSettings<RepositorySettingsM
                 .shortName("")
                 .issues(ItemSettings.builder().enabled(true).build())
                 .discussions(new ItemSettings())
+                .pullRequests(ItemSettings.builder().titleTemplate(PULL_REQUEST_TITLE_TEMPLATE).build())
+                .pullRequestAuthors(RepositorySettingsModel.DEFAULT_PULL_REQUEST_AUTHORS)
                 .build();
     }
 }

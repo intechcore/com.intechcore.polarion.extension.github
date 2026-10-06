@@ -124,6 +124,8 @@ public class ImportService {
         Target discussionTarget = isEnabled(settings.getDiscussions()) ? resolveTarget(project, settings.getDiscussions()) : null;
         List<GithubItem> issues = issueTarget == null ? List.of() : githubClient.getOpenIssues(name[0], name[1]);
         List<GithubItem> discussions = discussionTarget == null ? List.of() : githubClient.getOpenDiscussions(name[0], name[1]);
+        Target pullRequestTarget = isEnabled(settings.getPullRequests()) ? resolveTarget(project, settings.getPullRequests()) : null;
+        List<GithubItem> pullRequests = pullRequestTarget == null ? List.of() : failedPullRequests(name, settings, pullRequestTarget, onlyUrls);
 
         if (issueTarget != null) {
             importItems(ItemKind.ISSUE, issues, issueTarget, settings, result, mode, onlyUrls);
@@ -131,9 +133,34 @@ public class ImportService {
         if (discussionTarget != null) {
             importItems(ItemKind.DISCUSSION, discussions, discussionTarget, settings, result, mode, onlyUrls);
         }
+        if (pullRequestTarget != null) {
+            importItems(ItemKind.PULL_REQUEST, pullRequests, pullRequestTarget, settings, result, mode, onlyUrls);
+        }
         Instant readAt = githubClient.readAt(name[0], name[1]);
         result.setReadAt(readAt == null ? null : readAt.toString());
         return result;
+    }
+
+    /**
+     * The open pull requests of the watched authors whose checks failed. Each costs a request for its
+     * checks, once per cache time, so only the pull requests of the authors are asked about.
+     */
+    private List<GithubItem> failedPullRequests(String[] name, RepositorySettingsModel settings, Target target,
+                                                @Nullable Collection<String> onlyUrls) {
+        List<String> authors = settings.authors();
+        List<GithubItem> failed = new ArrayList<>();
+        for (GithubItem pullRequest : githubClient.getOpenPullRequests(name[0], name[1])) {
+            boolean watched = pullRequest.user() != null && authors.stream().anyMatch(author -> author.equalsIgnoreCase(pullRequest.user().login()));
+            boolean wanted = onlyUrls == null || onlyUrls.contains(pullRequest.htmlUrl());
+            if (watched && wanted && pullRequest.headSha() != null) {
+                List<String> checks = githubClient.getFailedChecks(name[0], name[1], pullRequest.headSha());
+                if (!checks.isEmpty()) {
+                    target.checks().put(pullRequest.htmlUrl(), String.join(", ", checks));
+                    failed.add(pullRequest);
+                }
+            }
+        }
+        return failed;
     }
 
     /**
@@ -174,7 +201,7 @@ public class ImportService {
                 rules.add(new ResolvedRule(rule, outcome));
             }
         }
-        return new Target(project, settings, epic, fallback, rules);
+        return new Target(project, settings, epic, fallback, rules, new HashMap<>());
     }
 
     private static Outcome resolveOutcome(ITrackerProject project, ItemSettings settings, String typeId,
@@ -218,6 +245,7 @@ public class ImportService {
                     .setting(settings.getName()).repository(settings.getRepository()).shortName(settings.getShortName())
                     .githubType(kind == ItemKind.ISSUE ? item.typeName() : item.categoryName())
                     .labels(item.labelNames()).labelColors(item.labelColors()).assignees(item.assigneeLogins())
+                    .failedChecks(target.checks().get(url))
                     .build();
             result.getEntries().add(entry);
             if (url == null || !url.startsWith(urlPrefix)) {
@@ -284,7 +312,7 @@ public class ImportService {
 
     private static Expected expected(GithubItem item, Target target, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
-        Map<String, String> values = templateValues(item, settings);
+        Map<String, String> values = templateValues(item, target, settings);
         String description = itemSettings.getDescriptionTemplate() == null || itemSettings.getDescriptionTemplate().isBlank()
                 ? null : renderDescription(itemSettings.getDescriptionTemplate(), item, values);
         return new Expected(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values), description);
@@ -380,7 +408,7 @@ public class ImportService {
 
     private String createWorkItem(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
-        Map<String, String> values = templateValues(item, settings);
+        Map<String, String> values = templateValues(item, target, settings);
 
         IWorkItem workItem = polarionService.getTrackerService().createWorkItem(target.project());
         workItem.setType(outcome.type());
@@ -411,7 +439,7 @@ public class ImportService {
         return TemplateRenderer.renderHtml(template, values, html);
     }
 
-    private static Map<String, String> templateValues(GithubItem item, RepositorySettingsModel settings) {
+    private static Map<String, String> templateValues(GithubItem item, Target target, RepositorySettingsModel settings) {
         Map<String, String> values = new HashMap<>();
         values.put("shortName", settings.getShortName());
         values.put("repository", settings.getRepository());
@@ -423,6 +451,7 @@ public class ImportService {
         values.put("labels", String.join(", ", item.labelNames()));
         values.put("type", item.typeName());
         values.put("category", item.categoryName());
+        values.put("checks", target.checks().getOrDefault(item.htmlUrl(), ""));
         return values;
     }
 
@@ -496,7 +525,8 @@ public class ImportService {
     }
 
     /** What the import needs of one block of the settings, looked up in the project. */
-    private record Target(ITrackerProject project, ItemSettings settings, @Nullable IWorkItem epic, Outcome fallback, List<ResolvedRule> rules) {
+    private record Target(ITrackerProject project, ItemSettings settings, @Nullable IWorkItem epic, Outcome fallback, List<ResolvedRule> rules,
+                          Map<String, String> checks) {
     }
 
     /** The work item an item becomes: its type, the role of its link to the epic, and its field values. */

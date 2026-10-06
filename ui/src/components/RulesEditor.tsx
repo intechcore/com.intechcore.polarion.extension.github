@@ -22,6 +22,10 @@ const MATCH_OPTIONS: Record<string, { id: RuleMatch; name: string }[]> = {
     { id: 'CATEGORY', name: 'Category' },
     { id: 'AUTHOR', name: 'Author' },
   ],
+  'pull requests': [
+    { id: 'LABEL', name: 'Label' },
+    { id: 'AUTHOR', name: 'Author' },
+  ],
 };
 
 interface RulesEditorProps {

@@ -36,6 +36,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -107,7 +108,7 @@ class ImportServiceTest {
     private static GithubItem item(long number, String title, String url) {
         return new GithubItem(number, title, "Body of " + number, "open", url, null, null,
                 new GithubItem.User("alice"), List.of(new GithubItem.Label("bug")), null, Map.of("name", "Bug"), null,
-                List.of(new GithubItem.User("alice"), new GithubItem.User("bob")), null);
+                List.of(new GithubItem.User("alice"), new GithubItem.User("bob")), null, null);
     }
 
     private static RepositorySettingsModel settings() {
@@ -412,7 +413,7 @@ class ImportServiceTest {
 
     private static GithubItem labeled(long number, String url, Object type, Object category, String... labels) {
         return new GithubItem(number, "Item " + number, null, "open", url, null, null, null,
-                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category, null, null);
+                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category, null, null, null);
     }
 
     private ITypeOpt type(String id) {
@@ -472,13 +473,57 @@ class ImportServiceTest {
         assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.SKIPPED);
     }
 
+    private static GithubItem pullRequest(long number, String author, String sha) {
+        return new GithubItem(number, "Update docx4j " + number, null, "open", "https://github.com/acme/tool/pull/" + number, null, null,
+                new GithubItem.User(author), null, null, null, null, null, null, sha == null ? null : Map.of("sha", sha));
+    }
+
+    @Test
+    void createsAWorkItemForAFailedPullRequestOfAWatchedAuthor() {
+        RepositorySettingsModel settings = settings();
+        settings.setIssues(new ItemSettings());
+        settings.setPullRequests(ItemSettings.builder().enabled(true).workItemType("task")
+                .titleTemplate("Fix {{ TITLE }} ({{ CHECKS }})").descriptionTemplate("<p>{{ CHECKS }}</p>").build());
+        settings.setPullRequestAuthors("Renovate[bot]");
+        String failing = "a".repeat(40);
+        String passing = "b".repeat(40);
+        when(githubClient.getOpenPullRequests("acme", "tool")).thenReturn(List.of(
+                pullRequest(421, "renovate[bot]", failing),
+                pullRequest(422, "renovate[bot]", passing),
+                pullRequest(423, "alice", failing),
+                pullRequest(424, "renovate[bot]", null)));
+        when(githubClient.getFailedChecks("acme", "tool", failing)).thenReturn(List.of("build", "e2e"));
+        when(githubClient.getFailedChecks("acme", "tool", passing)).thenReturn(List.of());
+
+        ImportResult preview = service.importRepository(PROJECT, settings, true, null);
+
+        assertThat(preview.getEntries()).singleElement().satisfies(entry -> {
+            assertThat(entry.getKind()).isEqualTo(ItemKind.PULL_REQUEST);
+            assertThat(entry.getNumber()).isEqualTo(421);
+            assertThat(entry.getStatus()).isEqualTo(ImportStatus.NEW);
+            assertThat(entry.getFailedChecks()).isEqualTo("build, e2e");
+        });
+        // Only the pull requests of the watched authors cost a request for their checks.
+        verify(githubClient, times(2)).getFailedChecks(any(), any(), any());
+
+        // A run for other URLs does not ask about the checks of this pull request.
+        assertThat(service.importRepository(PROJECT, settings, true, List.of(ISSUE_7)).getEntries()).isEmpty();
+        verify(githubClient, times(2)).getFailedChecks(any(), any(), any());
+
+        service.importRepository(PROJECT, settings, false, List.of("https://github.com/acme/tool/pull/421"));
+
+        verify(created.get(0)).setTitle("Fix Update docx4j 421 (build, e2e)");
+        verify(created.get(0)).addHyperlink("https://github.com/acme/tool/pull/421", hyperlinkRole);
+        verify(githubClient, never()).getOpenIssues(anyString(), anyString());
+    }
+
     @Test
     void leavesOutTheItemsOfAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.AUTHOR).value("Renovate[bot]").skip(true).build()));
         GithubItem dashboard = new GithubItem(2, "Dependency Dashboard", null, "open", ISSUE_7, null, null,
-                new GithubItem.User("renovate[bot]"), null, null, null, null, null);
-        GithubItem anonymous = new GithubItem(8, "Typo", null, "open", ISSUE_8, null, null, null, null, null, null, null, null);
+                new GithubItem.User("renovate[bot]"), null, null, null, null, null, null, null);
+        GithubItem anonymous = new GithubItem(8, "Typo", null, "open", ISSUE_8, null, null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(dashboard, anonymous, item(9, "Crash", "https://github.com/acme/tool/issues/9")));
 
         ImportResult result = service.importRepository(PROJECT, settings, true, null);
@@ -693,7 +738,7 @@ class ImportServiceTest {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setDescriptionTemplate("<div>{{ BODY }}</div>");
         GithubItem rich = new GithubItem(7, "Crash on start", "Hi **there**", "open", ISSUE_7, null, null, null, null, null, null, null,
-                null, "<p dir=\"auto\">Hi <strong>there</strong></p><script>steal()</script>");
+                null, "<p dir=\"auto\">Hi <strong>there</strong></p><script>steal()</script>", null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(rich));
 
         service.importRepository(PROJECT, settings, false, null);
@@ -822,7 +867,7 @@ class ImportServiceTest {
 
     @Test
     void refusesAnItemWhoseUrlIsNotInTheRepository() {
-        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor, item(10, "Elsewhere", "https://example.com/acme/tool/issues/10")));
 
         ImportResult result = service.importRepository(PROJECT, settings(), false, null);
@@ -836,7 +881,7 @@ class ImportServiceTest {
     void acceptsAnItemWithoutAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setTitleTemplate("{{ TITLE }} by [{{ AUTHOR }}]");
-        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
 
         service.importRepository(PROJECT, settings, false, null);
