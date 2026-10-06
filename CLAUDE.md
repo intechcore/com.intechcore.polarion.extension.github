@@ -108,6 +108,11 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   but only lists older than `REFRESH_PAUSE` (1 minute).
 - `rest/controller/ProjectInternalController` and `ProjectApiController` - the work item types,
   link roles and fields of a project, for the dropdowns of the settings page.
+- `widget/GithubItemsWidget` and `GithubItemsWidgetRenderer` - the Live Report widget. It embeds
+  `?feature=items&widget=true` in an iframe, with its settings in the query string, which
+  `ui/src/services/pageOptions.ts` reads. `src/main/resources/js/widget-height.js` resizes the iframe
+  from the height the page posts (`useIframeAutoHeight`); `ui/test/widgetHeight.test.ts` drives that
+  file, which the Docker test run mounts into the container.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),

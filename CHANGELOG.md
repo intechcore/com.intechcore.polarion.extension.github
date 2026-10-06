@@ -42,3 +42,6 @@ All notable changes to this project are documented here. The format follows
   `{{ CHECKS }}` names the failed checks.
 - `{{ BODY }}` brings the body of an item as rich text: the HTML GitHub renders for its Markdown,
   with only safe elements and attributes. Uploaded images keep their stable GitHub URL.
+- The Live Report widget **GitHub Items**: the table of the topic in a page, with preset
+  repositories, kinds, states and columns, the filters optionally hidden, and creating work items
+  only when its settings allow it.

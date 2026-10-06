@@ -92,6 +92,19 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-pull-request');
   });
 
+  it('the table in a Live Report widget, without filters', async () => {
+    installFetchMock(itemsRoutes());
+    window.history.replaceState(
+      {},
+      '',
+      `?feature=items&embedded=true&widget=true&hideFilters=true&columns=item%2Cstate%2CworkItem%2Cstatus&scope=${encodeURIComponent(SCOPE)}`,
+    );
+    render(<App />);
+
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
+    await captureApp('items-widget');
+  });
+
   it('a project without a repository setting', async () => {
     await open([{ method: 'GET', match: /\/items$/, json: { repositories: [], entries: [] } }]);
 

@@ -23,7 +23,9 @@ import {
   applyFilters,
   optionsOf,
 } from '../services/itemFilters';
+import { readPageOptions } from '../services/pageOptions';
 import useSettings from '../services/settings';
+import useIframeAutoHeight from '../services/useIframeAutoHeight';
 import type { ImportEntry, ImportStatus, ItemKind, RepositoryState } from '../types';
 
 const join = (values: string[] | null | undefined) => (values ?? []).join(', ');
@@ -47,17 +49,23 @@ export default function Items() {
 
   const [repositories, setRepositories] = useState<RepositoryState[]>([]);
   const [entries, setEntries] = useState<ImportEntry[] | null>(null);
-  const [filters, setFilters] = useState<ItemFilters>(NO_FILTERS);
+  const [options] = useState(() => readPageOptions());
+  const [filters, setFilters] = useState<ItemFilters>(options.filters);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [layout, setLayout] = useState<ColumnLayout>(loadLayout);
+  // A widget that fixes its columns neither reads nor changes the layout the viewer keeps.
+  const [layout, setLayout] = useState<ColumnLayout>(() => options.layout ?? loadLayout());
   const [showHidden, setShowHidden] = useState(false);
 
   const changeLayout = (next: ColumnLayout) => {
     setLayout(next);
-    saveLayout(next);
+    if (!options.layout) {
+      saveLayout(next);
+    }
   };
+  useIframeAutoHeight(options.widget);
+  const title = options.widget ? undefined : 'GitHub';
 
   const load = useCallback(
     async (refresh = false) => {
@@ -185,7 +193,7 @@ export default function Items() {
 
   if (!projectId) {
     return (
-      <PageLayout title="GitHub">
+      <PageLayout title={title}>
         <ErrorNotice>The GitHub items belong to a project. Open this page from a project.</ErrorNotice>
       </PageLayout>
     );
@@ -262,7 +270,7 @@ export default function Items() {
   );
 
   return (
-    <PageLayout title="GitHub">
+    <PageLayout title={title}>
       {error && <ErrorNotice>{error}</ErrorNotice>}
       {repositories
         .filter((state) => state.error)
@@ -277,94 +285,106 @@ export default function Items() {
         <p>This project has no repository setting. An administrator creates one on the Repositories page.</p>
       ) : (
         <>
-          <div className="items-toolbar">
-            <button
-              type="button"
-              className="sbb-btn sbb-btn--control"
-              disabled={busy}
-              title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
-              onClick={() => void load()}
-            >
-              Refresh
-            </button>
-            <button
-              type="button"
-              className="sbb-btn sbb-btn--control"
-              disabled={busy}
-              title="Reads GitHub again instead of the lists of the last five minutes. Each repository costs requests of the hourly GitHub limit."
-              onClick={() => void load(true)}
-            >
-              Update from GitHub
-            </button>
-            <button
-              type="button"
-              className="sbb-btn sbb-btn--control"
-              disabled={busy || toCreate === 0}
-              onClick={() => void apply(false)}
-            >
-              Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
-            </button>
-            <button
-              type="button"
-              className="sbb-btn sbb-btn--control"
-              disabled={busy || toUpdate === 0}
-              title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
-              onClick={() => void apply(true)}
-            >
-              Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
-            </button>
-            {busy && <span>Working...</span>}
-            {time && (
-              <span className="items-read-at">
-                Read from GitHub at {time}. The server keeps the lists for 5 minutes, and Update from GitHub reads them
-                again.
-              </span>
-            )}
-          </div>
+          {(!options.hideFilters || options.allowCreate) && (
+            <div className="items-toolbar">
+              {!options.hideFilters && (
+                <>
+                  <button
+                    type="button"
+                    className="sbb-btn sbb-btn--control"
+                    disabled={busy}
+                    title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
+                    onClick={() => void load()}
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className="sbb-btn sbb-btn--control"
+                    disabled={busy}
+                    title="Reads GitHub again instead of the lists of the last five minutes. Each repository costs requests of the hourly GitHub limit."
+                    onClick={() => void load(true)}
+                  >
+                    Update from GitHub
+                  </button>
+                </>
+              )}
+              {options.allowCreate && (
+                <>
+                  <button
+                    type="button"
+                    className="sbb-btn sbb-btn--control"
+                    disabled={busy || toCreate === 0}
+                    onClick={() => void apply(false)}
+                  >
+                    Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    className="sbb-btn sbb-btn--control"
+                    disabled={busy || toUpdate === 0}
+                    title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
+                    onClick={() => void apply(true)}
+                  >
+                    Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
+                  </button>
+                </>
+              )}
+              {busy && <span>Working...</span>}
+              {!options.hideFilters && time && (
+                <span className="items-read-at">
+                  Read from GitHub at {time}. The server keeps the lists for 5 minutes, and Update from GitHub reads
+                  them again.
+                </span>
+              )}
+            </div>
+          )}
 
-          <div className="item-filters">
-            {filterSelect(
-              'Repository',
-              'settings',
-              optionsOf(all, 'settings', (setting) => shortNames.get(setting) || setting),
-            )}
-            {filterSelect(
-              'Kind',
-              'kinds',
-              optionsOf(all, 'kinds', (kind) => KIND_LABELS[kind as ItemKind]),
-            )}
-            {filterSelect('GitHub type', 'githubTypes', optionsOf(all, 'githubTypes'))}
-            {filterSelect('Work item type', 'workItemTypes', optionsOf(all, 'workItemTypes'))}
-            {filterSelect('GitHub assignee', 'assignees', optionsOf(all, 'assignees', undefined, 'Unassigned'))}
-            {filterSelect(
-              'Polarion assignee',
-              'workItemAssignees',
-              optionsOf(all, 'workItemAssignees', undefined, 'Unassigned'),
-            )}
-            {filterSelect(
-              'State',
-              'states',
-              optionsOf(all, 'states', (state) => STATUS_LABELS[state as ImportStatus]),
-            )}
-            <label className="item-filter">
-              <span>Search</span>
-              <input
-                type="text"
-                aria-label="Search"
-                placeholder="Title, number, label"
-                value={filters.text}
-                onChange={(e) => setFilter({ text: e.target.value })}
-              />
-            </label>
-            <button
-              type="button"
-              className="sbb-btn sbb-btn--control"
-              disabled={filters === NO_FILTERS}
-              onClick={() => setFilters(NO_FILTERS)}
-            >
-              Clear filters
-            </button>
-          </div>
+          {!options.hideFilters && (
+            <div className="item-filters">
+              {filterSelect(
+                'Repository',
+                'settings',
+                optionsOf(all, 'settings', (setting) => shortNames.get(setting) || setting),
+              )}
+              {filterSelect(
+                'Kind',
+                'kinds',
+                optionsOf(all, 'kinds', (kind) => KIND_LABELS[kind as ItemKind]),
+              )}
+              {filterSelect('GitHub type', 'githubTypes', optionsOf(all, 'githubTypes'))}
+              {filterSelect('Work item type', 'workItemTypes', optionsOf(all, 'workItemTypes'))}
+              {filterSelect('GitHub assignee', 'assignees', optionsOf(all, 'assignees', undefined, 'Unassigned'))}
+              {filterSelect(
+                'Polarion assignee',
+                'workItemAssignees',
+                optionsOf(all, 'workItemAssignees', undefined, 'Unassigned'),
+              )}
+              {filterSelect(
+                'State',
+                'states',
+                optionsOf(all, 'states', (state) => STATUS_LABELS[state as ImportStatus]),
+              )}
+              <label className="item-filter">
+                <span>Search</span>
+                <input
+                  type="text"
+                  aria-label="Search"
+                  placeholder="Title, number, label"
+                  value={filters.text}
+                  onChange={(e) => setFilter({ text: e.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className="sbb-btn sbb-btn--control"
+                disabled={filters === NO_FILTERS}
+                onClick={() => setFilters(NO_FILTERS)}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
 
           {entries !== null && (
             <p className="items-summary">
@@ -378,15 +398,17 @@ export default function Items() {
             <table className="items-table">
               <thead>
                 <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      aria-label="Select all new and outdated items shown"
-                      checked={allSelected}
-                      disabled={selectable.length === 0}
-                      onChange={toggleAll}
-                    />
-                  </th>
+                  {options.allowCreate && (
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all new and outdated items shown"
+                        checked={allSelected}
+                        disabled={selectable.length === 0}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                  )}
                   {columns.map((id) => (
                     <th key={id}>{COLUMN_LABELS[id]}</th>
                   ))}
@@ -404,7 +426,7 @@ export default function Items() {
               <tbody>
                 {visible.length === 0 && (
                   <tr className="items-empty-row">
-                    <td className="items-empty" colSpan={columns.length + 2}>
+                    <td className="items-empty" colSpan={columns.length + (options.allowCreate ? 2 : 1)}>
                       No item matches the filters.
                     </td>
                   </tr>
@@ -414,19 +436,22 @@ export default function Items() {
                     key={`${entry.setting}-${entry.kind}-${entry.number}`}
                     className={entry.hidden ? 'item-hidden' : undefined}
                   >
-                    <td>
-                      {(entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url && (
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${entry.url}`}
-                          checked={checked.has(entry.url)}
-                          onChange={() => toggle(entry.url as string)}
-                        />
-                      )}
-                    </td>
+                    {options.allowCreate && (
+                      <td>
+                        {(entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${entry.url}`}
+                            checked={checked.has(entry.url)}
+                            onChange={() => toggle(entry.url as string)}
+                          />
+                        )}
+                      </td>
+                    )}
                     {columns.map((id) => cell(id, entry))}
                     <td>
-                      {entry.url && (
+                      {/* Hiding changes what every user of the project sees: a report widget leaves it. */}
+                      {options.allowCreate && entry.url && (
                         <button
                           type="button"
                           className="item-hide"

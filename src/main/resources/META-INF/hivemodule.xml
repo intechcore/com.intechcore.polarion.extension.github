@@ -52,4 +52,8 @@
         </invoke-factory>
     </service-point>
 
+    <contribution configuration-id="com.polarion.alm.richpages.widgets">
+        <widget id="com.intechcore.polarion.extension.github.widget.GithubItemsWidget" instance="instance:com.intechcore.polarion.extension.github.widget.GithubItemsWidget"/>
+    </contribution>
+
 </module>
