@@ -33,3 +33,5 @@ All notable changes to this project are documented here. The format follows
 - The placeholders `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}` for the title and description templates.
 - Placeholders take the form `{{ NAME }}`. A name ignores case, underscores and inner spaces. Saving a
   setting and the import refuse an unknown placeholder and the earlier form `{name}`.
+- `{{ BODY }}` brings the body of an item as rich text: the HTML GitHub renders for its Markdown,
+  with only safe elements and attributes. Uploaded images keep their stable GitHub URL.

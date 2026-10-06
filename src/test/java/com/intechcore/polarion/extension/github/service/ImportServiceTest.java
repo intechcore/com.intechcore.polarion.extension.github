@@ -107,7 +107,7 @@ class ImportServiceTest {
     private static GithubItem item(long number, String title, String url) {
         return new GithubItem(number, title, "Body of " + number, "open", url, null, null,
                 new GithubItem.User("alice"), List.of(new GithubItem.Label("bug")), null, Map.of("name", "Bug"), null,
-                List.of(new GithubItem.User("alice"), new GithubItem.User("bob")));
+                List.of(new GithubItem.User("alice"), new GithubItem.User("bob")), null);
     }
 
     private static RepositorySettingsModel settings() {
@@ -410,7 +410,7 @@ class ImportServiceTest {
 
     private static GithubItem labeled(long number, String url, Object type, Object category, String... labels) {
         return new GithubItem(number, "Item " + number, null, "open", url, null, null, null,
-                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category, null);
+                java.util.Arrays.stream(labels).map(GithubItem.Label::new).toList(), null, type, category, null, null);
     }
 
     private ITypeOpt type(String id) {
@@ -672,6 +672,28 @@ class ImportServiceTest {
     }
 
     @Test
+    void putsTheCleanedRichTextOfGithubIntoTheDescription() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setDescriptionTemplate("<div>{{ BODY }}</div>");
+        GithubItem rich = new GithubItem(7, "Crash on start", "Hi **there**", "open", ISSUE_7, null, null, null, null, null, null, null,
+                null, "<p dir=\"auto\">Hi <strong>there</strong></p><script>steal()</script>");
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(rich));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        ArgumentCaptor<Text> description = ArgumentCaptor.forClass(Text.class);
+        verify(created.get(0)).setDescription(description.capture());
+        assertThat(description.getValue().getContent()).isEqualTo("<div><p>Hi <strong>there</strong></p></div>");
+
+        // The same rich text compares as equal, so the work item is not out of date.
+        IWorkItem stored = upToDate();
+        when(stored.getDescription()).thenReturn(Text.html("<div><p>Hi <strong>there</strong></p></div>"));
+        when(stored.getTitle()).thenReturn("[GitHub] Tool : Crash on start");
+        found.add(stored);
+        assertThat(service.importRepository(PROJECT, settings, true, null).getEntries().get(0).getStatus()).isEqualTo(ImportStatus.EXISTS);
+    }
+
+    @Test
     void leavesAWorkItemAloneThatARuleNowLeavesOut() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.LABEL).value("bug").skip(true).build()));
@@ -783,7 +805,7 @@ class ImportServiceTest {
 
     @Test
     void refusesAnItemWhoseUrlIsNotInTheRepository() {
-        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(9, "No URL", null, "open", null, null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor, item(10, "Elsewhere", "https://example.com/acme/tool/issues/10")));
 
         ImportResult result = service.importRepository(PROJECT, settings(), false, null);
@@ -797,7 +819,7 @@ class ImportServiceTest {
     void acceptsAnItemWithoutAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setTitleTemplate("{{ TITLE }} by [{{ AUTHOR }}]");
-        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null);
+        GithubItem withoutAuthor = new GithubItem(7, "Crash", null, "open", ISSUE_7, null, null, null, null, null, null, null, null, null);
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(withoutAuthor));
 
         service.importRepository(PROJECT, settings, false, null);

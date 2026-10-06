@@ -40,7 +40,10 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 
 The templates take the placeholders `{{ SHORT_NAME }}`, `{{ REPOSITORY }}`, `{{ NUMBER }}`, `{{ TITLE }}`,
 `{{ AUTHOR }}`, `{{ URL }}`, `{{ LABELS }}`, `{{ TYPE }}` and `{{ CATEGORY }}`. The description also takes `{{ BODY }}`.
-The description is HTML, and the import escapes every value. A placeholder name ignores case,
+The description is HTML. `{{ BODY }}` is the rich text GitHub shows for the Markdown of the item, so
+place it outside a paragraph, for example in a `<div>`. The import escapes every other value. GitHub
+renders the HTML, and the import keeps only safe elements and attributes of it. An uploaded image keeps
+its stable GitHub URL. A placeholder name ignores case,
 underscores and the spaces inside the braces: `{{ SHORT_NAME }}` and `{{shortName}}` are the same.
 `Save` refuses a template with an unknown placeholder, `{{ BODY }}` in a title, or a placeholder of
 the earlier form `{title}`. The import checks a setting the same way before it reads GitHub, so a
