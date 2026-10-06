@@ -118,6 +118,26 @@ with `gh attestation verify <file> --repo intechcore/com.intechcore.polarion.ext
 Open the topic `GitHub` in the navigation of a project. The administration of a project has the same
 page under `GitHub` / `Issues and Discussions`.
 
+### Add the topic to a project
+
+A project shows the topic `GitHub` only when a view of the project lists it. A project
+administrator adds it:
+
+1. Open the project and select ⚙ (Actions) ➙ 🔧 Administration in the navigation.
+2. Select `Portal` ➙ `Topics`, then select `Edit` for the view that users open.
+3. Insert the topic into the topics configuration:
+   ```xml
+   …
+   <topic id="github"/>
+   …
+   ```
+4. Select 💾 `Save`. The topic appears in the navigation of the project for the users of that view.
+
+The topic shows the page to every user who can read the project. Creating or updating a work item
+needs the permission to create or modify work items in the project.
+
+### The page
+
 The page lists the open issues and discussions of all repository settings of the project, and the
 pull requests with failed checks. A pull request shows the names of its failed checks under its title:
 
