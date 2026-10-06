@@ -15,10 +15,12 @@ const MATCH_OPTIONS: Record<string, { id: RuleMatch; name: string }[]> = {
   issues: [
     { id: 'LABEL', name: 'Label' },
     { id: 'TYPE', name: 'Issue type' },
+    { id: 'AUTHOR', name: 'Author' },
   ],
   discussions: [
     { id: 'LABEL', name: 'Label' },
     { id: 'CATEGORY', name: 'Category' },
+    { id: 'AUTHOR', name: 'Author' },
   ],
 };
 

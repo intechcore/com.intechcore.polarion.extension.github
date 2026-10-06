@@ -1,5 +1,5 @@
 import type { ImportEntry } from '../../src/types';
-import type { Route } from '../mockFetch';
+import { type Route, jsonResponse } from '../mockFetch';
 import { SCOPE } from './repositories';
 
 // Polarion serves the type icons, so the tests draw them from data: URLs: a broken image would make the
@@ -28,6 +28,7 @@ const base: Omit<ImportEntry, 'kind' | 'number' | 'title' | 'url' | 'status'> = 
   workItemStatus: null,
   workItemStatusIcon: null,
   workItemAssignees: [],
+  hidden: false,
 };
 
 export const ISSUE_7 = 'https://github.com/acme/tool/issues/7';
@@ -35,6 +36,7 @@ export const ISSUE_10 = 'https://github.com/acme/tool/issues/10';
 export const DISCUSSION_30 = 'https://github.com/acme/tool/discussions/30';
 export const DOCS_3 = 'https://github.com/acme/docs/issues/3';
 export const ISSUE_4 = 'https://github.com/acme/tool/issues/4';
+export const DASHBOARD_2 = 'https://github.com/acme/tool/issues/2';
 
 export const ENTRIES: ImportEntry[] = [
   {
@@ -127,6 +129,15 @@ export const ENTRIES: ImportEntry[] = [
     workItemId: 'EL-13',
     workItemStatus: 'Open',
   },
+  {
+    ...base,
+    kind: 'ISSUE',
+    number: 2,
+    title: 'Dependency Dashboard',
+    url: DASHBOARD_2,
+    status: 'NEW',
+    hidden: true,
+  },
 ];
 
 export const ITEMS = {
@@ -150,6 +161,17 @@ export function itemsRoutes(overrides: Route[] = []): Route[] {
   return [
     ...overrides,
     { method: 'GET', match: /\/projects\/elibrary\/items(\?refresh=true)?$/, json: ITEMS },
+    {
+      method: 'POST',
+      match: /\/projects\/elibrary\/hidden-items$/,
+      // The server answers with every hidden URL: the one of the request joins or leaves the dashboard.
+      respond: (_url, init) => {
+        const { urls, hidden } = JSON.parse(String(init?.body)) as { urls: string[]; hidden: boolean };
+        const all = new Set([DASHBOARD_2]);
+        urls.forEach((url) => (hidden ? all.add(url) : all.delete(url)));
+        return jsonResponse([...all]);
+      },
+    },
     {
       method: 'POST',
       match: /\/repositories\/tool\/import\?dryRun=false/,

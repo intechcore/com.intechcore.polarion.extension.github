@@ -7,6 +7,7 @@ import com.intechcore.polarion.extension.github.rest.controller.ImportInternalCo
 import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
+import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,7 +17,7 @@ import java.util.Set;
 public class GithubRestApplication extends GenericRestApplication {
 
     public GithubRestApplication() {
-        NamedSettingsRegistry.INSTANCE.register(List.of(new RepositorySettings()));
+        NamedSettingsRegistry.INSTANCE.register(List.of(new RepositorySettings(), new HiddenItems()));
     }
 
     @Override

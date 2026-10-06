@@ -5,11 +5,13 @@ import ch.sbb.polarion.extension.generic.settings.SettingId;
 import ch.sbb.polarion.extension.generic.settings.SettingName;
 import ch.sbb.polarion.extension.generic.util.ScopeUtils;
 import com.intechcore.polarion.extension.github.client.GithubClientException;
+import com.intechcore.polarion.extension.github.rest.model.HideRequest;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
 import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
 import com.intechcore.polarion.extension.github.rest.model.RepositoryState;
 import com.intechcore.polarion.extension.github.service.ImportResult;
 import com.intechcore.polarion.extension.github.service.ImportService;
+import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -28,6 +30,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Set;
+
 @Tag(name = "Import")
 @Hidden
 @Path("/internal")
@@ -37,15 +41,18 @@ public class ImportInternalController {
     protected final PolarionService polarionService;
     private final RepositorySettings repositorySettings;
     private final ImportService importService;
+    private final HiddenItems hiddenItems;
 
     public ImportInternalController() {
-        this(new PolarionService(), new RepositorySettings(), new ImportService());
+        this(new PolarionService(), new RepositorySettings(), new ImportService(), new HiddenItems());
     }
 
-    public ImportInternalController(PolarionService polarionService, RepositorySettings repositorySettings, ImportService importService) {
+    public ImportInternalController(PolarionService polarionService, RepositorySettings repositorySettings, ImportService importService,
+                                    HiddenItems hiddenItems) {
         this.polarionService = polarionService;
         this.repositorySettings = repositorySettings;
         this.importService = importService;
+        this.hiddenItems = hiddenItems;
     }
 
     @Operation(summary = "Returns the open issues and discussions of all repository settings of a project, with what the import would do with each")
@@ -57,6 +64,7 @@ public class ImportInternalController {
                                          + " A list read within the last minute stays.")
                                  @QueryParam("refresh") @DefaultValue("false") boolean refresh) {
         String scope = ScopeUtils.getScopeFromProject(projectId);
+        Set<String> hidden = hiddenItems.urls(projectId);
         ProjectItems items = new ProjectItems();
         for (SettingName name : repositorySettings.readNames(scope)) {
             RepositoryState state = new RepositoryState(name.getName(), null, null, null);
@@ -69,6 +77,7 @@ public class ImportInternalController {
                 }
                 ImportResult result = importService.importRepository(projectId, settings, true, null);
                 state.setReadAt(result.getReadAt());
+                result.getEntries().forEach(entry -> entry.setHidden(hidden.contains(entry.getUrl())));
                 items.getEntries().addAll(result.getEntries());
             } catch (GithubClientException | IllegalArgumentException e) {
                 // One repository that fails leaves the others readable.
@@ -76,6 +85,18 @@ public class ImportInternalController {
             }
         }
         return items;
+    }
+
+    @Operation(summary = "Hides GitHub items on the GitHub page of a project, or shows them again. Answers with all URLs the project hides")
+    @POST
+    @Path("/projects/{projectId}/hidden-items")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Set<String> hideItems(@Parameter(description = "The project") @PathParam("projectId") String projectId, HideRequest request) {
+        if (request == null || request.getUrls() == null || request.getUrls().isEmpty()) {
+            throw new IllegalArgumentException("Name the GitHub URLs to hide or to show");
+        }
+        return hiddenItems.change(projectId, request.getUrls(), request.isHidden());
     }
 
     @Operation(summary = "Updates the work items of the given GitHub items whose title, description, type, field values or epic link differ")

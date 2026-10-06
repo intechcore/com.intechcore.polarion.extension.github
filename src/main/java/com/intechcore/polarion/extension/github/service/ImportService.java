@@ -200,6 +200,7 @@ public class ImportService {
             case LABEL -> item.labelNames().stream().anyMatch(value::equalsIgnoreCase);
             case TYPE -> value.equalsIgnoreCase(item.typeName());
             case CATEGORY -> value.equalsIgnoreCase(item.categoryName());
+            case AUTHOR -> item.user() != null && value.equalsIgnoreCase(item.user().login());
         };
     }
 

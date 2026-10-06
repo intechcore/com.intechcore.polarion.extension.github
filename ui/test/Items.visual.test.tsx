@@ -64,6 +64,16 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     window.localStorage.clear();
   });
 
+  it('the hidden items listed beside the others', async () => {
+    await open();
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
+
+    document.querySelector<HTMLInputElement>('.items-show-hidden input')!.click();
+
+    await vi.waitFor(() => expect(rows()).toHaveLength(8));
+    await captureApp('items-show-hidden');
+  });
+
   it('a project without a repository setting', async () => {
     await open([{ method: 'GET', match: /\/items$/, json: { repositories: [], entries: [] } }]);
 

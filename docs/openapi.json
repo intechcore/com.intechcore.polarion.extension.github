@@ -98,6 +98,51 @@
         ]
       }
     },
+    "/api/projects/{projectId}/hidden-items": {
+      "post": {
+        "operationId": "hideItems",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Hides GitHub items on the GitHub page of a project, or shows them again. Answers with all URLs the project hides",
+        "tags": [
+          "Import"
+        ]
+      }
+    },
     "/api/projects/{projectId}/items": {
       "get": {
         "operationId": "getItems",
@@ -507,6 +552,24 @@
         },
         "type": "object"
       },
+      "HideRequest": {
+        "description": "Which items to hide or to show again on the GitHub page",
+        "properties": {
+          "hidden": {
+            "description": "True to hide the items, false to show them again",
+            "type": "boolean"
+          },
+          "urls": {
+            "description": "The GitHub URLs of the items",
+            "items": {
+              "description": "The GitHub URLs of the items",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "ImportEntry": {
         "description": "The outcome of the import for one GitHub item",
         "properties": {
@@ -521,6 +584,10 @@
           "githubType": {
             "description": "The issue type, or the category of a discussion",
             "type": "string"
+          },
+          "hidden": {
+            "description": "True when the project hides the item on its GitHub page",
+            "type": "boolean"
           },
           "kind": {
             "description": "Issue or discussion",

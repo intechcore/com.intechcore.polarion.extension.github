@@ -473,6 +473,21 @@ class ImportServiceTest {
     }
 
     @Test
+    void leavesOutTheItemsOfAnAuthor() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.AUTHOR).value("Renovate[bot]").skip(true).build()));
+        GithubItem dashboard = new GithubItem(2, "Dependency Dashboard", null, "open", ISSUE_7, null, null,
+                new GithubItem.User("renovate[bot]"), null, null, null, null, null, null);
+        GithubItem anonymous = new GithubItem(8, "Typo", null, "open", ISSUE_8, null, null, null, null, null, null, null, null, null);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(dashboard, anonymous, item(9, "Crash", "https://github.com/acme/tool/issues/9")));
+
+        ImportResult result = service.importRepository(PROJECT, settings, true, null);
+
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.SKIPPED, ImportStatus.NEW, ImportStatus.NEW);
+        assertThat(result.getEntries().get(0).getMessage()).isEqualTo("by the rule Author = Renovate[bot]");
+    }
+
+    @Test
     void appliesCategoryRulesToDiscussionsAndFillsTheNewPlaceholders() {
         ITypeOpt question = type("question");
         RepositorySettingsModel settings = settings();

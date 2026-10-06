@@ -9,5 +9,7 @@ public enum RuleMatch {
     /** The issue type. Only repositories of an organization that uses issue types have it. */
     TYPE,
     /** The category of a discussion. */
-    CATEGORY
+    CATEGORY,
+    /** The GitHub login of the author, for example renovate[bot]. */
+    AUTHOR
 }

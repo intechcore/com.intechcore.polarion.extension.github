@@ -275,3 +275,28 @@ body {
 .columns-panel .sbb-btn {
   margin-top: 6px;
 }
+
+/* A hidden item, while Show hidden lists it. */
+.items-table tr.item-hidden td {
+  color: #8a8a8a;
+}
+
+.item-hide {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: #6b6b6b;
+  cursor: pointer;
+}
+
+.item-hide:disabled {
+  cursor: default;
+}
+
+.items-show-hidden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  white-space: nowrap;
+}

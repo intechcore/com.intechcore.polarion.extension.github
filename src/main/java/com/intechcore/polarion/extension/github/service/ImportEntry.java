@@ -78,4 +78,7 @@ public class ImportEntry {
 
     @Schema(description = "The names of the users the work item is assigned to")
     private List<String> workItemAssignees;
+
+    @Schema(description = "True when the project hides the item on its GitHub page")
+    private boolean hidden;
 }

@@ -7,6 +7,7 @@ import com.intechcore.polarion.extension.github.rest.controller.ImportInternalCo
 import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
+import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
@@ -24,7 +25,9 @@ class GithubRestApplicationTest {
     @Test
     void servesTheControllersAndRegistersTheRepositorySettings() {
         try (MockedConstruction<RepositorySettings> settings = mockConstruction(RepositorySettings.class,
-                (mock, context) -> when(mock.getFeatureName()).thenReturn(RepositorySettings.FEATURE_NAME))) {
+                (mock, context) -> when(mock.getFeatureName()).thenReturn(RepositorySettings.FEATURE_NAME));
+             MockedConstruction<HiddenItems> hidden = mockConstruction(HiddenItems.class,
+                     (mock, context) -> when(mock.getFeatureName()).thenReturn(HiddenItems.FEATURE_NAME))) {
             GithubRestApplication application = new GithubRestApplication();
 
             assertThat(application.getClasses()).contains(
@@ -37,6 +40,8 @@ class GithubRestApplicationTest {
             assertThat(settings.constructed()).hasSize(1);
             assertThat(NamedSettingsRegistry.INSTANCE.getByFeatureName(RepositorySettings.FEATURE_NAME))
                     .isSameAs(settings.constructed().get(0));
+            assertThat(NamedSettingsRegistry.INSTANCE.getByFeatureName(HiddenItems.FEATURE_NAME))
+                    .isSameAs(hidden.constructed().get(0));
         }
     }
 }
