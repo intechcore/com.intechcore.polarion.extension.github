@@ -28,13 +28,13 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
   it('the items of all repositories, one repository failed', async () => {
     await open();
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(6));
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
     await captureApp('items-loaded');
   });
 
   it('the items after a selection was created', async () => {
     await open();
-    await vi.waitFor(() => expect(rows()).toHaveLength(6));
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
     document
       .querySelectorAll<HTMLInputElement>('.items-table tbody input[type="checkbox"]')
       .forEach((box) => box.click());

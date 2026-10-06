@@ -119,6 +119,31 @@ class ImportControllerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void updatesTheWorkItemsOfTheNamedUrls() {
+        List<String> urls = List.of("https://github.com/acme/tool/issues/7");
+        when(importService.updateRepository("elibrary", settings, urls)).thenReturn(result);
+        when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<Object>) invocation.getArgument(0)).call());
+
+        assertThat(new ImportInternalController(polarionService, repositorySettings, importService)
+                .updateRepository("elibrary", "tool", new ImportRequest(urls))).isSameAs(result);
+        assertThat(new ImportApiController(polarionService, repositorySettings, importService)
+                .updateRepository("elibrary", "tool", new ImportRequest(urls))).isSameAs(result);
+    }
+
+    @Test
+    void refusesAnUpdateWithoutUrls() {
+        ImportInternalController controller = new ImportInternalController(polarionService, repositorySettings, importService);
+
+        for (ImportRequest request : new ImportRequest[]{null, new ImportRequest(null), new ImportRequest(List.of())}) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.updateRepository("elibrary", "tool", request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("GitHub URLs");
+        }
+        verify(importService, never()).updateRepository(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void runsTheTokenEndpointPrivileged() {
         when(importService.importRepository("elibrary", settings, false, null)).thenReturn(result);
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<ImportResult>) invocation.getArgument(0)).call());

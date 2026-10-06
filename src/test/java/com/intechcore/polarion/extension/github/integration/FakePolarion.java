@@ -7,6 +7,7 @@ import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
 import com.polarion.alm.tracker.model.IStatusOpt;
 import com.polarion.alm.tracker.model.ILinkRoleOpt;
+import com.polarion.alm.tracker.model.ILinkedWorkItemStruct;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.ITypeOpt;
 import com.polarion.alm.tracker.model.IWorkItem;
@@ -48,6 +49,7 @@ final class FakePolarion {
         final List<String> hyperlinks = new ArrayList<>();
         final Map<String, Object> fields = new LinkedHashMap<>();
         final List<String> links = new ArrayList<>();
+        int saves;
     }
 
     // The two search shapes the import sends, read the way the database would.
@@ -64,6 +66,8 @@ final class FakePolarion {
     final List<WorkItem> saved = new ArrayList<>();
     final List<String> queries = new ArrayList<>();
     private final Map<IWorkItem, WorkItem> states = new LinkedHashMap<>();
+    // The work items a search returned, to answer reads of their fields.
+    private final Map<IWorkItem, WorkItem> read = new LinkedHashMap<>();
 
     FakePolarion(Set<String> workItemTypes, Set<String> linkRoles) {
         ITrackerService trackerService = mock(ITrackerService.class);
@@ -89,9 +93,19 @@ final class FakePolarion {
         when(trackerService.queryWorkItems(anyString(), anyString())).thenAnswer(invocation -> search(invocation.getArgument(0)));
         when(polarionService.getWorkItem(any(), anyString())).thenAnswer(invocation -> {
             String id = invocation.getArgument(1);
+            // A saved work item comes back writable, anything else as an epic to link to.
+            WorkItem state = saved.stream().filter(item -> id.equals(item.id)).findFirst().orElse(null);
+            if (state != null) {
+                return writable(state);
+            }
             IWorkItem epic = mock(IWorkItem.class);
             when(epic.getId()).thenReturn(id);
             return epic;
+        });
+        when(polarionService.getFieldValue(any(IWorkItem.class), anyString(), any(Class.class))).thenAnswer(invocation -> {
+            WorkItem state = read.get(invocation.<IWorkItem>getArgument(0));
+            Object value = state == null ? null : state.fields.get(invocation.<String>getArgument(1));
+            return value == null ? null : value.toString();
         });
         doAnswer(invocation -> {
             states.get(invocation.<IWorkItem>getArgument(0)).fields.put(invocation.getArgument(1), invocation.getArgument(2));
@@ -108,7 +122,11 @@ final class FakePolarion {
     }
 
     private IWorkItem newWorkItem() {
-        WorkItem state = new WorkItem();
+        return writable(new WorkItem());
+    }
+
+    /** A work item the import changes, new or loaded. Its save keeps a new one, and keeps the ID of a loaded one. */
+    private IWorkItem writable(WorkItem state) {
         IWorkItem workItem = mock(IWorkItem.class);
         states.put(workItem, state);
         doAnswer(invocation -> state.type = invocation.<ITypeOpt>getArgument(0).getId()).when(workItem).setType(any());
@@ -117,10 +135,14 @@ final class FakePolarion {
         when(workItem.addHyperlink(anyString(), any())).thenAnswer(invocation -> state.hyperlinks.add(invocation.getArgument(0)));
         when(workItem.addLinkedItem(any(), any(), any(), any(Boolean.class))).thenAnswer(invocation ->
                 state.links.add(invocation.<ILinkRoleOpt>getArgument(1).getId() + ":" + invocation.<IWorkItem>getArgument(0).getId()));
+        when(workItem.getTitle()).thenAnswer(invocation -> state.title);
         when(workItem.getId()).thenAnswer(invocation -> state.id);
         doAnswer(invocation -> {
-            state.id = "EL-" + (100 + saved.size());
-            saved.add(state);
+            if (state.id == null) {
+                state.id = "EL-" + (100 + saved.size());
+                saved.add(state);
+            }
+            state.saves++;
             return null;
         }).when(workItem).save();
         return workItem;
@@ -153,9 +175,25 @@ final class FakePolarion {
     }
 
     /** A saved work item as a search returns it. */
-    private static IWorkItem stored(WorkItem state) {
+    private IWorkItem stored(WorkItem state) {
         IWorkItem workItem = mock(IWorkItem.class);
+        read.put(workItem, state);
         when(workItem.getId()).thenReturn(state.id);
+        when(workItem.getTitle()).thenReturn(state.title);
+        when(workItem.getDescription()).thenReturn(state.description);
+        List<ILinkedWorkItemStruct> links = new ArrayList<>();
+        for (String link : state.links) {
+            String[] roleAndId = link.split(":", 2);
+            ILinkedWorkItemStruct struct = mock(ILinkedWorkItemStruct.class);
+            ILinkRoleOpt role = mock(ILinkRoleOpt.class);
+            when(role.getId()).thenReturn(roleAndId[0]);
+            IWorkItem target = mock(IWorkItem.class);
+            when(target.getId()).thenReturn(roleAndId[1]);
+            when(struct.getLinkRole()).thenReturn(role);
+            when(struct.getLinkedItem()).thenReturn(target);
+            links.add(struct);
+        }
+        when(workItem.getLinkedWorkItemsStructsDirect()).thenReturn(links);
         List<IHyperlinkStruct> hyperlinks = new ArrayList<>();
         for (String url : state.hyperlinks) {
             IHyperlinkStruct hyperlink = mock(IHyperlinkStruct.class);

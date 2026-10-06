@@ -29,6 +29,11 @@ public class ImportApiController extends ImportInternalController {
     }
 
     @Override
+    public ImportResult updateRepository(String projectId, String name, ImportRequest request) {
+        return polarionService.callPrivileged(() -> super.updateRepository(projectId, name, request));
+    }
+
+    @Override
     public ImportResult importRepository(String projectId, String name, boolean dryRun, ImportRequest request) {
         return polarionService.callPrivileged(() -> super.importRepository(projectId, name, dryRun, request));
     }

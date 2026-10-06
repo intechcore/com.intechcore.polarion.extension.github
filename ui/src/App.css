@@ -168,6 +168,14 @@ body {
   color: #57606a;
 }
 
+.state-OUTDATED .state-icon {
+  color: #bf8700;
+}
+
+.state-UPDATED {
+  color: #1e7e34;
+}
+
 .state-SKIPPED {
   color: #6b6b6b;
 }

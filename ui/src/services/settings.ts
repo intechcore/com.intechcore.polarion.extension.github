@@ -166,6 +166,18 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** Updates the work items of the given GitHub items that differ from the settings and GitHub. */
+  const runUpdate = useCallback(
+    (projectId: string, name: string, urls: string[]): Promise<ImportResult> =>
+      sendRequest({
+        method: 'POST',
+        url: projectPath(projectId, `/repositories/${encodeURIComponent(name)}/update`),
+        contentType: 'application/json',
+        body: JSON.stringify({ urls }),
+      }).then((r) => jsonOrThrow<ImportResult>(r)),
+    [sendRequest],
+  );
+
   return useMemo(
     () => ({
       loadConfigurationNames,
@@ -180,6 +192,7 @@ export default function useSettings() {
       loadFields,
       runImport,
       loadItems,
+      runUpdate,
     }),
     [
       loadConfigurationNames,
@@ -194,6 +207,7 @@ export default function useSettings() {
       loadFields,
       runImport,
       loadItems,
+      runUpdate,
     ],
   );
 }

@@ -78,6 +78,21 @@ public class ImportInternalController {
         return items;
     }
 
+    @Operation(summary = "Updates the work items of the given GitHub items whose title, description, type, field values or epic link differ")
+    @POST
+    @Path("/projects/{projectId}/repositories/{name}/update")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public ImportResult updateRepository(@Parameter(description = "The project of the work items") @PathParam("projectId") String projectId,
+                                         @Parameter(description = "The name of the repository setting") @PathParam("name") String name,
+                                         ImportRequest request) {
+        if (request == null || request.getUrls() == null || request.getUrls().isEmpty()) {
+            throw new IllegalArgumentException("Name the GitHub URLs whose work items to update");
+        }
+        RepositorySettingsModel settings = repositorySettings.load(projectId, SettingId.fromName(name));
+        return importService.updateRepository(projectId, settings, request.getUrls());
+    }
+
     @Operation(summary = "Creates work items from the open issues and discussions of a configured repository")
     @POST
     @Path("/projects/{projectId}/repositories/{name}/import")

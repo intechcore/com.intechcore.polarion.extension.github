@@ -1,5 +1,6 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
+  faArrowsRotate,
   faBan,
   faCircleCheck,
   faCircleDot,
@@ -18,6 +19,8 @@ const STATUS_ICONS: Record<ImportStatus, IconDefinition> = {
   NEW: faCirclePlus,
   CREATED: faCircleCheck,
   EXISTS: faLink,
+  OUTDATED: faArrowsRotate,
+  UPDATED: faCircleCheck,
   SKIPPED: faBan,
   FAILED: faTriangleExclamation,
 };

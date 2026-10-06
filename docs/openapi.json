@@ -232,6 +232,56 @@
         ]
       }
     },
+    "/api/projects/{projectId}/repositories/{name}/update": {
+      "post": {
+        "operationId": "updateRepository",
+        "parameters": [
+          {
+            "description": "The project of the work items",
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The name of the repository setting",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Updates the work items of the given GitHub items whose title, description, type, field values or epic link differ",
+        "tags": [
+          "Import"
+        ]
+      }
+    },
     "/api/projects/{projectId}/workitem-types": {
       "get": {
         "operationId": "getWorkItemTypes",
@@ -523,6 +573,8 @@
               "NEW",
               "CREATED",
               "EXISTS",
+              "OUTDATED",
+              "UPDATED",
               "SKIPPED",
               "FAILED"
             ],
