@@ -88,35 +88,36 @@ export function StateCell({ entry }: Readonly<{ entry: ImportEntry }>) {
   );
 }
 
-/**
- * The work item with the icon of its type, or for a new item the icon and the name of the type the
- * import would create.
- */
+/** The work item with the icon of its type and a link. An item without a work item shows nothing. */
 export function WorkItemCell({ entry, projectId }: Readonly<{ entry: ImportEntry; projectId: string }>) {
-  const typeName = entry.workItemTypeName ?? entry.workItemType;
-  const icon = entry.workItemTypeIcon ? (
-    <img className="type-icon" src={entry.workItemTypeIcon} alt={typeName ?? ''} title={typeName ?? undefined} />
-  ) : null;
-  if (entry.workItemId) {
-    return (
-      <span className="work-item-cell">
-        {icon}
-        <a
-          href={`/polarion/#/project/${encodeURIComponent(projectId)}/workitem?id=${encodeURIComponent(entry.workItemId)}`}
-          target="_top"
-        >
-          {entry.workItemId}
-        </a>
-      </span>
-    );
+  if (!entry.workItemId) {
+    return null;
   }
-  if (!typeName) {
+  const typeName = entry.workItemTypeName ?? entry.workItemType;
+  return (
+    <span className="work-item-cell">
+      {entry.workItemTypeIcon && (
+        <img className="type-icon" src={entry.workItemTypeIcon} alt={typeName ?? ''} title={typeName ?? undefined} />
+      )}
+      <a
+        href={`/polarion/#/project/${encodeURIComponent(projectId)}/workitem?id=${encodeURIComponent(entry.workItemId)}`}
+        target="_top"
+      >
+        {entry.workItemId}
+      </a>
+    </span>
+  );
+}
+
+/** The status of the work item with its icon, as Polarion shows it. */
+export function StatusCell({ entry }: Readonly<{ entry: ImportEntry }>) {
+  if (!entry.workItemStatus) {
     return null;
   }
   return (
-    <span className="work-item-cell work-item-planned" title="The type of the work item the import would create">
-      {icon}
-      {typeName}
+    <span className="work-item-cell">
+      {entry.workItemStatusIcon && <img className="type-icon" src={entry.workItemStatusIcon} alt="" />}
+      {entry.workItemStatus}
     </span>
   );
 }

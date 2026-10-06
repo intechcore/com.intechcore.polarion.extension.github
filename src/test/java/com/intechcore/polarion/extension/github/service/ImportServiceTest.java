@@ -211,6 +211,7 @@ class ImportServiceTest {
         when(existing.getType()).thenReturn(defect);
         com.polarion.alm.tracker.model.IStatusOpt open = mock(com.polarion.alm.tracker.model.IStatusOpt.class);
         when(open.getName()).thenReturn("Open");
+        when(open.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/icons/open.gif");
         when(existing.getStatus()).thenReturn(open);
         com.polarion.alm.projects.model.IUser named = mock(com.polarion.alm.projects.model.IUser.class);
         when(named.getName()).thenReturn("Alice Admin");
@@ -228,6 +229,7 @@ class ImportServiceTest {
         assertThat(entry.getWorkItemTypeName()).isEqualTo("Defect");
         assertThat(entry.getWorkItemTypeIcon()).isEqualTo("/icons/defect.gif");
         assertThat(entry.getWorkItemStatus()).isEqualTo("Open");
+        assertThat(entry.getWorkItemStatusIcon()).isEqualTo("/icons/open.gif");
         assertThat(entry.getWorkItemAssignees()).containsExactly("Alice Admin", "bob");
         assertThat(service.importRepository(PROJECT, settings(), true, null).getReadAt()).isNull();
     }
