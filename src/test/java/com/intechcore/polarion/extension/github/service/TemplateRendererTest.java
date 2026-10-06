@@ -26,6 +26,27 @@ class TemplateRendererTest {
     }
 
     @Test
+    void findsNoProblemInATemplateOfKnownPlaceholders() {
+        assertThat(TemplateRenderer.problems("[GitHub] {{ SHORT_NAME }} : {{title}} {{ short_name }} {braces} {{", TemplateRenderer.TITLE_PLACEHOLDERS))
+                .isEmpty();
+    }
+
+    @Test
+    void namesAnUnknownOrMisspelledPlaceholder() {
+        assertThat(TemplateRenderer.problems("{{ TITEL }} {{ BODY }} {{ not a name }}", TemplateRenderer.TITLE_PLACEHOLDERS)).containsExactly(
+                "has the unknown placeholder {{ TITEL }}",
+                "has the unknown placeholder {{ BODY }}",
+                "has the unknown placeholder {{ not a name }}");
+    }
+
+    @Test
+    void namesAPlaceholderOfTheEarlierForm() {
+        assertThat(TemplateRenderer.problems("[GitHub] {shortName}: {title} {other}", TemplateRenderer.TITLE_PLACEHOLDERS)).containsExactly(
+                "writes {shortName} in the earlier form. Write {{ SHORT_NAME }}",
+                "writes {title} in the earlier form. Write {{ TITLE }}");
+    }
+
+    @Test
     void keepsATitleOnOneLine() {
         assertThat(TemplateRenderer.renderText("{{ TITLE }}", Map.of("title", " two\nlines\t here ")))
                 .isEqualTo("two lines here");

@@ -62,6 +62,26 @@ class RepositorySettingsModelTest {
     }
 
     @Test
+    void rejectsATemplateWithAPlaceholderItCannotFill() {
+        assertRejected(model -> model.getIssues().setTitleTemplate("[GitHub] {shortName}: {title}"),
+                "The title template for issues writes {shortName} in the earlier form. Write {{ SHORT_NAME }}; "
+                        + "writes {title} in the earlier form. Write {{ TITLE }}");
+        assertRejected(model -> model.getIssues().setTitleTemplate("{{ TITLE }} {{ BODY }}"),
+                "The title template for issues has the unknown placeholder {{ BODY }}");
+        assertRejected(model -> model.getIssues().setDescriptionTemplate("<a href=\"{url}\">{{ URL }}</a>"),
+                "The description template for issues writes {url} in the earlier form. Write {{ URL }}");
+    }
+
+    @Test
+    void acceptsTheBodyInTheDescriptionAndNoDescription() {
+        RepositorySettingsModel model = valid();
+        model.getIssues().setDescriptionTemplate("<p>{{ BODY }}</p>");
+        assertThatCode(model::validate).doesNotThrowAnyException();
+        model.getIssues().setDescriptionTemplate(null);
+        assertThatCode(model::validate).doesNotThrowAnyException();
+    }
+
+    @Test
     void acceptsValidSettings() {
         assertThatCode(() -> valid().validate()).doesNotThrowAnyException();
     }

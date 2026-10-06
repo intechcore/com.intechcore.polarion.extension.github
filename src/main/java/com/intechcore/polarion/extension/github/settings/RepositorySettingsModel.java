@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.github.settings;
 
 import ch.sbb.polarion.extension.generic.settings.SettingsModel;
+import com.intechcore.polarion.extension.github.service.TemplateRenderer;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,6 +11,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -87,6 +90,10 @@ public class RepositorySettingsModel extends SettingsModel {
         if (isBlank(settings.getTitleTemplate())) {
             throw new IllegalArgumentException("The title template for " + kind + " is required");
         }
+        validateTemplate("The title template for " + kind, settings.getTitleTemplate(), TemplateRenderer.TITLE_PLACEHOLDERS);
+        List<String> descriptionPlaceholders = new ArrayList<>(TemplateRenderer.TITLE_PLACEHOLDERS);
+        descriptionPlaceholders.add(TemplateRenderer.BODY);
+        validateTemplate("The description template for " + kind, settings.getDescriptionTemplate(), descriptionPlaceholders);
         if (settings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD && isBlank(settings.getDuplicateKeyField())) {
             throw new IllegalArgumentException("The custom field that keeps the URL for " + kind + " is required");
         }
@@ -97,6 +104,16 @@ public class RepositorySettingsModel extends SettingsModel {
             for (int i = 0; i < settings.getRules().size(); i++) {
                 validate("Rule " + (i + 1) + " for " + kind, settings.getRules().get(i), notForThisKind);
             }
+        }
+    }
+
+    private static void validateTemplate(String template, String text, List<String> placeholders) {
+        if (text == null) {
+            return;
+        }
+        List<String> problems = TemplateRenderer.problems(text, placeholders);
+        if (!problems.isEmpty()) {
+            throw new IllegalArgumentException(template + " " + String.join("; ", problems));
         }
     }
 

@@ -319,6 +319,11 @@ class ImportIntegrationTest {
                             "rules": [{"match": "CATEGORY", "value": "Q&A", "workItemType": "task"}]}}"""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Rule 1 for issues compares what these items do not have");
+        assertThatThrownBy(() -> saveSetting("tool", """
+                {"repository": "acme/tool", "shortName": "Tool",
+                 "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "[GitHub] {shortName}: {title}"}}"""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("The title template for issues writes {shortName} in the earlier form");
         assertThat(settingsEndpoint.readSettingNames(RepositorySettings.FEATURE_NAME, SCOPE)).isEmpty();
     }
 }
