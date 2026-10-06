@@ -79,6 +79,16 @@ body {
   width: 180px;
 }
 
+/* The search box has the height of the multi-select filters beside it, which add padding to RSP's
+   control height. RSP styles text inputs through a 0-4-1 selector, so this one leads with the page
+   class to win. */
+.standard-admin-page .item-filter input[type='text']:not(.sd-trigger):not(.search-box) {
+  height: auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.5;
+}
+
 .items-table {
   border-collapse: collapse;
   margin-bottom: 12px;
@@ -96,12 +106,92 @@ body {
   background: #f3f3f0;
 }
 
-.items-table .status-FAILED {
-  color: #b40000;
+/* The item: the icon of its kind, the number as the link, then the title. */
+.item-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.items-table .status-CREATED {
+.kind-icon.kind-ISSUE {
+  color: #1a7f37;
+}
+
+.kind-icon.kind-DISCUSSION {
+  color: #8250df;
+}
+
+.item-number {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.item-title {
+  color: #1f2328;
+}
+
+/* Labels look as on GitHub: a rounded chip in the color of the label. */
+.labels-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.label-chip {
+  border-radius: 2em;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  background-color: #e6e6e6;
+  color: #1f2328;
+}
+
+.state {
+  white-space: nowrap;
+}
+
+.state-icon {
+  margin-right: 5px;
+}
+
+.state-NEW .state-icon {
+  color: #0969da;
+}
+
+.state-CREATED {
   color: #1e7e34;
+}
+
+.state-EXISTS .state-icon {
+  color: #57606a;
+}
+
+.state-SKIPPED {
+  color: #6b6b6b;
+}
+
+.state-FAILED {
+  color: #b40000;
+  white-space: normal;
+}
+
+.work-item-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.work-item-planned {
+  color: #6b6b6b;
+  font-style: italic;
+}
+
+.type-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .items-summary {

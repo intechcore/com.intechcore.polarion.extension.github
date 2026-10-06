@@ -38,6 +38,9 @@ export default defineConfig({
       'react/jsx-dev-runtime',
       'vitest-browser-react',
       '@sbb-polarion/react-sbb-polarion',
+      '@fortawesome/fontawesome-svg-core',
+      '@fortawesome/free-solid-svg-icons',
+      '@fortawesome/react-fontawesome',
     ],
   },
   test: {

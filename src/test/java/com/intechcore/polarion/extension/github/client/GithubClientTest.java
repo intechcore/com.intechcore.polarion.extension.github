@@ -84,7 +84,7 @@ class GithubClientTest {
     void readsTheTypeTheCategoryAndTheLabels() {
         answer("/repos/acme/tool/issues", 200, Map.of(), """
                 [
-                  {"number": 1, "state": "open", "type": {"id": 3, "name": "Bug"}, "labels": [{"name": "a"}, {"id": 5}, {"name": "b"}]},
+                  {"number": 1, "state": "open", "type": {"id": 3, "name": "Bug"}, "labels": [{"name": "a", "color": "D73A4A"}, {"id": 5}, {"name": "b", "color": "red"}, {"name": "c", "color": "0e8a16"}]},
                   {"number": 2, "state": "open", "type": null},
                   {"number": 3, "state": "open", "type": "Feature", "labels": []},
                   {"number": 4, "state": "open", "type": {"id": 3}},
@@ -96,7 +96,10 @@ class GithubClientTest {
         List<GithubItem> issues = client.getOpenIssues("acme", "tool");
 
         assertThat(issues).extracting(GithubItem::typeName).containsExactly("Bug", null, "Feature", null, null);
-        assertThat(issues.get(0).labelNames()).containsExactly("a", "b");
+        assertThat(issues.get(0).labelNames()).containsExactly("a", "b", "c");
+        // A color that is not six hexadecimal digits never reaches the page, which writes it into a style.
+        assertThat(issues.get(0).labelColors()).containsExactly(Map.entry("a", "d73a4a"), Map.entry("c", "0e8a16"));
+        assertThat(issues.get(1).labelColors()).isEmpty();
         assertThat(issues.get(1).labelNames()).isEmpty();
         assertThat(issues.get(0).categoryName()).isNull();
         assertThat(client.getOpenDiscussions("acme", "tool").get(0).categoryName()).isEqualTo("Q&A");

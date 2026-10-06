@@ -111,6 +111,12 @@ feature falls back to About.
 - `components/RulesEditor.tsx` and `components/FieldValues.tsx` - the rules of a block and the
   field value rows, which the block and every rule share. `Repositories` serves all their requests
   for the fields of one work item type from one request.
+- `components/ItemCells.tsx` - the cells of the items table: the item with its number as the link,
+  the labels in their GitHub colors, the state and the work item with Font Awesome or Polarion icons.
+  `main.tsx` sets `config.autoAddCss = false` and imports the Font Awesome stylesheet, because a
+  `<style>` added at run time needs `'unsafe-inline'` in a Content Security Policy. The tests list the
+  Font Awesome packages in `optimizeDeps`: otherwise Vite finds them mid-run and the browser page of
+  a test file never gets ready.
 - `services/useRemote.ts` - REST hook. **The UI always calls `/internal/*` (in-session); external
   callers use `/api/*` with a bearer token.**
 

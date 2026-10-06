@@ -36,7 +36,11 @@ public record GithubItem(
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Label(String name) {
+    public record Label(String name, String color) {
+
+        public Label(String name) {
+            this(name, null);
+        }
     }
 
     /**
@@ -56,6 +60,19 @@ public record GithubItem(
 
     public @NotNull List<String> assigneeLogins() {
         return assignees == null ? List.of() : assignees.stream().filter(Objects::nonNull).map(User::login).filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * The color of each label as GitHub shows it, six hexadecimal digits by label name.
+     */
+    public @NotNull Map<String, String> labelColors() {
+        Map<String, String> colors = new java.util.LinkedHashMap<>();
+        if (labels != null) {
+            labels.stream()
+                    .filter(label -> label != null && label.name() != null && label.color() != null && label.color().matches("[0-9a-fA-F]{6}"))
+                    .forEach(label -> colors.putIfAbsent(label.name(), label.color().toLowerCase(java.util.Locale.ROOT)));
+        }
+        return colors;
     }
 
     public @NotNull List<String> labelNames() {

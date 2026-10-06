@@ -17,6 +17,7 @@ import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.ITypeOpt;
 import com.polarion.alm.tracker.model.IWorkItem;
 import com.polarion.core.util.types.Text;
+import com.polarion.platform.persistence.IEnumOption;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -182,9 +183,9 @@ public class ImportService {
             }
             ImportEntry entry = ImportEntry.builder()
                     .kind(kind).number(item.number()).title(item.title()).url(url)
-                    .setting(settings.getName()).repository(settings.getRepository())
+                    .setting(settings.getName()).repository(settings.getRepository()).shortName(settings.getShortName())
                     .githubType(kind == ItemKind.ISSUE ? item.typeName() : item.categoryName())
-                    .labels(item.labelNames()).assignees(item.assigneeLogins())
+                    .labels(item.labelNames()).labelColors(item.labelColors()).assignees(item.assigneeLogins())
                     .build();
             result.getEntries().add(entry);
             if (url == null || !url.startsWith(urlPrefix)) {
@@ -196,12 +197,14 @@ public class ImportService {
                 entry.setWorkItemId(workItem.id());
                 entry.setWorkItemType(workItem.type());
                 entry.setWorkItemTypeName(workItem.typeName());
+                entry.setWorkItemTypeIcon(workItem.typeIcon());
                 entry.setWorkItemStatus(workItem.status());
                 entry.setWorkItemAssignees(workItem.assignees());
             } else {
                 importNewItem(entry, item, target, settings, result.isDryRun());
                 if (entry.getStatus() == ImportStatus.CREATED) {
-                    existing.put(url, new Existing(entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(), null, List.of()));
+                    existing.put(url, new Existing(entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(),
+                            entry.getWorkItemTypeIcon(), null, List.of()));
                 }
             }
         }
@@ -221,6 +224,7 @@ public class ImportService {
         Outcome outcome = rule == null ? target.fallback() : rule.outcome();
         entry.setWorkItemType(outcome.type().getId());
         entry.setWorkItemTypeName(outcome.type().getName());
+        entry.setWorkItemTypeIcon(iconOf(outcome.type()));
         if (dryRun) {
             entry.setStatus(ImportStatus.NEW);
         } else {
@@ -321,7 +325,8 @@ public class ImportService {
     }
 
     /** A work item that holds a GitHub URL, as the page shows it. */
-    private record Existing(String id, @Nullable String type, @Nullable String typeName, @Nullable String status, List<String> assignees) {
+    private record Existing(String id, @Nullable String type, @Nullable String typeName, @Nullable String typeIcon,
+                            @Nullable String status, List<String> assignees) {
 
         @SuppressWarnings("unchecked") // IWorkItem.getAssignees is declared with a raw IPObjectList
         static Existing of(IWorkItem workItem) {
@@ -335,8 +340,13 @@ public class ImportService {
                 }
             }
             return new Existing(workItem.getId(), type == null ? null : type.getId(), type == null ? null : type.getName(),
-                    status == null ? null : status.getName(), assignees);
+                    iconOf(type), status == null ? null : status.getName(), assignees);
         }
+    }
+
+    /** The icon Polarion shows for a work item type, as configured in the project. */
+    private static @Nullable String iconOf(@Nullable ITypeOpt type) {
+        return type == null ? null : type.getProperty(IEnumOption.PROPERTY_KEY_ICON_URL);
     }
 
     /** What the import needs of one block of the settings, looked up in the project. */

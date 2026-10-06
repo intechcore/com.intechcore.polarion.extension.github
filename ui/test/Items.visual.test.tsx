@@ -42,7 +42,7 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
 
     appButton('Create work items (4)').click();
 
-    await vi.waitFor(() => expect(document.querySelectorAll('.status-CREATED')).toHaveLength(2));
+    await vi.waitFor(() => expect(document.querySelectorAll('.state-CREATED')).toHaveLength(2));
     await captureApp('items-created');
   });
 

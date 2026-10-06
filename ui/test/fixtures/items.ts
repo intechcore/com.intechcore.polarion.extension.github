@@ -2,6 +2,13 @@ import type { ImportEntry } from '../../src/types';
 import type { Route } from '../mockFetch';
 import { SCOPE } from './repositories';
 
+// Polarion serves the type icons, so the tests draw them from data: URLs: a broken image would make the
+// visual references depend on how the browser draws a missing file.
+const square = (fill: string) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="${fill}"/></svg>`)}`;
+export const TASK_ICON = square('#2f7d32');
+export const DEFECT_ICON = square('#c62828');
+
 export { SCOPE };
 
 const base: Omit<ImportEntry, 'kind' | 'number' | 'title' | 'url' | 'status'> = {
@@ -9,11 +16,14 @@ const base: Omit<ImportEntry, 'kind' | 'number' | 'title' | 'url' | 'status'> = 
   message: null,
   setting: 'tool',
   repository: 'acme/tool',
+  shortName: 'Tool',
   githubType: null,
   labels: [],
+  labelColors: {},
   assignees: [],
   workItemType: 'task',
   workItemTypeName: 'Task',
+  workItemTypeIcon: TASK_ICON,
   workItemStatus: null,
   workItemAssignees: [],
 };
@@ -32,10 +42,12 @@ export const ENTRIES: ImportEntry[] = [
     url: ISSUE_7,
     status: 'NEW',
     githubType: 'Bug',
-    labels: ['bug'],
+    labels: ['bug', 'help wanted'],
+    labelColors: { bug: 'd73a4a', 'help wanted': 'a2eeef' },
     assignees: ['alice', 'bob'],
     workItemType: 'defect',
     workItemTypeName: 'Defect',
+    workItemTypeIcon: DEFECT_ICON,
   },
   {
     ...base,
@@ -49,6 +61,7 @@ export const ENTRIES: ImportEntry[] = [
     workItemId: 'EL-12',
     workItemType: 'defect',
     workItemTypeName: 'Defect',
+    workItemTypeIcon: DEFECT_ICON,
     workItemStatus: 'In Progress',
     workItemAssignees: ['Rob Project'],
   },
@@ -63,6 +76,7 @@ export const ENTRIES: ImportEntry[] = [
     message: 'by the rule Label = wontfix',
     workItemType: null,
     workItemTypeName: null,
+    workItemTypeIcon: null,
   },
   {
     ...base,
@@ -72,8 +86,10 @@ export const ENTRIES: ImportEntry[] = [
     url: ISSUE_10,
     status: 'NEW',
     labels: ['enhancement'],
+    labelColors: { enhancement: 'a2eeef' },
     workItemType: 'changerequest',
     workItemTypeName: 'Change Request',
+    workItemTypeIcon: null,
   },
   {
     ...base,
@@ -88,6 +104,7 @@ export const ENTRIES: ImportEntry[] = [
     ...base,
     setting: 'docs',
     repository: 'acme/docs',
+    shortName: 'Docs',
     kind: 'ISSUE',
     number: 3,
     title: 'Typo in the guide',

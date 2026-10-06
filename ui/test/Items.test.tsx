@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 import App from '../src/App';
-import { DISCUSSION_30, DOCS_3, ISSUE_7, ISSUE_10, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
+import { DEFECT_ICON, DISCUSSION_30, DOCS_3, ISSUE_7, ISSUE_10, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
 import { type FetchMock, type Route, installFetchMock, jsonResponse } from './mockFetch';
 
 // Behavior tests for the page of the GitHub items: the topic of a project and the administration entry.
@@ -18,8 +18,11 @@ const button = (label: string): HTMLButtonElement => {
   if (!found) throw new Error(`button "${label}" not found`);
   return found;
 };
+// The item cell as a reader sees it: the number and the title. The kind shows as an icon.
 const numbers = () =>
-  Array.from(document.querySelectorAll('.items-table tbody tr')).map((row) => row.children[2].textContent?.trim());
+  Array.from(document.querySelectorAll('.items-table tbody tr')).map(
+    (row) => `${row.querySelector('.item-number')?.textContent} ${row.querySelector('.item-title')?.textContent}`,
+  );
 const checkbox = (url: string) => document.querySelector<HTMLInputElement>(`[aria-label="Select ${url}"]`);
 // A multi-select draws its trigger as a div, which carries the label as the hidden <select> does.
 const dropdown = (label: string) => document.querySelector<HTMLElement>(`div.sd-trigger[aria-label="${label}"]`)!;
@@ -64,29 +67,49 @@ describe('GitHub items page', () => {
     await mount();
 
     expect(numbers()).toEqual([
-      'Issue #7 Crash on start',
-      'Issue #5 Old report',
-      'Issue #9 Old idea',
-      'Issue #10 Export to CSV',
-      'Discussion #30 How to configure',
-      'Issue #3 Typo in the guide',
+      '#7 Crash on start',
+      '#5 Old report',
+      '#9 Old idea',
+      '#10 Export to CSV',
+      '#30 How to configure',
+      '#3 Typo in the guide',
     ]);
-    const existing = Array.from(document.querySelectorAll('.items-table tbody tr')[1].children).map((cell) =>
-      cell.textContent?.trim(),
-    );
-    expect(existing).toEqual([
-      '',
-      'acme/tool',
-      'Issue #5 Old report',
+    const cells = (row: number) =>
+      Array.from(document.querySelectorAll('.items-table tbody tr')[row].children).map((cell) =>
+        cell.textContent?.trim(),
+      );
+    // The repository shows its short name, the item its number as the link, the work item the icon of its type.
+    const existing = cells(1);
+    expect([existing[1], existing[3], existing[5], existing[6], existing[7], existing[8], existing[9]]).toEqual([
+      'Tool',
       'Bug',
-      '',
       'alice',
       'Has a work item',
       'EL-12',
-      'Defect',
       'In Progress',
       'Rob Project',
     ]);
+    const rows = document.querySelectorAll('.items-table tbody tr');
+    expect(rows[1].children[1].getAttribute('title')).toBe('acme/tool');
+    expect(rows[1].querySelector<HTMLAnchorElement>('a.item-number')!.href).toBe(
+      'https://github.com/acme/tool/issues/5',
+    );
+    expect(rows[1].querySelector('.item-title a')).toBeNull();
+    expect(rows[1].querySelector<HTMLImageElement>('.work-item-cell img')!.getAttribute('src')).toBe(DEFECT_ICON);
+    expect(rows[1].querySelector('.state-EXISTS svg')).not.toBeNull();
+    // A new item shows the type the import would create.
+    expect(cells(0)[7]).toBe('Defect');
+    expect(rows[0].querySelector('.work-item-planned')).not.toBeNull();
+    expect(cells(3)[7]).toBe('Change Request');
+    expect(rows[3].querySelector('.work-item-cell img')).toBeNull();
+    expect(cells(2)[7]).toBe('');
+    // Labels take the colors of GitHub, with dark text on a light label and white on a dark one.
+    const chips = Array.from(rows[0].querySelectorAll<HTMLElement>('.label-chip'));
+    expect(chips.map((chip) => [chip.textContent, chip.style.backgroundColor, chip.style.color])).toEqual([
+      ['bug', 'rgb(215, 58, 74)', 'rgb(255, 255, 255)'],
+      ['help wanted', 'rgb(162, 238, 239)', 'rgb(31, 35, 40)'],
+    ]);
+    expect(rows[2].querySelector<HTMLElement>('.label-chip')!.getAttribute('style')).toBeNull();
     expect(document.querySelector<HTMLAnchorElement>('.items-table a[target="_top"]')!.getAttribute('href')).toBe(
       '/polarion/#/project/elibrary/workitem?id=EL-12',
     );
@@ -102,30 +125,38 @@ describe('GitHub items page', () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe('/polarion/github/rest/internal/projects/elibrary/items');
   });
 
+  it('gives the search box the height of the filters beside it', async () => {
+    await mount();
+
+    const filter = document.querySelector<HTMLElement>('.item-filter .sd-trigger-multi')!.getBoundingClientRect();
+    const search = document.querySelector<HTMLElement>('[aria-label="Search"]')!.getBoundingClientRect();
+    expect(search.height).toBe(filter.height);
+  });
+
   it('filters by repository, type, assignee and state, and searches', async () => {
     await mount();
 
-    await choose('Repository', 'tool');
+    await choose('Repository', 'Tool');
     await vi.waitFor(() => expect(numbers()).toHaveLength(5));
     await choose('GitHub assignee', 'alice');
-    await vi.waitFor(() => expect(numbers()).toEqual(['Issue #7 Crash on start', 'Issue #5 Old report']));
+    await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start', '#5 Old report']));
     await choose('State', 'New');
-    await vi.waitFor(() => expect(numbers()).toEqual(['Issue #7 Crash on start']));
+    await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start']));
     expect(document.querySelector('.items-summary')!.textContent).toBe('1 of 6 open item(s) shown.');
 
     button('Clear filters').click();
     await vi.waitFor(() => expect(numbers()).toHaveLength(6));
     await choose('Work item type', 'Change Request');
-    await vi.waitFor(() => expect(numbers()).toEqual(['Issue #10 Export to CSV']));
+    await vi.waitFor(() => expect(numbers()).toEqual(['#10 Export to CSV']));
     button('Clear filters').click();
     await choose('Kind', 'Discussion');
-    await vi.waitFor(() => expect(numbers()).toEqual(['Discussion #30 How to configure']));
+    await vi.waitFor(() => expect(numbers()).toEqual(['#30 How to configure']));
     button('Clear filters').click();
     await choose('GitHub type', 'Q&A');
     await vi.waitFor(() => expect(numbers()).toHaveLength(1));
     button('Clear filters').click();
     await choose('Polarion assignee', 'Rob Project');
-    await vi.waitFor(() => expect(numbers()).toEqual(['Issue #5 Old report']));
+    await vi.waitFor(() => expect(numbers()).toEqual(['#5 Old report']));
     button('Clear filters').click();
 
     await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Search"]')!, 'nothing like this');
@@ -164,7 +195,7 @@ describe('GitHub items page', () => {
 
   it('selects all new items shown, and clears them again', async () => {
     await mount();
-    await choose('Repository', 'tool');
+    await choose('Repository', 'Tool');
     await vi.waitFor(() => expect(numbers()).toHaveLength(5));
 
     const all = document.querySelector<HTMLInputElement>('[aria-label="Select all new items shown"]')!;

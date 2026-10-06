@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
 import ErrorNotice from '../components/ErrorNotice';
+import { ItemCell, LabelsCell, StateCell, WorkItemCell } from '../components/ItemCells';
 import {
   type ItemFilters,
   KIND_LABELS,
@@ -130,6 +131,8 @@ export default function Items() {
   }
 
   const all = entries ?? [];
+  // The filter offers the short names, as the table shows them, and filters by the setting.
+  const shortNames = new Map(all.map((entry) => [entry.setting ?? '', entry.shortName ?? '']));
   const time = readTime(repositories);
   const filterSelect = (
     label: string,
@@ -202,7 +205,11 @@ export default function Items() {
           </div>
 
           <div className="item-filters">
-            {filterSelect('Repository', 'settings', optionsOf(all, 'settings'))}
+            {filterSelect(
+              'Repository',
+              'settings',
+              optionsOf(all, 'settings', (setting) => shortNames.get(setting) || setting),
+            )}
             {filterSelect(
               'Kind',
               'kinds',
@@ -267,7 +274,6 @@ export default function Items() {
                   <th>GitHub assignees</th>
                   <th>State</th>
                   <th>Work item</th>
-                  <th>Work item type</th>
                   <th>Status</th>
                   <th>Polarion assignees</th>
                 </tr>
@@ -285,35 +291,21 @@ export default function Items() {
                         />
                       )}
                     </td>
-                    <td>{entry.repository}</td>
+                    <td title={entry.repository ?? undefined}>{entry.shortName || entry.setting}</td>
                     <td>
-                      {KIND_LABELS[entry.kind]} #{entry.number}{' '}
-                      {entry.url ? (
-                        <a href={entry.url} target="_blank" rel="noopener noreferrer">
-                          {entry.title}
-                        </a>
-                      ) : (
-                        entry.title
-                      )}
+                      <ItemCell entry={entry} />
                     </td>
                     <td>{entry.githubType}</td>
-                    <td>{join(entry.labels)}</td>
+                    <td>
+                      <LabelsCell entry={entry} />
+                    </td>
                     <td>{join(entry.assignees)}</td>
-                    <td className={`status-${entry.status}`}>
-                      {STATUS_LABELS[entry.status]}
-                      {entry.message ? `: ${entry.message}` : ''}
+                    <td>
+                      <StateCell entry={entry} />
                     </td>
                     <td>
-                      {entry.workItemId && (
-                        <a
-                          href={`/polarion/#/project/${encodeURIComponent(projectId)}/workitem?id=${encodeURIComponent(entry.workItemId)}`}
-                          target="_top"
-                        >
-                          {entry.workItemId}
-                        </a>
-                      )}
+                      <WorkItemCell entry={entry} projectId={projectId} />
                     </td>
-                    <td>{entry.workItemTypeName ?? entry.workItemType}</td>
                     <td>{entry.workItemStatus}</td>
                     <td>{join(entry.workItemAssignees)}</td>
                   </tr>

@@ -103,6 +103,7 @@ final class FakePolarion {
         T option = mock(type);
         when(option.getId()).thenReturn(id);
         when(option.isPhantom()).thenReturn(!known.contains(id));
+        when(option.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/polarion/icons/" + id + ".gif");
         return option;
     }
 
@@ -167,6 +168,7 @@ final class FakePolarion {
         ITypeOpt type = mock(ITypeOpt.class);
         when(type.getId()).thenReturn(state.type);
         when(type.getName()).thenReturn(state.type.substring(0, 1).toUpperCase() + state.type.substring(1));
+        when(type.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/polarion/icons/" + state.type + ".gif");
         when(workItem.getType()).thenReturn(type);
         IStatusOpt status = mock(IStatusOpt.class);
         when(status.getName()).thenReturn("Open");

@@ -480,6 +480,14 @@
             ],
             "type": "string"
           },
+          "labelColors": {
+            "additionalProperties": {
+              "description": "The color of each label as GitHub shows it, six hexadecimal digits by label name",
+              "type": "string"
+            },
+            "description": "The color of each label as GitHub shows it, six hexadecimal digits by label name",
+            "type": "object"
+          },
           "labels": {
             "description": "The labels of the item",
             "items": {
@@ -503,6 +511,10 @@
           },
           "setting": {
             "description": "The name of the repository setting",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name of the repository, from its setting",
             "type": "string"
           },
           "status": {
@@ -542,6 +554,10 @@
           },
           "workItemType": {
             "description": "The ID of the work item type: of the work item, or the one the import would create",
+            "type": "string"
+          },
+          "workItemTypeIcon": {
+            "description": "The URL of the icon of that work item type",
             "type": "string"
           },
           "workItemTypeName": {

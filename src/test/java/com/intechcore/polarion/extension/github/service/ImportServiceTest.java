@@ -178,6 +178,7 @@ class ImportServiceTest {
         settings.setName("tool");
         when(type.getId()).thenReturn("task");
         when(type.getName()).thenReturn("Task");
+        when(type.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/polarion/icons/default/enums/type_task.gif");
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
         when(githubClient.readAt("acme", "tool")).thenReturn(java.time.Instant.parse("2026-10-03T08:00:00Z"));
 
@@ -192,6 +193,9 @@ class ImportServiceTest {
             assertThat(entry.getAssignees()).containsExactly("alice", "bob");
             assertThat(entry.getWorkItemType()).isEqualTo("task");
             assertThat(entry.getWorkItemTypeName()).isEqualTo("Task");
+            assertThat(entry.getWorkItemTypeIcon()).isEqualTo("/polarion/icons/default/enums/type_task.gif");
+            assertThat(entry.getShortName()).isEqualTo("Tool");
+            assertThat(entry.getLabelColors()).isEmpty();
             assertThat(entry.getWorkItemStatus()).isNull();
         });
     }
@@ -203,6 +207,7 @@ class ImportServiceTest {
         ITypeOpt defect = mock(ITypeOpt.class);
         when(defect.getId()).thenReturn("defect");
         when(defect.getName()).thenReturn("Defect");
+        when(defect.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/icons/defect.gif");
         when(existing.getType()).thenReturn(defect);
         com.polarion.alm.tracker.model.IStatusOpt open = mock(com.polarion.alm.tracker.model.IStatusOpt.class);
         when(open.getName()).thenReturn("Open");
@@ -221,6 +226,7 @@ class ImportServiceTest {
         assertThat(entry.getStatus()).isEqualTo(ImportStatus.EXISTS);
         assertThat(entry.getWorkItemType()).isEqualTo("defect");
         assertThat(entry.getWorkItemTypeName()).isEqualTo("Defect");
+        assertThat(entry.getWorkItemTypeIcon()).isEqualTo("/icons/defect.gif");
         assertThat(entry.getWorkItemStatus()).isEqualTo("Open");
         assertThat(entry.getWorkItemAssignees()).containsExactly("Alice Admin", "bob");
         assertThat(service.importRepository(PROJECT, settings(), true, null).getReadAt()).isNull();

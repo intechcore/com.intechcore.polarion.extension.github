@@ -229,7 +229,8 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json)).containsExactlyInAnyOrder("repository", "dryRun", "entries", "readAt");
         assertThat(fieldNames(json.get("entries").get(1))).containsExactlyInAnyOrder(
                 "kind", "number", "title", "url", "status", "workItemId", "message", "setting", "repository", "githubType",
-                "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees");
+                "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees",
+                "shortName", "labelColors", "workItemTypeIcon");
         assertThat(json.get("entries").get(1).get("status").asText()).isEqualTo("SKIPPED");
         assertThat(json.get("entries").get(0).get("kind").asText()).isEqualTo("ISSUE");
     }
@@ -265,6 +266,9 @@ class ImportIntegrationTest {
         assertThat(bug.getGithubType()).isEqualTo("Bug");
         assertThat(bug.getAssignees()).containsExactly("alice", "bob");
         assertThat(bug.getWorkItemTypeName()).isEqualTo("Defect");
+        assertThat(bug.getWorkItemTypeIcon()).isEqualTo("/polarion/icons/defect.gif");
+        assertThat(bug.getShortName()).isEqualTo("Tool");
+        assertThat(bug.getLabelColors()).containsEntry("bug", "d73a4a");
         assertThat(bug.getWorkItemStatus()).isEqualTo("Open");
         assertThat(bug.getWorkItemAssignees()).containsExactly("Rob Project");
 
@@ -273,6 +277,7 @@ class ImportIntegrationTest {
         assertThat(enhancement.getLabels()).containsExactly("enhancement", "help wanted");
         assertThat(enhancement.getAssignees()).isEmpty();
         assertThat(enhancement.getWorkItemType()).isEqualTo("changerequest");
+        assertThat(enhancement.getWorkItemTypeIcon()).isEqualTo("/polarion/icons/changerequest.gif");
         assertThat(items.getEntries().get(3).getGithubType()).isEqualTo("Q&A");
 
         // The page reads the lists of the cache: the import and the topic together read GitHub once.
