@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -40,6 +41,14 @@ public class ImportService {
 
     static final String GITHUB_URL = "https://github.com/";
     static final String HYPERLINK_ROLE = "ref_ext";
+
+    // The names of the parts of a work item an update compares. Any other difference is a field ID.
+    private static final String TITLE = "title";
+    private static final String DESCRIPTION = "description";
+    private static final String TYPE = "type";
+    private static final String EPIC_LINK = "epic link";
+    // The name of the placeholder {{ TITLE }}, which happens to read like the part above.
+    private static final String TITLE_PLACEHOLDER = "title";
 
     // Everything that goes into an SQL literal must match this. It leaves no quote and no escape.
     private static final Pattern SQL_SAFE = Pattern.compile("[A-Za-z0-9._:/-]+");
@@ -82,7 +91,28 @@ public class ImportService {
      */
     public @NotNull ImportResult importRepository(@NotNull String projectId, @NotNull RepositorySettingsModel settings,
                                                   boolean dryRun, @Nullable Collection<String> onlyUrls) {
+        return run(projectId, settings, dryRun ? Mode.DRY_RUN : Mode.CREATE, onlyUrls);
+    }
+
+    /**
+     * Updates the work items of a repository whose title, description, type, field values or epic
+     * link differ from what the settings and GitHub say now. The URL a work item keeps never changes.
+     *
+     * @param urls the GitHub URLs whose work items to update
+     */
+    public @NotNull ImportResult updateRepository(@NotNull String projectId, @NotNull RepositorySettingsModel settings,
+                                                  @NotNull Collection<String> urls) {
+        return run(projectId, settings, Mode.UPDATE, urls);
+    }
+
+    /** What a run does with the items: report only, create the new ones, or update the outdated ones. */
+    private enum Mode {
+        DRY_RUN, CREATE, UPDATE
+    }
+
+    private ImportResult run(String projectId, RepositorySettingsModel settings, Mode mode, @Nullable Collection<String> onlyUrls) {
         settings.validate();
+        boolean dryRun = mode == Mode.DRY_RUN;
         ITrackerProject project = polarionService.getTrackerProject(projectId);
         String[] name = settings.getRepository().split("/");
         ImportResult result = new ImportResult(settings.getRepository(), dryRun);
@@ -95,10 +125,10 @@ public class ImportService {
         List<GithubItem> discussions = discussionTarget == null ? List.of() : githubClient.getOpenDiscussions(name[0], name[1]);
 
         if (issueTarget != null) {
-            importItems(ItemKind.ISSUE, issues, issueTarget, settings, result, onlyUrls);
+            importItems(ItemKind.ISSUE, issues, issueTarget, settings, result, mode, onlyUrls);
         }
         if (discussionTarget != null) {
-            importItems(ItemKind.DISCUSSION, discussions, discussionTarget, settings, result, onlyUrls);
+            importItems(ItemKind.DISCUSSION, discussions, discussionTarget, settings, result, mode, onlyUrls);
         }
         Instant readAt = githubClient.readAt(name[0], name[1]);
         result.setReadAt(readAt == null ? null : readAt.toString());
@@ -173,7 +203,7 @@ public class ImportService {
     }
 
     private void importItems(ItemKind kind, List<GithubItem> items, Target target, RepositorySettingsModel settings,
-                             ImportResult result, @Nullable Collection<String> onlyUrls) {
+                             ImportResult result, Mode mode, @Nullable Collection<String> onlyUrls) {
         String urlPrefix = GITHUB_URL + settings.getRepository() + "/";
         Map<String, Existing> existing = findExisting(target, urlPrefix);
         for (GithubItem item : items) {
@@ -194,20 +224,123 @@ public class ImportService {
             } else if (existing.containsKey(url)) {
                 Existing workItem = existing.get(url);
                 entry.setStatus(ImportStatus.EXISTS);
+                checkExisting(entry, item, target, workItem, settings, mode);
                 entry.setWorkItemId(workItem.id());
                 entry.setWorkItemType(workItem.type());
                 entry.setWorkItemTypeName(workItem.typeName());
                 entry.setWorkItemTypeIcon(workItem.typeIcon());
                 entry.setWorkItemStatus(workItem.status());
                 entry.setWorkItemAssignees(workItem.assignees());
+            } else if (mode == Mode.UPDATE) {
+                // An update leaves the new items alone, they wait for Create.
+                entry.setStatus(ImportStatus.NEW);
             } else {
                 importNewItem(entry, item, target, settings, result.isDryRun());
                 if (entry.getStatus() == ImportStatus.CREATED) {
-                    existing.put(url, new Existing(entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(),
+                    existing.put(url, new Existing(null, entry.getWorkItemId(), entry.getWorkItemType(), entry.getWorkItemTypeName(),
                             entry.getWorkItemTypeIcon(), null, List.of()));
                 }
             }
         }
+    }
+
+    /**
+     * Compares a work item with what the settings and GitHub say now, and in an update makes it so.
+     * A rule that leaves the item out today does not touch a work item created earlier.
+     */
+    private void checkExisting(ImportEntry entry, GithubItem item, Target target, Existing existing,
+                               RepositorySettingsModel settings, Mode mode) {
+        ResolvedRule rule = target.rules().stream().filter(candidate -> matches(candidate.rule(), item)).findFirst().orElse(null);
+        if (existing.workItem() == null || (rule != null && rule.outcome() == null)) {
+            return;
+        }
+        Outcome outcome = rule == null ? target.fallback() : rule.outcome();
+        Expected expected = expected(item, target, settings);
+        List<String> differences = differences(existing.workItem(), target, outcome, expected);
+        if (differences.isEmpty()) {
+            return;
+        }
+        if (mode != Mode.UPDATE) {
+            entry.setStatus(ImportStatus.OUTDATED);
+            entry.setMessage("differs in " + String.join(", ", differences));
+            return;
+        }
+        try {
+            writeTransaction.execute(() -> update(target, outcome, expected, existing.id(), differences));
+            entry.setStatus(ImportStatus.UPDATED);
+            entry.setMessage("updated " + String.join(", ", differences));
+        } catch (RuntimeException e) {
+            entry.setStatus(ImportStatus.FAILED);
+            entry.setMessage(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        }
+    }
+
+    /** The title and description a work item of the item should have now. A null description is not managed. */
+    private record Expected(String title, @Nullable String description) {
+    }
+
+    private static Expected expected(GithubItem item, Target target, RepositorySettingsModel settings) {
+        ItemSettings itemSettings = target.settings();
+        Map<String, String> values = templateValues(item, settings);
+        String description = itemSettings.getDescriptionTemplate() == null || itemSettings.getDescriptionTemplate().isBlank()
+                ? null : TemplateRenderer.renderHtml(itemSettings.getDescriptionTemplate(), values);
+        return new Expected(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values), description);
+    }
+
+    /** The parts of the work item that differ, by name: title, description, type, a field ID, epic link. */
+    private List<String> differences(IWorkItem workItem, Target target, Outcome outcome, Expected expected) {
+        List<String> differences = new ArrayList<>();
+        if (!Objects.equals(expected.title(), workItem.getTitle())) {
+            differences.add(TITLE);
+        }
+        Text description = workItem.getDescription();
+        if (expected.description() != null && !Objects.equals(expected.description(), description == null ? null : description.getContent())) {
+            differences.add(DESCRIPTION);
+        }
+        ITypeOpt type = workItem.getType();
+        if (type == null || !Objects.equals(outcome.type().getId(), type.getId())) {
+            differences.add(TYPE);
+        }
+        outcome.fields().forEach((fieldId, value) -> {
+            if (!Objects.equals(value, fieldValue(workItem, fieldId))) {
+                differences.add(fieldId);
+            }
+        });
+        if (target.epic() != null && !linkedTo(workItem, target.epic(), outcome.epicRole())) {
+            differences.add(EPIC_LINK);
+        }
+        return differences;
+    }
+
+    private @Nullable String fieldValue(IWorkItem workItem, String fieldId) {
+        try {
+            Object value = polarionService.getFieldValue(workItem, fieldId, String.class);
+            return value == null ? null : value.toString();
+        } catch (RuntimeException e) {
+            // A field Polarion cannot read as text counts as different, so an update sets it again.
+            return null;
+        }
+    }
+
+    private static boolean linkedTo(IWorkItem workItem, IWorkItem epic, @Nullable ILinkRoleOpt role) {
+        return workItem.getLinkedWorkItemsStructsDirect().stream().anyMatch(link ->
+                link.getLinkedItem() != null && Objects.equals(epic.getId(), link.getLinkedItem().getId())
+                        && link.getLinkRole() != null && role != null && Objects.equals(role.getId(), link.getLinkRole().getId()));
+    }
+
+    private Object update(Target target, Outcome outcome, Expected expected, String workItemId, List<String> differences) {
+        IWorkItem workItem = polarionService.getWorkItem(target.project().getId(), workItemId);
+        for (String difference : differences) {
+            switch (difference) {
+                case TITLE -> workItem.setTitle(expected.title());
+                case DESCRIPTION -> workItem.setDescription(Text.html(expected.description()));
+                case TYPE -> workItem.setType(outcome.type());
+                case EPIC_LINK -> workItem.addLinkedItem(target.epic(), outcome.epicRole(), null, false);
+                default -> polarionService.setFieldValue(workItem, difference, outcome.fields().get(difference));
+            }
+        }
+        workItem.save();
+        return workItemId;
     }
 
     /**
@@ -271,7 +404,7 @@ public class ImportService {
         values.put("shortName", settings.getShortName());
         values.put("repository", settings.getRepository());
         values.put("number", String.valueOf(item.number()));
-        values.put("title", item.title());
+        values.put(TITLE_PLACEHOLDER, item.title());
         values.put("author", item.user() == null ? "" : item.user().login());
         values.put("url", item.htmlUrl());
         values.put("body", item.body());
@@ -325,8 +458,8 @@ public class ImportService {
     }
 
     /** A work item that holds a GitHub URL, as the page shows it. */
-    private record Existing(String id, @Nullable String type, @Nullable String typeName, @Nullable String typeIcon,
-                            @Nullable String status, List<String> assignees) {
+    private record Existing(@Nullable IWorkItem workItem, String id, @Nullable String type, @Nullable String typeName,
+                            @Nullable String typeIcon, @Nullable String status, List<String> assignees) {
 
         @SuppressWarnings("unchecked") // IWorkItem.getAssignees is declared with a raw IPObjectList
         static Existing of(IWorkItem workItem) {
@@ -339,7 +472,7 @@ public class ImportService {
                     assignees.add(assignee.getName() == null ? assignee.getId() : assignee.getName());
                 }
             }
-            return new Existing(workItem.getId(), type == null ? null : type.getId(), type == null ? null : type.getName(),
+            return new Existing(workItem, workItem.getId(), type == null ? null : type.getId(), type == null ? null : type.getName(),
                     iconOf(type), status == null ? null : status.getName(), assignees);
         }
     }

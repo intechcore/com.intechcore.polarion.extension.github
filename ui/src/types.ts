@@ -55,7 +55,7 @@ export interface ProjectField {
 
 export type ItemKind = 'ISSUE' | 'DISCUSSION';
 
-export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'SKIPPED' | 'FAILED';
+export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'OUTDATED' | 'UPDATED' | 'SKIPPED' | 'FAILED';
 
 /** The outcome of the import for one GitHub item (service.ImportEntry). */
 export interface ImportEntry {

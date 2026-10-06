@@ -100,7 +100,8 @@ The page lists the open issues and discussions of all repository settings of the
 
 - the short name of the repository, the item with its number as the link to GitHub, its issue type or
   discussion category, its labels in their GitHub colors and its GitHub assignees;
-- what the import does with it, with an icon: `New`, `Has a work item` or `Left out` by a rule;
+- what the import does with it, with an icon: `New`, `Has a work item`, `Out of date` or `Left out`
+  by a rule;
 - the work item with the icon of its type and a link, its status and assignees in Polarion. For a new
   item the column shows the type the rules choose.
 
@@ -112,6 +113,15 @@ To create work items:
 1. Select the new items. The box in the table head selects all new items the filters show.
 2. Select `Create work items`. The work items are created in your name and with your permissions.
 3. The list shows the ID of each created work item, or the reason of a failure.
+
+To update work items:
+
+1. An item whose work item no longer shows what the settings and GitHub say is `Out of date`, with
+   what differs: the title, the description, the type, a field value or the epic link.
+2. Select the outdated items and select `Update work items`. The update changes what differs and
+   nothing else, in your name. The hyperlink or custom field that keeps the GitHub URL never changes.
+
+A work item that a rule would leave out today stays as it is.
 
 A repository that cannot be read shows its reason above the list, and the others stay readable.
 

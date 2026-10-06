@@ -2,7 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 import App from '../src/App';
-import { DEFECT_ICON, DISCUSSION_30, DOCS_3, ISSUE_7, ISSUE_10, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
+import {
+  DEFECT_ICON,
+  DISCUSSION_30,
+  DOCS_3,
+  ISSUE_4,
+  ISSUE_7,
+  ISSUE_10,
+  ITEMS,
+  SCOPE,
+  itemsRoutes,
+} from './fixtures/items';
 import { type FetchMock, type Route, installFetchMock, jsonResponse } from './mockFetch';
 
 // Behavior tests for the page of the GitHub items: the topic of a project and the administration entry.
@@ -51,7 +61,7 @@ async function mount(overrides: Route[] = []) {
   fetchMock = installFetchMock(itemsRoutes(overrides));
   setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
   render(<App />);
-  await vi.waitFor(() => expect(numbers()).toHaveLength(6));
+  await vi.waitFor(() => expect(numbers()).toHaveLength(7));
 }
 
 beforeEach(() => setUrl(origUrl));
@@ -73,6 +83,7 @@ describe('GitHub items page', () => {
       '#10 Export to CSV',
       '#30 How to configure',
       '#3 Typo in the guide',
+      '#4 Renamed on GitHub',
     ]);
     const cells = (row: number) =>
       Array.from(document.querySelectorAll('.items-table tbody tr')[row].children).map((cell) =>
@@ -113,7 +124,7 @@ describe('GitHub items page', () => {
     expect(document.querySelector<HTMLAnchorElement>('.items-table a[target="_top"]')!.getAttribute('href')).toBe(
       '/polarion/#/project/elibrary/workitem?id=EL-12',
     );
-    expect(document.querySelector('.items-summary')!.textContent).toBe('6 of 6 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('7 of 7 open item(s) shown.');
     // A repository that failed is named with the reason. The others stay readable.
     expect(alerts()).toEqual(['broken (acme/broken): Discussions are turned off in the repository acme/broken']);
     expect(document.querySelector('.items-read-at')!.textContent).toContain('The server keeps the lists for 5 minutes');
@@ -137,15 +148,15 @@ describe('GitHub items page', () => {
     await mount();
 
     await choose('Repository', 'Tool');
-    await vi.waitFor(() => expect(numbers()).toHaveLength(5));
+    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
     await choose('GitHub assignee', 'alice');
     await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start', '#5 Old report']));
     await choose('State', 'New');
     await vi.waitFor(() => expect(numbers()).toEqual(['#7 Crash on start']));
-    expect(document.querySelector('.items-summary')!.textContent).toBe('1 of 6 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('1 of 7 open item(s) shown.');
 
     button('Clear filters').click();
-    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
     await choose('Work item type', 'Change Request');
     await vi.waitFor(() => expect(numbers()).toEqual(['#10 Export to CSV']));
     button('Clear filters').click();
@@ -161,7 +172,7 @@ describe('GitHub items page', () => {
 
     await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Search"]')!, 'nothing like this');
     await vi.waitFor(() => expect(document.querySelector('.items-table')).toBeNull());
-    expect(document.querySelector('.items-summary')!.textContent).toBe('0 of 6 open item(s) shown.');
+    expect(document.querySelector('.items-summary')!.textContent).toBe('0 of 7 open item(s) shown.');
   });
 
   it('creates the work items of the selected items, one request per repository', async () => {
@@ -189,6 +200,7 @@ describe('GitHub items page', () => {
       'Failed: The field severity is required',
       'New',
       'Created',
+      'Out of date: differs in title',
     ]);
     expect(button('Create work items').disabled).toBe(true);
   });
@@ -196,9 +208,9 @@ describe('GitHub items page', () => {
   it('selects all new items shown, and clears them again', async () => {
     await mount();
     await choose('Repository', 'Tool');
-    await vi.waitFor(() => expect(numbers()).toHaveLength(5));
+    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
 
-    const all = document.querySelector<HTMLInputElement>('[aria-label="Select all new items shown"]')!;
+    const all = document.querySelector<HTMLInputElement>('[aria-label="Select all new and outdated items shown"]')!;
     await userEvent.click(all);
 
     expect([checkbox(ISSUE_7)!.checked, checkbox(ISSUE_10)!.checked, checkbox(DISCUSSION_30)!.checked]).toEqual([
@@ -207,8 +219,51 @@ describe('GitHub items page', () => {
       true,
     ]);
     expect(button('Create work items').textContent).toContain('(3)');
+    expect(button('Update work items').textContent).toContain('(1)');
     await userEvent.click(all);
+    expect(button('Update work items').disabled).toBe(true);
     expect(button('Create work items').disabled).toBe(true);
+  });
+
+  it('updates the selected outdated work items and leaves the other rows as they are', async () => {
+    await mount();
+    expect(checkbox(ISSUE_4)!.checked).toBe(false);
+    await userEvent.click(checkbox(ISSUE_4)!);
+    await userEvent.click(checkbox(ISSUE_7)!);
+    expect(button('Update work items').textContent).toContain('(1)');
+    expect(button('Create work items').textContent).toContain('(1)');
+
+    button('Update work items').click();
+
+    await vi.waitFor(() => expect(toastText()).toContain('1 work item(s) updated.'));
+    const updates = fetchMock.mock.calls.filter((c) => /\/update$/.test(String(c[0])));
+    expect(updates.map((c) => JSON.parse(String(c[1]!.body)))).toEqual([{ urls: [ISSUE_4] }]);
+    const rows = document.querySelectorAll('.items-table tbody tr');
+    expect(rows[6].querySelector('.state')!.textContent).toBe('Updated: updated title');
+    // The new item #7 stays as it was, and stays selected for Create.
+    expect(rows[0].querySelector('.state')!.textContent).toBe('New');
+    expect(checkbox(ISSUE_7)!.checked).toBe(true);
+    expect(button('Update work items').disabled).toBe(true);
+  });
+
+  it('reports a failed update', async () => {
+    await mount([
+      {
+        method: 'POST',
+        match: /\/update$/,
+        json: {
+          repository: 'acme/tool',
+          dryRun: false,
+          readAt: null,
+          entries: [{ ...ITEMS.entries[6], status: 'FAILED', message: 'locked' }],
+        },
+      },
+    ]);
+    await userEvent.click(checkbox(ISSUE_4)!);
+
+    button('Update work items').click();
+
+    await vi.waitFor(() => expect(toastText()).toContain('0 work item(s) updated, 1 failed.'));
   });
 
   it('reports a full success and a repository whose request failed', async () => {

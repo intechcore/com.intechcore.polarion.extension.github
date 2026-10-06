@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows
   lists the open issues and discussions of all repositories of the project with the state of their
   work items, filters them by repository, kind, GitHub type, work item type, assignee and state, and
   creates work items for the selected ones in the name of the user.
+- Work items that no longer show what the settings and GitHub say are marked `Out of date`, with what
+  differs. `Update work items` updates the selected ones; the URL a work item keeps never changes.
 - A cache of five minutes for the lists read from GitHub, shared by all pages and users. The button
   `Update from GitHub` reads GitHub again, at most once a minute per repository.
 - Rules in the repository settings. A rule gives the issues with a label or an issue type, and the

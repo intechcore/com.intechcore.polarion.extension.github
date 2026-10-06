@@ -85,6 +85,10 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   (`@Secured`, `/api`) - `POST /projects/{projectId}/repositories/{name}/import?dryRun=`. A dry run
   is the preview. `GithubClientExceptionMapper` answers a GitHub failure with 502, or 429 for the
   rate limit.
+- `POST /projects/{projectId}/repositories/{name}/update` on the same controllers - updates the work
+  items of the given URLs. `ImportService` compares an existing work item with what the settings and
+  GitHub say now (title, description, type, the configured field values, the epic link) and reports
+  `OUTDATED` with the differences; an update changes those and nothing else, never the URL key.
 - `GET /projects/{projectId}/items` on the same controllers - the dry run of every repository
   setting of the project, for the GitHub topic. A setting that fails reports its reason in
   `RepositoryState` and leaves the others readable.

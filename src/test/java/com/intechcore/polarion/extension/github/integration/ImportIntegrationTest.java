@@ -183,6 +183,36 @@ class ImportIntegrationTest {
     }
 
     @Test
+    void aChangedSettingMarksTheWorkItemsOutdatedAndAnUpdateFixesThem() {
+        saveSetting("tool", ISSUES_AND_DISCUSSIONS);
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7", ISSUES + "10")));
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null)))
+                .contains("ISSUE 7 EXISTS", "ISSUE 10 EXISTS");
+
+        // The title template and a field value change, as an administrator would change them.
+        saveSetting("tool", ISSUES_AND_DISCUSSIONS
+                .replace("\"titleTemplate\": \"[GitHub] {{ SHORT_NAME }} : {{ TITLE }}\"", "\"titleTemplate\": \"{{ SHORT_NAME }} #{{ NUMBER }}: {{ TITLE }}\"")
+                .replace("\"component\": \"core\"", "\"component\": \"ui\""));
+
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false);
+        ImportEntry outdated = items.getEntries().get(0);
+        assertThat(outdated.getStatus()).isEqualTo(ImportStatus.OUTDATED);
+        assertThat(outdated.getMessage()).isEqualTo("differs in title, component");
+
+        ImportResult update = importEndpoint.updateRepository(FakePolarion.PROJECT, "tool", new ImportRequest(List.of(ISSUES + "7")));
+
+        assertThat(outcome(update)).containsExactly("ISSUE 7 UPDATED");
+        FakePolarion.WorkItem bug = polarion.saved.get(0);
+        assertThat(bug.title).isEqualTo("Tool #7: Crash on start");
+        assertThat(bug.fields).containsEntry("component", "ui").containsEntry("severity", "major");
+        // The URL a work item keeps never changes, and the update creates nothing.
+        assertThat(bug.hyperlinks).containsExactly(ISSUES + "7");
+        assertThat(polarion.saved).hasSize(2);
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null)))
+                .contains("ISSUE 7 EXISTS", "ISSUE 10 OUTDATED");
+    }
+
+    @Test
     void aCustomFieldCanKeepTheUrl() {
         saveSetting("tool", """
                 {"repository": "acme/tool", "shortName": "Tool",

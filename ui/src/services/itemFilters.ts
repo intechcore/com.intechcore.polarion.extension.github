@@ -31,6 +31,8 @@ export const STATUS_LABELS: Record<ImportStatus, string> = {
   NEW: 'New',
   CREATED: 'Created',
   EXISTS: 'Has a work item',
+  OUTDATED: 'Out of date',
+  UPDATED: 'Updated',
   SKIPPED: 'Left out',
   FAILED: 'Failed',
 };
@@ -46,8 +48,8 @@ const values: Record<Exclude<keyof ItemFilters, 'text'>, (entry: ImportEntry) =>
   workItemTypes: (entry) => single(entry.workItemTypeName ?? entry.workItemType),
   assignees: (entry) => many(entry.assignees),
   workItemAssignees: (entry) => many(entry.workItemAssignees),
-  // A work item created on this page counts as one that exists.
-  states: (entry) => [entry.status === 'CREATED' ? 'EXISTS' : entry.status],
+  // A work item created or updated on this page counts as one that exists.
+  states: (entry) => [entry.status === 'CREATED' || entry.status === 'UPDATED' ? 'EXISTS' : entry.status],
 };
 
 export function applyFilters(entries: ImportEntry[], filters: ItemFilters): ImportEntry[] {

@@ -223,7 +223,7 @@ class ImportServiceTest {
 
         ImportEntry entry = service.importRepository(PROJECT, settings(), true, null).getEntries().get(0);
 
-        assertThat(entry.getStatus()).isEqualTo(ImportStatus.EXISTS);
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.OUTDATED);
         assertThat(entry.getWorkItemType()).isEqualTo("defect");
         assertThat(entry.getWorkItemTypeName()).isEqualTo("Defect");
         assertThat(entry.getWorkItemTypeIcon()).isEqualTo("/icons/defect.gif");
@@ -253,7 +253,7 @@ class ImportServiceTest {
 
         ImportResult result = service.importRepository(PROJECT, settings(), false, null);
 
-        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.CREATED);
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.OUTDATED, ImportStatus.CREATED);
         assertThat(result.getEntries().get(0).getWorkItemId()).isEqualTo("EL-5");
         assertThat(created).hasSize(1);
         assertThat(queries).containsExactly("SQL:(select WI.C_URI from WORKITEM WI"
@@ -280,7 +280,7 @@ class ImportServiceTest {
         ImportResult result = service.importRepository(PROJECT, settings(), true, null);
 
         assertThat(result.isDryRun()).isTrue();
-        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW, ImportStatus.EXISTS);
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW, ImportStatus.OUTDATED);
         assertThat(created).isEmpty();
         assertThat(transactions).isZero();
     }
@@ -340,7 +340,7 @@ class ImportServiceTest {
 
         ImportResult result = service.importRepository(PROJECT, settings, false, null);
 
-        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.EXISTS, ImportStatus.CREATED);
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.OUTDATED, ImportStatus.CREATED);
         IWorkItem workItem = created.get(0);
         verify(polarionService).setFieldValue(workItem, "githubUrl", ISSUE_8);
         verify(workItem, never()).addHyperlink(anyString(), any());
@@ -525,6 +525,177 @@ class ImportServiceTest {
         service.importRepository(PROJECT, settings, false, null);
 
         verify(created.get(0)).addLinkedItem(epic, roleOfDefect, null, false);
+    }
+
+    /** A work item that shows exactly what the default settings make of {@link #ISSUE_7}. */
+    private IWorkItem upToDate() {
+        IWorkItem workItem = existingWithHyperlink("EL-5", ISSUE_7);
+        when(workItem.getTitle()).thenReturn("[GitHub] Tool : Crash on start");
+        when(workItem.getDescription()).thenReturn(Text.html("<a href=\"" + ISSUE_7 + "\">" + ISSUE_7 + "</a>"));
+        when(workItem.getType()).thenReturn(type);
+        return workItem;
+    }
+
+    @Test
+    void reportsAWorkItemThatShowsWhatGithubSaysAsExisting() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        found.add(upToDate());
+
+        ImportEntry entry = service.importRepository(PROJECT, settings(), true, null).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.EXISTS);
+        assertThat(entry.getMessage()).isNull();
+    }
+
+    @Test
+    void namesWhatDiffersInAnOutdatedWorkItem() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem workItem = upToDate();
+        when(workItem.getTitle()).thenReturn("[GitHub] {shortName}: {title}");
+        when(workItem.getDescription()).thenReturn(null);
+        when(workItem.getType()).thenReturn(null);
+        found.add(workItem);
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("severity", "major", "component", "core"));
+        when(polarionService.getFieldValue(workItem, "severity", String.class)).thenReturn("major");
+        when(polarionService.getFieldValue(workItem, "component", String.class)).thenThrow(new IllegalArgumentException("unknown"));
+
+        ImportEntry entry = service.importRepository(PROJECT, settings, true, null).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.OUTDATED);
+        assertThat(entry.getMessage()).isEqualTo("differs in title, description, type, component");
+        assertThat(entry.getWorkItemId()).isEqualTo("EL-5");
+    }
+
+    @Test
+    void comparesTheEpicLinkWithTheRoleOfTheType() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setEpicId("EL-1");
+        settings.getIssues().setEpicLinkRole("parent");
+        IWorkItem epic = mock(IWorkItem.class);
+        when(epic.getId()).thenReturn("EL-1");
+        when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
+        IEnumeration<ILinkRoleOpt> roles = mock(IEnumeration.class);
+        ILinkRoleOpt parent = mock(ILinkRoleOpt.class);
+        when(parent.getId()).thenReturn("parent");
+        ILinkRoleOpt relates = mock(ILinkRoleOpt.class);
+        when(relates.getId()).thenReturn("relates_to");
+        when(project.getWorkItemLinkRoleEnum()).thenReturn(roles);
+        when(roles.wrapOption("parent", type)).thenReturn(parent);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem workItem = upToDate();
+        found.add(workItem);
+        IWorkItem other = mock(IWorkItem.class);
+        when(other.getId()).thenReturn("EL-2");
+        com.polarion.alm.tracker.model.ILinkedWorkItemStruct toOther = mock(com.polarion.alm.tracker.model.ILinkedWorkItemStruct.class);
+        when(toOther.getLinkedItem()).thenReturn(other);
+        when(toOther.getLinkRole()).thenReturn(parent);
+        com.polarion.alm.tracker.model.ILinkedWorkItemStruct wrongRole = mock(com.polarion.alm.tracker.model.ILinkedWorkItemStruct.class);
+        when(wrongRole.getLinkedItem()).thenReturn(epic);
+        when(wrongRole.getLinkRole()).thenReturn(relates);
+        com.polarion.alm.tracker.model.ILinkedWorkItemStruct noItem = mock(com.polarion.alm.tracker.model.ILinkedWorkItemStruct.class);
+        com.polarion.alm.tracker.model.ILinkedWorkItemStruct noRole = mock(com.polarion.alm.tracker.model.ILinkedWorkItemStruct.class);
+        when(noRole.getLinkedItem()).thenReturn(epic);
+        when(workItem.getLinkedWorkItemsStructsDirect()).thenReturn(List.of(toOther, wrongRole, noItem, noRole));
+
+        assertThat(service.importRepository(PROJECT, settings, true, null).getEntries().get(0).getMessage()).isEqualTo("differs in epic link");
+
+        com.polarion.alm.tracker.model.ILinkedWorkItemStruct toEpic = mock(com.polarion.alm.tracker.model.ILinkedWorkItemStruct.class);
+        when(toEpic.getLinkedItem()).thenReturn(epic);
+        when(toEpic.getLinkRole()).thenReturn(parent);
+        when(workItem.getLinkedWorkItemsStructsDirect()).thenReturn(List.of(toEpic));
+
+        assertThat(service.importRepository(PROJECT, settings, true, null).getEntries().get(0).getStatus()).isEqualTo(ImportStatus.EXISTS);
+    }
+
+    @Test
+    void updatesWhatDiffersAndNothingElse() {
+        ITypeOpt defect = type("defect");
+        when(defect.getId()).thenReturn("defect");
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("severity", "major", "component", "core"));
+        settings.getIssues().setEpicId("EL-1");
+        settings.getIssues().setEpicLinkRole("parent");
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.TYPE).value("bug").workItemType("defect").build()));
+        IWorkItem epic = mock(IWorkItem.class);
+        when(epic.getId()).thenReturn("EL-1");
+        IEnumeration<ILinkRoleOpt> roles = mock(IEnumeration.class);
+        ILinkRoleOpt parent = mock(ILinkRoleOpt.class);
+        when(project.getWorkItemLinkRoleEnum()).thenReturn(roles);
+        when(roles.wrapOption("parent", type)).thenReturn(parent);
+        when(roles.wrapOption("parent", defect)).thenReturn(parent);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        IWorkItem stored = upToDate();
+        when(stored.getTitle()).thenReturn("old title");
+        found.add(stored);
+        when(polarionService.getFieldValue(stored, "component", String.class)).thenReturn("core");
+        IWorkItem writable = mock(IWorkItem.class);
+        when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        ImportResult result = service.updateRepository(PROJECT, settings, List.of(ISSUE_7, ISSUE_8));
+
+        assertThat(result.isDryRun()).isFalse();
+        assertThat(result.getEntries()).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.UPDATED, ImportStatus.NEW);
+        assertThat(result.getEntries().get(0).getMessage()).isEqualTo("updated title, type, severity, epic link");
+        verify(writable).setTitle("[GitHub] Tool : Crash on start");
+        verify(writable).setType(defect);
+        verify(polarionService).setFieldValue(writable, "severity", "major");
+        verify(polarionService, never()).setFieldValue(writable, "component", "core");
+        verify(writable).addLinkedItem(epic, parent, null, false);
+        verify(writable, never()).setDescription(any());
+        verify(writable, never()).addHyperlink(anyString(), any());
+        verify(writable).save();
+        // An update creates nothing: the new item waits for Create.
+        assertThat(created).isEmpty();
+    }
+
+    @Test
+    void updatesTheDescriptionAndReportsAFailedUpdate() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem stored = upToDate();
+        when(stored.getDescription()).thenReturn(Text.html("old"));
+        found.add(stored);
+        IWorkItem writable = mock(IWorkItem.class);
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        assertThat(service.updateRepository(PROJECT, settings(), List.of(ISSUE_7)).getEntries().get(0).getStatus()).isEqualTo(ImportStatus.UPDATED);
+        verify(writable).setDescription(any(Text.class));
+
+        doThrow(new IllegalStateException("locked")).when(writable).save();
+        ImportEntry failed = service.updateRepository(PROJECT, settings(), List.of(ISSUE_7)).getEntries().get(0);
+        assertThat(failed.getStatus()).isEqualTo(ImportStatus.FAILED);
+        assertThat(failed.getMessage()).isEqualTo("locked");
+
+        doThrow(new IllegalStateException()).when(writable).save();
+        assertThat(service.updateRepository(PROJECT, settings(), List.of(ISSUE_7)).getEntries().get(0).getMessage()).isEqualTo("IllegalStateException");
+    }
+
+    @Test
+    void leavesAWorkItemAloneThatARuleNowLeavesOut() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.LABEL).value("bug").skip(true).build()));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem stored = upToDate();
+        when(stored.getTitle()).thenReturn("old title");
+        found.add(stored);
+
+        ImportEntry entry = service.updateRepository(PROJECT, settings, List.of(ISSUE_7)).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.EXISTS);
+        verify(polarionService, never()).getWorkItem(PROJECT, "EL-5");
+    }
+
+    @Test
+    void comparesNoDescriptionWithoutADescriptionTemplate() {
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setDescriptionTemplate(" ");
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        IWorkItem stored = upToDate();
+        when(stored.getDescription()).thenReturn(Text.html("written by hand"));
+        found.add(stored);
+
+        assertThat(service.importRepository(PROJECT, settings, true, null).getEntries().get(0).getStatus()).isEqualTo(ImportStatus.EXISTS);
     }
 
     @Test

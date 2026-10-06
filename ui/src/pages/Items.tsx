@@ -65,7 +65,11 @@ export default function Items() {
   }, [load, projectId]);
 
   const visible = useMemo(() => applyFilters(entries ?? [], filters), [entries, filters]);
-  const selectable = visible.filter((entry) => entry.status === 'NEW' && entry.url);
+  const selectable = visible.filter((entry) => (entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url);
+  const count = (status: ImportStatus) =>
+    (entries ?? []).filter((entry) => entry.status === status && entry.url && checked.has(entry.url)).length;
+  const toCreate = count('NEW');
+  const toUpdate = count('OUTDATED');
   const allSelected = selectable.length > 0 && selectable.every((entry) => checked.has(entry.url as string));
 
   const setFilter = (change: Partial<ItemFilters>) => setFilters((current) => ({ ...current, ...change }));
@@ -84,11 +88,15 @@ export default function Items() {
       return next;
     });
 
-  /** Creates the work items of the selected items, one request per repository setting. */
-  const create = async () => {
+  /**
+   * Creates the work items of the selected new items, or updates those of the selected outdated ones:
+   * one request per repository setting.
+   */
+  const apply = async (update: boolean) => {
+    const wanted: ImportStatus = update ? 'OUTDATED' : 'NEW';
     const bySetting = new Map<string, string[]>();
     (entries ?? [])
-      .filter((entry) => entry.url && checked.has(entry.url) && entry.setting)
+      .filter((entry) => entry.url && checked.has(entry.url) && entry.setting && entry.status === wanted)
       .forEach((entry) =>
         bySetting.set(entry.setting as string, [
           ...(bySetting.get(entry.setting as string) ?? []),
@@ -101,24 +109,37 @@ export default function Items() {
     const failures: string[] = [];
     for (const [setting, urls] of bySetting) {
       try {
-        const result = await settings.runImport(projectId, setting, false, urls);
+        const result = update
+          ? await settings.runUpdate(projectId, setting, urls)
+          : await settings.runImport(projectId, setting, false, urls);
         result.entries.forEach((entry) => outcome.set(entry.url as string, entry));
       } catch (e) {
         failures.push(`${setting}: ${(e as Error).message}`);
       }
     }
-    setEntries((current) => (current ?? []).map((entry) => outcome.get(entry.url as string) ?? entry));
-    setChecked(new Set());
+    // An update answers for every item of its repositories: only the selected ones change here.
+    const selected = new Set([...bySetting.values()].flat());
+    setEntries((current) =>
+      (current ?? []).map((entry) =>
+        selected.has(entry.url as string) ? (outcome.get(entry.url as string) ?? entry) : entry,
+      ),
+    );
+    setChecked((current) => new Set([...current].filter((url) => !selected.has(url))));
     setBusy(false);
     if (failures.length > 0) {
       setError(failures.join(' '));
     }
-    const created = [...outcome.values()].filter((entry) => entry.status === 'CREATED').length;
-    const failed = [...outcome.values()].filter((entry) => entry.status === 'FAILED').length;
+    const done = [...outcome.values()].filter(
+      (entry) => selected.has(entry.url as string) && entry.status === (update ? 'UPDATED' : 'CREATED'),
+    ).length;
+    const failed = [...outcome.values()].filter(
+      (entry) => selected.has(entry.url as string) && entry.status === 'FAILED',
+    ).length;
+    const verb = update ? 'updated' : 'created';
     if (failed > 0 || failures.length > 0) {
-      toast.error(`${created} work item(s) created, ${failed} failed.`);
+      toast.error(`${done} work item(s) ${verb}, ${failed} failed.`);
     } else {
-      toast.success(`${created} work item(s) created.`);
+      toast.success(`${done} work item(s) ${verb}.`);
     }
   };
 
@@ -190,10 +211,19 @@ export default function Items() {
             <button
               type="button"
               className="sbb-btn sbb-btn--control"
-              disabled={busy || checked.size === 0}
-              onClick={() => void create()}
+              disabled={busy || toCreate === 0}
+              onClick={() => void apply(false)}
             >
-              Create work items{checked.size > 0 ? ` (${checked.size})` : ''}
+              Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
+            </button>
+            <button
+              type="button"
+              className="sbb-btn sbb-btn--control"
+              disabled={busy || toUpdate === 0}
+              title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
+              onClick={() => void apply(true)}
+            >
+              Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
             </button>
             {busy && <span>Working...</span>}
             {time && (
@@ -261,7 +291,7 @@ export default function Items() {
                   <th>
                     <input
                       type="checkbox"
-                      aria-label="Select all new items shown"
+                      aria-label="Select all new and outdated items shown"
                       checked={allSelected}
                       disabled={selectable.length === 0}
                       onChange={toggleAll}
@@ -282,7 +312,7 @@ export default function Items() {
                 {visible.map((entry) => (
                   <tr key={`${entry.setting}-${entry.kind}-${entry.number}`}>
                     <td>
-                      {entry.status === 'NEW' && entry.url && (
+                      {(entry.status === 'NEW' || entry.status === 'OUTDATED') && entry.url && (
                         <input
                           type="checkbox"
                           aria-label={`Select ${entry.url}`}

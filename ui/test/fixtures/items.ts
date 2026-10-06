@@ -32,6 +32,7 @@ export const ISSUE_7 = 'https://github.com/acme/tool/issues/7';
 export const ISSUE_10 = 'https://github.com/acme/tool/issues/10';
 export const DISCUSSION_30 = 'https://github.com/acme/tool/discussions/30';
 export const DOCS_3 = 'https://github.com/acme/docs/issues/3';
+export const ISSUE_4 = 'https://github.com/acme/tool/issues/4';
 
 export const ENTRIES: ImportEntry[] = [
   {
@@ -112,6 +113,17 @@ export const ENTRIES: ImportEntry[] = [
     status: 'NEW',
     assignees: ['carol'],
   },
+  {
+    ...base,
+    kind: 'ISSUE',
+    number: 4,
+    title: 'Renamed on GitHub',
+    url: ISSUE_4,
+    status: 'OUTDATED',
+    message: 'differs in title',
+    workItemId: 'EL-13',
+    workItemStatus: 'Open',
+  },
 ];
 
 export const ITEMS = {
@@ -146,6 +158,17 @@ export function itemsRoutes(overrides: Route[] = []): Route[] {
           created(ENTRIES[0], 'EL-101'),
           { ...ENTRIES[3], status: 'FAILED', message: 'The field severity is required' },
         ],
+      },
+    },
+    {
+      method: 'POST',
+      match: /\/repositories\/tool\/update$/,
+      json: {
+        repository: 'acme/tool',
+        dryRun: false,
+        readAt: null,
+        // An update answers for every item of the repository; the page takes only the selected ones.
+        entries: [{ ...ENTRIES[6], status: 'UPDATED', message: 'updated title' }, { ...ENTRIES[0] }],
       },
     },
     {
