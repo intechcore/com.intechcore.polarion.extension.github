@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { faArrowDown, faArrowUp, faGear } from '@fortawesome/free-solid-svg-icons';
+import { faArrowDown, faArrowUp, faGear, faRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   COLUMN_LABELS,
@@ -9,6 +9,7 @@ import {
   toggleColumn,
   visibleColumns,
 } from '../services/columns';
+import ButtonIcon from './ButtonIcon';
 
 interface TableSettingsProps {
   layout: ColumnLayout;
@@ -112,6 +113,7 @@ export default function TableSettings({
             );
           })}
           <button type="button" className="sbb-btn sbb-btn--control" onClick={() => onChange(DEFAULT_LAYOUT)}>
+            <ButtonIcon icon={faRotateLeft} />
             Reset columns
           </button>
         </div>

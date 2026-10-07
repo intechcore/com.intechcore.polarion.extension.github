@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { faPlus, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { SearchableSelect } from '@sbb-polarion/react-sbb-polarion';
 import type { ProjectField } from '../types';
+import ButtonIcon from './ButtonIcon';
 
 /** One field value of the created work items. */
 export interface FieldRow {
@@ -81,6 +83,7 @@ export default function FieldValues({ owner, workItemType, rows, onChange, loadF
             className="sbb-btn sbb-btn--control"
             onClick={() => onChange(rows.filter((_, i) => i !== index))}
           >
+            <ButtonIcon icon={faTrashCan} />
             Remove
           </button>
         </div>
@@ -90,6 +93,7 @@ export default function FieldValues({ owner, workItemType, rows, onChange, loadF
         className="sbb-btn sbb-btn--control"
         onClick={() => onChange([...rows, { id: '', value: '' }])}
       >
+        <ButtonIcon icon={faPlus} />
         Add a field value
       </button>
     </>

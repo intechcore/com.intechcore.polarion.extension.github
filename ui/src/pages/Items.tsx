@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import {
+  faArrowsRotate,
+  faCloudArrowDown,
+  faFilterCircleXmark,
+  faPlus,
+  faRotateRight,
+} from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
+import ButtonIcon from '../components/ButtonIcon';
 import ErrorNotice from '../components/ErrorNotice';
 import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell } from '../components/ItemCells';
 import TableSettings from '../components/TableSettings';
@@ -297,6 +305,7 @@ export default function Items() {
                     title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
                     onClick={() => void load()}
                   >
+                    <ButtonIcon icon={faRotateRight} />
                     Refresh
                   </button>
                   <button
@@ -306,6 +315,7 @@ export default function Items() {
                     title="Reads GitHub again instead of the lists of the last five minutes. Each repository costs requests of the hourly GitHub limit."
                     onClick={() => void load(true)}
                   >
+                    <ButtonIcon icon={faCloudArrowDown} />
                     Update from GitHub
                   </button>
                 </>
@@ -318,6 +328,7 @@ export default function Items() {
                     disabled={busy || toCreate === 0}
                     onClick={() => void apply(false)}
                   >
+                    <ButtonIcon icon={faPlus} />
                     Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
                   </button>
                   <button
@@ -327,6 +338,7 @@ export default function Items() {
                     title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
                     onClick={() => void apply(true)}
                   >
+                    <ButtonIcon icon={faArrowsRotate} />
                     Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
                   </button>
                 </>
@@ -382,6 +394,7 @@ export default function Items() {
                 disabled={filters === NO_FILTERS}
                 onClick={() => setFilters(NO_FILTERS)}
               >
+                <ButtonIcon icon={faFilterCircleXmark} />
                 Clear filters
               </button>
             </div>

@@ -353,3 +353,8 @@ body {
 .app.widget {
   padding: 0;
 }
+
+/* The icon in front of the label of a button. */
+.button-icon {
+  margin-right: 5px;
+}
