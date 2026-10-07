@@ -158,6 +158,9 @@ class ImportIntegrationTest {
         assertThat(outcome(first)).containsExactly(
                 "ISSUE 7 CREATED", "ISSUE 9 SKIPPED", "ISSUE 10 CREATED", "DISCUSSION 30 CREATED");
         assertThat(polarion.saved).hasSize(3);
+        // The page shows the status and assignee the new work item got on save, without another read.
+        assertThat(first.getEntries().get(0).getWorkItemStatus()).isEqualTo("Open");
+        assertThat(first.getEntries().get(0).getWorkItemAssignees()).containsExactly("Rob Project");
 
         FakePolarion.WorkItem bug = polarion.saved.get(0);
         assertThat(bug.type).isEqualTo("defect");

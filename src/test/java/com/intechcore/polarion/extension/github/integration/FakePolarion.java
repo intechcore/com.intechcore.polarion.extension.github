@@ -137,6 +137,15 @@ final class FakePolarion {
                 state.links.add(invocation.<ILinkRoleOpt>getArgument(1).getId() + ":" + invocation.<IWorkItem>getArgument(0).getId()));
         when(workItem.getTitle()).thenAnswer(invocation -> state.title);
         when(workItem.getId()).thenAnswer(invocation -> state.id);
+        // What the workflow of the type sets on save: the initial status and an assignee.
+        IStatusOpt status = mock(IStatusOpt.class);
+        when(status.getName()).thenReturn("Open");
+        when(workItem.getStatus()).thenReturn(status);
+        IUser assignee = mock(IUser.class);
+        when(assignee.getName()).thenReturn("Rob Project");
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> List.of(assignee).iterator());
+        when(workItem.getAssignees()).thenReturn(assignees);
         doAnswer(invocation -> {
             if (state.id == null) {
                 state.id = "EL-" + (100 + saved.size());
