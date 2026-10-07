@@ -112,4 +112,29 @@ class ProjectControllerTest {
         assertThat(controller.getFields("elibrary", "task")).isEmpty();
         verify(polarionService, times(3)).callPrivileged(any(Callable.class));
     }
+
+    /** The recipients of notifications: the enabled users, by name, and by ID when one has no name. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void listsTheEnabledUsersByName() {
+        com.polarion.alm.projects.IProjectService projectService = mock(com.polarion.alm.projects.IProjectService.class);
+        when(polarionService.getProjectService()).thenReturn(projectService);
+        com.polarion.alm.projects.model.IUser bob = mock(com.polarion.alm.projects.model.IUser.class);
+        when(bob.getId()).thenReturn("bob");
+        when(bob.getName()).thenReturn("bob Builder");
+        com.polarion.alm.projects.model.IUser alice = mock(com.polarion.alm.projects.model.IUser.class);
+        when(alice.getId()).thenReturn("alice");
+        com.polarion.alm.projects.model.IUser gone = mock(com.polarion.alm.projects.model.IUser.class);
+        when(gone.isDisabled()).thenReturn(true);
+        com.polarion.platform.persistence.model.IPObjectList users = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(users.iterator()).thenAnswer(invocation -> java.util.List.of(bob, alice, gone).iterator());
+        when(projectService.getUsers()).thenReturn(users);
+        when(polarionService.callPrivileged(org.mockito.ArgumentMatchers.any(java.util.concurrent.Callable.class)))
+                .thenAnswer(invocation -> ((java.util.concurrent.Callable<Object>) invocation.getArgument(0)).call());
+
+        assertThat(new ProjectInternalController(polarionService).getUsers()).containsExactly(
+                new com.intechcore.polarion.extension.github.rest.model.ProjectOption("alice", "alice"),
+                new com.intechcore.polarion.extension.github.rest.model.ProjectOption("bob", "bob Builder"));
+        assertThat(new ProjectApiController(polarionService).getUsers()).hasSize(2);
+    }
 }

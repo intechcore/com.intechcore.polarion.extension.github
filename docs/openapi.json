@@ -445,6 +445,30 @@
         ]
       }
     },
+    "/api/users": {
+      "get": {
+        "operationId": "getUsers",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectOption"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the enabled Polarion users, the possible recipients of notifications",
+        "tags": [
+          "Project options"
+        ]
+      }
+    },
     "/api/version": {
       "get": {
         "operationId": "getVersion",
@@ -581,6 +605,10 @@
             },
             "type": "array"
           },
+          "createdAt": {
+            "description": "When the item was opened on GitHub, ISO-8601",
+            "type": "string"
+          },
           "failedChecks": {
             "description": "The names of the failed checks of a pull request, separated by commas",
             "type": "string"
@@ -654,6 +682,10 @@
           },
           "title": {
             "description": "The title of the item on GitHub",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the item last changed on GitHub, ISO-8601",
             "type": "string"
           },
           "url": {

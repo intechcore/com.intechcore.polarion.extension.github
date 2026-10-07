@@ -28,6 +28,7 @@ class RepositorySettingsModelTest {
                 .discussions(new ItemSettings())
                 .pullRequests(ItemSettings.builder().enabled(true).workItemType("task").build())
                 .pullRequestAuthors("renovate[bot], dependabot[bot]")
+                .notifications(NotificationSettings.builder().users(new java.util.ArrayList<>(List.of("alice"))).issues(true).build())
                 .build();
     }
 
@@ -223,5 +224,29 @@ class RepositorySettingsModelTest {
                 "Rule 1 for pull requests compares what these items do not have");
         assertRejected(model -> model.getPullRequests().setRules(List.of(rule(RuleMatch.TYPE, "Bug", true, null))),
                 "Rule 1 for pull requests compares what these items do not have");
+    }
+
+    @Test
+    void needsTheRecipientsOfTheNotificationsTurnedOn() {
+        assertRejected(model -> model.getNotifications().setUsers(List.of()), "users who get the notifications");
+        assertRejected(model -> model.getNotifications().setUsers(null), "users who get the notifications");
+
+        RepositorySettingsModel quiet = valid();
+        quiet.setNotifications(new NotificationSettings());
+        quiet.validate();
+        quiet.setNotifications(null);
+        quiet.validate();
+    }
+
+    @Test
+    void readsASettingSavedBeforeNotificationsWithNoneTurnedOn() {
+        RepositorySettingsModel model = valid();
+        model.setNotifications(null);
+
+        RepositorySettingsModel read = new RepositorySettingsModel();
+        read.deserialize(model.serialize());
+
+        assertThat(read.getNotifications().isEnabled()).isFalse();
+        assertThat(read.getNotifications().getUsers()).isEmpty();
     }
 }

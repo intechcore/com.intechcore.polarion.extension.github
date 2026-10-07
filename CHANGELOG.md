@@ -51,5 +51,7 @@ All notable changes to this project are documented here. The format follows
   every repository.
 - A PDF export or a print of a page shows the table of the widget, read on the server, instead of
   an empty frame.
+- The job `github_watch.job` mails the users of a repository setting its new issues, discussions and
+  pull requests with failed checks, each kind turned on per setting, every 15 minutes by default.
 - An optional GitHub token, read from a Polarion secret named by the property `token.secret`, raises
   the GitHub limit from 60 to 5000 requests per hour. The README lists the minimal requirements.

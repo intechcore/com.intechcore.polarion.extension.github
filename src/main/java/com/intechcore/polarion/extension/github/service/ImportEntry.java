@@ -79,6 +79,12 @@ public class ImportEntry {
     @Schema(description = "The names of the users the work item is assigned to")
     private List<String> workItemAssignees;
 
+    @Schema(description = "When the item was opened on GitHub, ISO-8601")
+    private String createdAt;
+
+    @Schema(description = "When the item last changed on GitHub, ISO-8601")
+    private String updatedAt;
+
     @Schema(description = "The names of the failed checks of a pull request, separated by commas")
     private String failedChecks;
 

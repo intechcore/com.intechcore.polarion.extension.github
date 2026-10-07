@@ -246,6 +246,7 @@ public class ImportService {
                     .githubType(kind == ItemKind.ISSUE ? item.typeName() : item.categoryName())
                     .labels(item.labelNames()).labelColors(item.labelColors()).assignees(item.assigneeLogins())
                     .failedChecks(target.checks().get(url))
+                    .createdAt(item.createdAt()).updatedAt(item.updatedAt())
                     .build();
             result.getEntries().add(entry);
             if (url == null || !url.startsWith(urlPrefix)) {

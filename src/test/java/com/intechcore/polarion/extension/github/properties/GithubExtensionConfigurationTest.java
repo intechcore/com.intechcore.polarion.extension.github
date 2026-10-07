@@ -43,5 +43,10 @@ class GithubExtensionConfigurationTest {
         assertThat(configuration.getSupportedProperties()).contains(GithubExtensionConfiguration.TOKEN_SECRET, "debug");
         assertThat(configuration.getTokenSecretDescription()).contains("Polarion secret").contains("60 requests per hour");
         assertThat(configuration.getTokenSecretDefaultValue()).isEmpty();
+        when(systemValueReader.readString(endsWith(".mail.from"), eq(""))).thenReturn("github@example.com");
+        assertThat(configuration.getMailFrom()).isEqualTo("github@example.com");
+        assertThat(configuration.getSupportedProperties()).contains(GithubExtensionConfiguration.MAIL_FROM);
+        assertThat(configuration.getMailFromDescription()).contains("sender");
+        assertThat(configuration.getMailFromDefaultValue()).isEmpty();
     }
 }

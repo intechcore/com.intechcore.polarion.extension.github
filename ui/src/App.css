@@ -358,3 +358,15 @@ body {
 .button-icon {
   margin-right: 5px;
 }
+
+.notification-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.notification-kinds label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

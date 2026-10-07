@@ -15,9 +15,10 @@ Status: in development. The About page, the GitHub client, the repository settin
 its REST endpoints, the page `Repositories` and the GitHub topic exist. A check on a running Polarion
 and the first release are open.
 
-There is no scheduled job on purpose. A job runs as the system user `polarion`, which may not write
+No job creates work items, on purpose. A job runs as the system user `polarion`, which may not write
 work items of a project under the default access rules of Polarion. The work items are created by
-the user on the page, with the user's permissions.
+the user on the page, with the user's permissions. The only job, `github_watch.job`, reads and mails:
+it writes nothing into Polarion.
 
 ## Build & verify
 
@@ -101,6 +102,12 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 - `GET /projects/{projectId}/items` on the same controllers - the dry run of every repository
   setting of the project, for the GitHub topic. A setting that fails reports its reason in
   `RepositoryState` and leaves the others readable.
+- `job/GithubWatchJobUnitImpl` - `github_watch.job`: checks every repository setting with
+  notifications in every project, takes the open items without a work item of the kinds turned on,
+  and mails the users of the setting what `watch/NewItemsWatcher` finds new. The watcher keeps what it
+  saw in memory; after a start it takes only the items of the last interval as new. `watch/SmtpMailer`
+  sends through Polarion's `announcer.smtp.*` and registers the text handlers that Polarion 2606's
+  Jakarta Activation lacks.
 - `GithubNavigationExtender` - the topic GitHub in the navigation of a project, registered in
   `hivemodule.xml`. It opens `?feature=items`, as the administration entry `Issues and Discussions` does.
 - `GithubClient` keeps every list it read for `CACHE_TIME` (5 minutes). The extension shares one

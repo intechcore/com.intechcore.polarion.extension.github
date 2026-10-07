@@ -40,6 +40,16 @@ export interface RepositorySettings {
   pullRequests: ItemSettings | null;
   /** The GitHub logins whose pull requests the import watches, separated by commas. */
   pullRequestAuthors: string | null;
+  notifications: NotificationSettings | null;
+}
+
+/** Who hears of new items of a repository, and of which kinds (settings.NotificationSettings). */
+export interface NotificationSettings {
+  /** IDs of Polarion users. */
+  users: string[];
+  issues: boolean;
+  discussions: boolean;
+  pullRequests: boolean;
 }
 
 /** A work item type or a link role of a project (rest.model.ProjectOption). */
