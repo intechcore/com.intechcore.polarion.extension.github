@@ -42,3 +42,4 @@ All notable changes to this project are documented here. The format follows
   `{{ CHECKS }}` names the failed checks.
 - `{{ BODY }}` brings the body of an item as rich text: the HTML GitHub renders for its Markdown,
   with only safe elements and attributes. Uploaded images keep their stable GitHub URL.
+- The README explains how to add the topic `GitHub` to the topics of a project.
