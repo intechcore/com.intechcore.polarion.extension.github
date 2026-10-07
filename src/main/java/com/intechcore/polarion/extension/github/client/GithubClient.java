@@ -23,12 +23,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Reads the open issues, discussions and pull requests of a public repository, and the checks of a
- * commit, from the GitHub REST API, without authentication.
+ * commit, from the GitHub REST API. With a token GitHub allows 5000 requests per hour, without one 60
+ * for the whole server. The token goes only to the configured API host.
  */
 public class GithubClient {
 
@@ -41,6 +43,7 @@ public class GithubClient {
     // ends a loop over "next" links that never stop.
     private static final int MAX_PAGES = 50;
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final int MAX_REDIRECTS = 3;
     private static final Pattern NEXT_LINK = Pattern.compile("<([^>]+)>\\s*;\\s*rel=\"next\"");
     private static final Pattern NAME = Pattern.compile("(?!\\.+$)[A-Za-z0-9._-]+");
     private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
@@ -49,7 +52,8 @@ public class GithubClient {
 
     /**
      * How long a list read from GitHub serves again. Without a token GitHub allows 60 requests per
-     * hour for the whole server, and a conditional request costs one as well, so only a cache saves them.
+     * hour for the whole server, and a conditional request costs one as well, so only a cache saves
+     * them. With a token the limit is 5000 per hour; the cache keeps the pages fast all the same.
      */
     public static final Duration CACHE_TIME = Duration.ofMinutes(5);
 
@@ -65,6 +69,7 @@ public class GithubClient {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock;
+    private final Supplier<String> token;
     private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
     private final Map<String, CachedChecks> checksCache = new ConcurrentHashMap<>();
 
@@ -78,21 +83,32 @@ public class GithubClient {
     // newer run of the same check usually cancelled it.
     private static final Set<String> FAILED_CONCLUSIONS = Set.of("failure", "timed_out", "action_required", "startup_failure");
 
+    /** The client of the server: GitHub, with the token of the configured Polarion secret, if any. */
     public GithubClient() {
-        this(DEFAULT_API_URL);
+        this(DEFAULT_API_URL, Clock.systemUTC(), new GithubToken());
     }
 
+    /** A client without a token. */
     public GithubClient(@NotNull String apiUrl) {
-        this(apiUrl, Clock.systemUTC());
+        this(apiUrl, Clock.systemUTC(), () -> null);
     }
 
     GithubClient(@NotNull String apiUrl, @NotNull Clock clock) {
+        this(apiUrl, clock, () -> null);
+    }
+
+    /**
+     * @param token supplies the token for each request, or null to read GitHub anonymously
+     */
+    public GithubClient(@NotNull String apiUrl, @NotNull Clock clock, @NotNull Supplier<String> token) {
         this.clock = clock;
+        this.token = token;
         this.apiUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
                 .proxy(ProxySelector.getDefault())
-                .followRedirects(HttpClient.Redirect.NORMAL)
+                // Redirects are followed by hand: only those on the API host, so the token stays there.
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
     }
 
@@ -239,28 +255,51 @@ public class GithubClient {
     }
 
     private HttpResponse<String> send(String url) {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+        String bearer = token.get();
+        HttpResponse<String> response = request(url, bearer);
+        // GitHub answers a renamed or moved repository with a redirect to its new address.
+        for (int redirects = 0; isRedirect(response) && redirects < MAX_REDIRECTS; redirects++) {
+            String location = response.headers().firstValue("location").orElse("");
+            if (!location.startsWith(apiUrl + "/")) {
+                throw new GithubClientException("GitHub redirected " + url + " away from " + apiUrl);
+            }
+            response = request(location, bearer);
+        }
+        if (isRateLimited(response)) {
+            throw new GithubRateLimitException(resetTime(response), bearer != null);
+        }
+        if (response.statusCode() == 401 && bearer != null) {
+            throw new GithubClientException("GitHub refused the token of the Polarion secret (401 Unauthorized)."
+                    + " It may be wrong, expired or revoked.");
+        }
+        if (response.statusCode() != 200) {
+            throw new GithubStatusException(url, response.statusCode());
+        }
+        return response;
+    }
+
+    private HttpResponse<String> request(String url, @Nullable String bearer) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                 .timeout(TIMEOUT)
                 .header("Accept", ACCEPT)
                 .header("X-GitHub-Api-Version", "2022-11-28")
-                .GET()
-                .build();
-        HttpResponse<String> response;
+                .GET();
+        if (bearer != null) {
+            builder.header("Authorization", "Bearer " + bearer);
+        }
         try {
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new GithubClientException("GitHub did not answer " + url, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new GithubClientException("Interrupted while waiting for " + url, e);
         }
-        if (isRateLimited(response)) {
-            throw new GithubRateLimitException(resetTime(response));
-        }
-        if (response.statusCode() != 200) {
-            throw new GithubStatusException(url, response.statusCode());
-        }
-        return response;
+    }
+
+    private static boolean isRedirect(HttpResponse<String> response) {
+        int status = response.statusCode();
+        return status == 301 || status == 302 || status == 307 || status == 308;
     }
 
     private static boolean isRateLimited(HttpResponse<String> response) {

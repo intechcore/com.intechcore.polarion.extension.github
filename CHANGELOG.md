@@ -50,3 +50,5 @@ All notable changes to this project are documented here. The format follows
   enumeration `@GitHubRepositories`.
 - A PDF export or a print of a page shows the table of the widget, read on the server, instead of
   an empty frame.
+- An optional GitHub token, read from a Polarion secret named by the property `token.secret`, raises
+  the GitHub limit from 60 to 5000 requests per hour. The README lists the minimal requirements.
