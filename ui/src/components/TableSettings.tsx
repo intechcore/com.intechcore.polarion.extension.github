@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { faArrowDown, faArrowUp, faGear } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -32,6 +32,21 @@ export default function TableSettings({
   const [open, setOpen] = useState(false);
   const lastVisible = visibleColumns(layout).length <= 1;
   const root = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+
+  // Polarion sizes the frame of the topic and of the widget to the height of the page, and the panel,
+  // positioned absolutely, adds nothing to it: below a short table it was cut off. While it is open,
+  // the table leaves room under itself for the part of the panel that hangs below it.
+  useLayoutEffect(() => {
+    const table = root.current?.closest('table');
+    if (!open || !table || !panel.current) return undefined;
+    const below = panel.current.getBoundingClientRect().bottom - table.getBoundingClientRect().bottom;
+    const room = Math.max(0, Math.ceil(below)) + 12;
+    table.style.marginBottom = `${room}px`;
+    return () => {
+      table.style.marginBottom = '';
+    };
+  }, [open, layout]);
 
   // A click outside closes the settings, as a menu does.
   useEffect(() => {
@@ -56,7 +71,7 @@ export default function TableSettings({
         <FontAwesomeIcon icon={faGear} />
       </button>
       {open && (
-        <div className="table-settings-panel" role="group" aria-label="Table settings">
+        <div className="table-settings-panel" role="group" aria-label="Table settings" ref={panel}>
           <label className="table-settings-hidden">
             <input type="checkbox" checked={showHidden} onChange={(e) => onShowHiddenChange(e.target.checked)} />
             Show hidden items ({hiddenCount})
