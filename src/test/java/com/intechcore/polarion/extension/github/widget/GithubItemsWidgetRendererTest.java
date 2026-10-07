@@ -3,7 +3,8 @@ package com.intechcore.polarion.extension.github.widget;
 import com.polarion.alm.shared.api.Scope;
 import com.polarion.alm.shared.api.model.rp.parameter.BooleanParameter;
 import com.polarion.alm.shared.api.model.rp.parameter.CustomEnumParameter;
-import com.polarion.alm.shared.api.model.rp.parameter.StringParameter;
+import com.polarion.alm.shared.api.model.eo.EnumOption;
+import com.polarion.alm.shared.api.model.rp.parameter.EnumParameter;
 import com.polarion.alm.shared.api.model.rp.widget.RichPageWidgetCommonContext;
 import com.polarion.alm.shared.api.utils.collections.StrictList;
 import com.polarion.alm.shared.api.utils.html.HtmlAttributesBuilder;
@@ -48,9 +49,8 @@ class GithubItemsWidgetRendererTest {
         scope = mock(Scope.class);
         when(context.getDisplayedScope()).thenReturn(scope);
         when(scope.projectId()).thenReturn("elibrary");
-        // Polarion passes every parameter the widget defines; one never filled has no value.
-        StringParameter repositories = mock(StringParameter.class);
-        when(context.<StringParameter>parameter(GithubItemsWidget.PARAMETER_REPOSITORIES)).thenReturn(repositories);
+        // Polarion passes every parameter the widget defines; one never filled has no values.
+        repositories();
 
         attributes = mock(HtmlAttributesBuilder.class, RETURNS_SELF);
         HtmlTagBuilder iframe = mock(HtmlTagBuilder.class);
@@ -70,6 +70,21 @@ class GithubItemsWidgetRendererTest {
         ArgumentCaptor<String> src = ArgumentCaptor.forClass(String.class);
         verify(attributes).byName(eq("src"), src.capture());
         return src.getValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void repositories(String... names) {
+        // Built before the stubbing: a mock created inside thenReturn(...) opens a second stubbing.
+        List<EnumOption> options = java.util.Arrays.stream(names).map(name -> {
+            EnumOption option = mock(EnumOption.class);
+            when(option.id()).thenReturn(name);
+            return option;
+        }).toList();
+        StrictList<EnumOption> list = mock(StrictList.class);
+        when(list.asList()).thenReturn(options);
+        EnumParameter parameter = mock(EnumParameter.class);
+        when(parameter.values()).thenReturn(list);
+        when(context.<EnumParameter>parameter(GithubItemsWidget.PARAMETER_REPOSITORIES)).thenReturn(parameter);
     }
 
     @SuppressWarnings("unchecked")
@@ -97,9 +112,7 @@ class GithubItemsWidgetRendererTest {
 
     @Test
     void passesEverySettingOfTheWidget() {
-        StringParameter repositories = mock(StringParameter.class);
-        when(repositories.value()).thenReturn(" tool , ,pdf-exporter");
-        when(context.<StringParameter>parameter(GithubItemsWidget.PARAMETER_REPOSITORIES)).thenReturn(repositories);
+        repositories("tool", "pdf-exporter");
         choose(GithubItemsWidget.PARAMETER_KINDS, "ISSUE", "PULL_REQUEST");
         choose(GithubItemsWidget.PARAMETER_STATES, "NEW");
         choose(GithubItemsWidget.PARAMETER_COLUMNS, "item", "state", "workItem");

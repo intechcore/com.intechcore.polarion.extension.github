@@ -1,9 +1,10 @@
 package com.intechcore.polarion.extension.github.widget;
 
 import com.polarion.alm.server.api.model.rp.widget.AbstractWidgetRenderer;
+import com.polarion.alm.shared.api.model.eo.EnumOption;
 import com.polarion.alm.shared.api.model.rp.parameter.BooleanParameter;
 import com.polarion.alm.shared.api.model.rp.parameter.CustomEnumParameter;
-import com.polarion.alm.shared.api.model.rp.parameter.StringParameter;
+import com.polarion.alm.shared.api.model.rp.parameter.EnumParameter;
 import com.polarion.alm.shared.api.model.rp.widget.RichPageWidgetCommonContext;
 import com.polarion.alm.shared.api.utils.html.HtmlFragmentBuilder;
 import com.polarion.alm.shared.api.utils.html.HtmlTagBuilder;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,9 +45,8 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     public GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context) {
         super(context);
         projectId = context.getDisplayedScope().projectId();
-        StringParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
-        String names = repositoriesParameter.value();
-        repositories = names == null ? List.of() : Arrays.stream(names.split(",")).map(String::trim).filter(name -> !name.isEmpty()).toList();
+        EnumParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
+        repositories = repositoriesParameter.values().asList().stream().map(EnumOption::id).toList();
         kinds = values(context.parameter(GithubItemsWidget.PARAMETER_KINDS));
         states = values(context.parameter(GithubItemsWidget.PARAMETER_STATES));
         columns = values(context.parameter(GithubItemsWidget.PARAMETER_COLUMNS));

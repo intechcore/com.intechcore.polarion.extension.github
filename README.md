@@ -197,7 +197,7 @@ Report page of a project, with its filters.
 
 | Setting | What it does |
 |---|---|
-| Repositories | The names of the repository settings to show, separated by commas. Empty shows all. |
+| Repositories | The repository settings of the project to show, picked from a list. None picked shows all. |
 | Kinds, States | The filters the table opens with. The reader can change them. Empty shows all. |
 | Columns | The columns of the widget, in this order. Empty shows the columns each reader chose on the topic. |
 | Hide filters | Shows the table only, without the toolbar and the filters. |
