@@ -90,7 +90,7 @@ class ImportServiceTest {
             return list;
         });
         when(trackerService.createWorkItem(project)).thenAnswer(invocation -> {
-            IWorkItem workItem = mock(IWorkItem.class);
+            IWorkItem workItem = workItem();
             when(workItem.getId()).thenReturn("EL-" + (100 + created.size()));
             created.add(workItem);
             return workItem;
@@ -821,12 +821,62 @@ class ImportServiceTest {
         assertThat(queries).isEmpty();
     }
 
+    /** The page shows what Polarion set on save at once: the initial status and an assignee of the workflow. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void reportsTheStatusAndAssigneesTheCreatedWorkItemGot() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        doAnswer(invocation -> {
+            IWorkItem workItem = workItem();
+            when(workItem.getId()).thenReturn("EL-100");
+            com.polarion.alm.tracker.model.IStatusOpt open = mock(com.polarion.alm.tracker.model.IStatusOpt.class);
+            when(open.getName()).thenReturn("Open");
+            when(open.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/icons/open.gif");
+            when(workItem.getStatus()).thenReturn(open);
+            com.polarion.alm.projects.model.IUser rob = mock(com.polarion.alm.projects.model.IUser.class);
+            when(rob.getName()).thenReturn("Rob Project");
+            IPObjectList assignees = mock(IPObjectList.class);
+            when(assignees.iterator()).thenAnswer(i -> List.of(rob).iterator());
+            when(workItem.getAssignees()).thenReturn(assignees);
+            created.add(workItem);
+            return workItem;
+        }).when(trackerService).createWorkItem(project);
+
+        ImportEntry entry = service.importRepository(PROJECT, settings(), false, null).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.CREATED);
+        assertThat(entry.getWorkItemId()).isEqualTo("EL-100");
+        assertThat(entry.getWorkItemStatus()).isEqualTo("Open");
+        assertThat(entry.getWorkItemStatusIcon()).isEqualTo("/icons/open.gif");
+        assertThat(entry.getWorkItemAssignees()).containsExactly("Rob Project");
+    }
+
+    /** A work item that exists after its save stays CREATED when reading it back fails: a retry would duplicate it. */
+    @Test
+    void keepsAWorkItemCreatedWhenReadingItBackFails() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7)));
+        doAnswer(invocation -> {
+            IWorkItem workItem = workItem();
+            when(workItem.getId()).thenReturn("EL-100");
+            when(workItem.getStatus()).thenThrow(new IllegalStateException("not readable yet"));
+            created.add(workItem);
+            return workItem;
+        }).when(trackerService).createWorkItem(project);
+
+        ImportEntry entry = service.importRepository(PROJECT, settings(), false, null).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.CREATED);
+        assertThat(entry.getWorkItemId()).isEqualTo("EL-100");
+        assertThat(entry.getWorkItemStatus()).isNull();
+        assertThat(entry.getWorkItemAssignees()).isEmpty();
+    }
+
     @Test
     void reportsAnItemThatCannotBeSavedAndGoesOn() {
         when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
         // doAnswer, because when(...) would run the answer of setUp once and count a work item.
         doAnswer(invocation -> {
-            IWorkItem workItem = mock(IWorkItem.class);
+            IWorkItem workItem = workItem();
             when(workItem.getId()).thenReturn("EL-" + (100 + created.size()));
             if (created.isEmpty()) {
                 doThrow(new IllegalStateException("The field severity is required")).when(workItem).save();

@@ -398,7 +398,12 @@ public class ImportService {
 
     private void create(ImportEntry entry, GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         try {
-            entry.setWorkItemId(writeTransaction.execute(() -> createWorkItem(item, target, outcome, settings)));
+            Existing created = writeTransaction.execute(() -> createWorkItem(item, target, outcome, settings));
+            entry.setWorkItemId(created.id());
+            // What Polarion set on save, by the workflow of the type: the initial status, maybe an assignee.
+            entry.setWorkItemStatus(created.status());
+            entry.setWorkItemStatusIcon(created.statusIcon());
+            entry.setWorkItemAssignees(created.assignees());
             entry.setStatus(ImportStatus.CREATED);
         } catch (RuntimeException e) {
             entry.setStatus(ImportStatus.FAILED);
@@ -406,7 +411,7 @@ public class ImportService {
         }
     }
 
-    private String createWorkItem(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
+    private Existing createWorkItem(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
         Map<String, String> values = templateValues(item, target, settings);
 
@@ -427,7 +432,13 @@ public class ImportService {
             workItem.addLinkedItem(target.epic(), outcome.epicRole(), null, false);
         }
         workItem.save();
-        return workItem.getId();
+        try {
+            return Existing.of(workItem);
+        } catch (RuntimeException e) {
+            // The work item exists now. A failure to read it back must not report it as failed: a
+            // second Create would make a second work item for the same GitHub item.
+            return new Existing(workItem, workItem.getId(), null, null, null, null, null, List.of());
+        }
     }
 
     /**
