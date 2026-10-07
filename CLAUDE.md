@@ -112,7 +112,9 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   `?feature=items&widget=true` in an iframe, with its settings in the query string, which
   `ui/src/services/pageOptions.ts` reads. `src/main/resources/js/widget-height.js` resizes the iframe
   from the height the page posts (`useIframeAutoHeight`); `ui/test/widgetHeight.test.ts` drives that
-  file, which the Docker test run mounts into the container.
+  file, which the Docker test run mounts into the container. For a PDF export or a print
+  (`RichTextRenderTarget`) the renderer writes `ItemsTableHtml` instead: the table read on the server
+  through `service/ProjectItemsReader`, which the items endpoint uses as well.
 - `META-INF/hivemodule.xml` - the administration entries. Each opens the SPA at `?feature=<id>`.
 
 **React** (`ui/`) - Vite + React 19 + TypeScript SPA on `@sbb-polarion/react-sbb-polarion` (RSP),

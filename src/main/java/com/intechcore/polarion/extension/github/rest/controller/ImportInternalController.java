@@ -2,15 +2,12 @@ package com.intechcore.polarion.extension.github.rest.controller;
 
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import ch.sbb.polarion.extension.generic.settings.SettingId;
-import ch.sbb.polarion.extension.generic.settings.SettingName;
-import ch.sbb.polarion.extension.generic.util.ScopeUtils;
-import com.intechcore.polarion.extension.github.client.GithubClientException;
 import com.intechcore.polarion.extension.github.rest.model.HideRequest;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
 import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
-import com.intechcore.polarion.extension.github.rest.model.RepositoryState;
 import com.intechcore.polarion.extension.github.service.ImportResult;
 import com.intechcore.polarion.extension.github.service.ImportService;
+import com.intechcore.polarion.extension.github.service.ProjectItemsReader;
 import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
@@ -63,28 +60,7 @@ public class ImportInternalController {
                                  @Parameter(description = "True to read GitHub again instead of the lists of the last five minutes."
                                          + " A list read within the last minute stays.")
                                  @QueryParam("refresh") @DefaultValue("false") boolean refresh) {
-        String scope = ScopeUtils.getScopeFromProject(projectId);
-        Set<String> hidden = hiddenItems.urls(projectId);
-        ProjectItems items = new ProjectItems();
-        for (SettingName name : repositorySettings.readNames(scope)) {
-            RepositoryState state = new RepositoryState(name.getName(), null, null, null);
-            items.getRepositories().add(state);
-            try {
-                RepositorySettingsModel settings = repositorySettings.read(scope, SettingId.fromName(name.getName()), null);
-                state.setRepository(settings.getRepository());
-                if (refresh) {
-                    importService.refresh(settings);
-                }
-                ImportResult result = importService.importRepository(projectId, settings, true, null);
-                state.setReadAt(result.getReadAt());
-                result.getEntries().forEach(entry -> entry.setHidden(hidden.contains(entry.getUrl())));
-                items.getEntries().addAll(result.getEntries());
-            } catch (GithubClientException | IllegalArgumentException e) {
-                // One repository that fails leaves the others readable.
-                state.setError(e.getMessage());
-            }
-        }
-        return items;
+        return new ProjectItemsReader(repositorySettings, importService, hiddenItems).read(projectId, refresh);
     }
 
     @Operation(summary = "Hides GitHub items on the GitHub page of a project, or shows them again. Answers with all URLs the project hides")

@@ -49,6 +49,8 @@ class GithubItemsWidgetRendererTest {
         scope = mock(Scope.class);
         when(context.getDisplayedScope()).thenReturn(scope);
         when(scope.projectId()).thenReturn("elibrary");
+        // The page shown in Polarion; a PDF export or a print sets another target.
+        when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.RP_VIEW);
         // Polarion passes every parameter the widget defines; one never filled has no values.
         repositories();
 
@@ -162,5 +164,35 @@ class GithubItemsWidgetRendererTest {
         try (InputStream text = new ByteArrayInputStream("ok".getBytes(StandardCharsets.UTF_8))) {
             assertThat(GithubItemsWidgetRenderer.readScript(text, "/js/x.js")).isEqualTo("ok");
         }
+    }
+
+    /** A PDF export or a print shows the table itself: an iframe has no content in a document. */
+    @Test
+    void writesTheTableInsteadOfTheFrameForAPdfExport() {
+        when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.PDF_EXPORT);
+        com.intechcore.polarion.extension.github.service.ProjectItemsReader reader =
+                mock(com.intechcore.polarion.extension.github.service.ProjectItemsReader.class);
+        com.intechcore.polarion.extension.github.rest.model.ProjectItems items = new com.intechcore.polarion.extension.github.rest.model.ProjectItems();
+        items.getEntries().add(com.intechcore.polarion.extension.github.service.ImportEntry.builder().number(7).title("Crash")
+                .setting("tool").kind(com.intechcore.polarion.extension.github.service.ItemKind.ISSUE)
+                .status(com.intechcore.polarion.extension.github.service.ImportStatus.NEW).build());
+        when(reader.read("elibrary", false)).thenReturn(items);
+
+        new GithubItemsWidgetRenderer(context, () -> reader).render(builder);
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(builder).html(html.capture());
+        assertThat(html.getValue()).contains("<table").contains("Crash");
+        verify(builder, org.mockito.Mockito.never()).tag();
+    }
+
+    @Test
+    void saysAPrintedPageOutsideAProjectHasNoItems() {
+        when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.PRINT);
+        when(scope.projectId()).thenReturn(null);
+
+        assertThat(new GithubItemsWidgetRenderer(context, () -> {
+            throw new AssertionError("nothing to read");
+        }).printedTable()).contains("belong to a project");
     }
 }

@@ -48,3 +48,5 @@ All notable changes to this project are documented here. The format follows
   only when its settings allow it.
 - The widget picks its repositories from a list of the settings of the project, through the
   enumeration `@GitHubRepositories`.
+- A PDF export or a print of a page shows the table of the widget, read on the server, instead of
+  an empty frame.
