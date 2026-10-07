@@ -82,8 +82,10 @@ public class GithubItemsWidget extends RichPageWidget {
     @Override
     public @NotNull ReadOnlyStrictMap<String, RichPageParameter> getParametersDefinition(@NotNull ParameterFactory factory) {
         StrictMap<String, RichPageParameter> parameters = new StrictMapImpl<>();
-        // Empty shows every repository setting of the project.
-        parameters.put(PARAMETER_REPOSITORIES, factory.string("Repositories (setting names, separated by commas)").build());
+        // The repository settings of the project of the page. None chosen shows all of them.
+        parameters.put(PARAMETER_REPOSITORIES, factory.enumeration("Repositories", RepositoriesEnumFactory.ENUM_ID)
+                .allowMultipleValues(true)
+                .build());
         parameters.put(PARAMETER_KINDS, multiple(factory, "Kinds", KINDS));
         parameters.put(PARAMETER_STATES, multiple(factory, "States", STATES));
         // Empty keeps the columns each viewer chose on the page.

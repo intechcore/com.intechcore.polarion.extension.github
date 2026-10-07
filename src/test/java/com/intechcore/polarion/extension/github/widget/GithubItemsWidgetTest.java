@@ -43,6 +43,8 @@ class GithubItemsWidgetTest {
         }
         // A new widget is a report: creating work items stays off until the author turns it on.
         verify(factory.bool("Allow creating work items")).value(false);
+        // The repositories are a multi-select of the settings of the project of the page.
+        verify(factory.enumeration("Repositories", RepositoriesEnumFactory.ENUM_ID)).allowMultipleValues(true);
         verify(factory.customEnum("Kinds").allowMultipleValues(true).allowNoValue(true)).addEnumItem("PULL_REQUEST", "Pull request");
         verify(factory.customEnum("Columns").allowMultipleValues(true).allowNoValue(true)).addEnumItem("workItemAssignees", "Polarion assignees");
     }

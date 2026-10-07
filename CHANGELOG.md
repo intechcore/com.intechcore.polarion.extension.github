@@ -46,3 +46,5 @@ All notable changes to this project are documented here. The format follows
 - The Live Report widget **GitHub Items**: the table of the topic in a page, with preset
   repositories, kinds, states and columns, the filters optionally hidden, and creating work items
   only when its settings allow it.
+- The widget picks its repositories from a list of the settings of the project, through the
+  enumeration `@GitHubRepositories`.
