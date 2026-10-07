@@ -82,7 +82,7 @@ public class GithubItemsWidget extends RichPageWidget {
     @Override
     public @NotNull ReadOnlyStrictMap<String, RichPageParameter> getParametersDefinition(@NotNull ParameterFactory factory) {
         StrictMap<String, RichPageParameter> parameters = new StrictMapImpl<>();
-        // The repository settings of the project of the page. None chosen shows all of them.
+        // The repository settings of the project of the page. Until some are chosen the widget asks for them.
         parameters.put(PARAMETER_REPOSITORIES, factory.enumeration("Repositories", RepositoriesEnumFactory.ENUM_ID)
                 .allowMultipleValues(true)
                 .build());

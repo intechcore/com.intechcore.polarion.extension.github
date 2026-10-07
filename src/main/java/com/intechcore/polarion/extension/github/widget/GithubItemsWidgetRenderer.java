@@ -33,6 +33,8 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
 
     private static final String APP_URL = "/polarion/github-app/ui/app/index.html";
 
+    static final String SELECT_REPOSITORIES = "Select the repositories in the settings of the GitHub Items widget.";
+
     /**
      * The height listener of the widget. A file, not a string here: a Java test can assert the text
      * of a script, never what it does; {@code ui/test/widgetHeight.test.ts} drives this file in a browser.
@@ -84,6 +86,12 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
 
     @Override
     protected void render(@NotNull HtmlFragmentBuilder builder) {
+        // A new widget names no repository. It asks for them, rather than show every repository of the
+        // project, which may be many and costs GitHub requests for each.
+        if (repositories.isEmpty()) {
+            builder.html(context.renderInfo(SELECT_REPOSITORIES));
+            return;
+        }
         if (printed) {
             builder.html(printedTable());
             return;

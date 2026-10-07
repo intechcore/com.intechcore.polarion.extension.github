@@ -51,8 +51,8 @@ class GithubItemsWidgetRendererTest {
         when(scope.projectId()).thenReturn("elibrary");
         // The page shown in Polarion; a PDF export or a print sets another target.
         when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.RP_VIEW);
-        // Polarion passes every parameter the widget defines; one never filled has no values.
-        repositories();
+        // Polarion passes every parameter the widget defines. A widget shows its table once it names a repository.
+        repositories("tool");
 
         attributes = mock(HtmlAttributesBuilder.class, RETURNS_SELF);
         HtmlTagBuilder iframe = mock(HtmlTagBuilder.class);
@@ -105,11 +105,29 @@ class GithubItemsWidgetRendererTest {
         when(context.<BooleanParameter>parameter(key)).thenReturn(parameter);
     }
 
-    /** A widget saved without settings, or before a setting existed, shows the page as the topic does. */
+    /** A widget with its repositories and no other setting shows the page as the topic does, for them. */
     @Test
     void opensThePageOfTheProjectOfThePage() {
         assertThat(renderedUrl()).isEqualTo("/polarion/github-app/ui/app/index.html?feature=items&embedded=true&widget=true"
-                + "&scope=project%2Felibrary%2F");
+                + "&scope=project%2Felibrary%2F&settings=tool");
+    }
+
+    /** A new widget names no repository: it asks for them instead of reading every repository of the project. */
+    @Test
+    void asksForTheRepositoriesWhileTheWidgetNamesNone() {
+        repositories();
+        when(context.renderInfo(GithubItemsWidgetRenderer.SELECT_REPOSITORIES)).thenReturn("<div class=\"info\">Select</div>");
+
+        new GithubItemsWidgetRenderer(context, () -> {
+            throw new AssertionError("nothing to read");
+        }).render(builder);
+        when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.PDF_EXPORT);
+        new GithubItemsWidgetRenderer(context, () -> {
+            throw new AssertionError("nothing to read");
+        }).render(builder);
+
+        verify(builder, org.mockito.Mockito.times(2)).html("<div class=\"info\">Select</div>");
+        verify(builder, org.mockito.Mockito.never()).tag();
     }
 
     @Test
@@ -132,7 +150,7 @@ class GithubItemsWidgetRendererTest {
         CustomEnumParameter kinds = mock(CustomEnumParameter.class);
         when(context.<CustomEnumParameter>parameter(GithubItemsWidget.PARAMETER_KINDS)).thenReturn(kinds);
 
-        assertThat(renderedUrl()).endsWith("&widget=true&scope=");
+        assertThat(renderedUrl()).endsWith("&widget=true&scope=&settings=tool");
     }
 
     @Test
