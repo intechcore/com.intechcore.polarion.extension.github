@@ -221,9 +221,16 @@ describe('GitHub items page', () => {
     expect(show.textContent).toBe('Show hidden items (2)');
     await userEvent.click(show.querySelector('input')!);
     await vi.waitFor(() => expect(numbers()).toHaveLength(8));
+    // The open panel below a short table makes the page taller, so a frame sized to the page shows it.
+    const table = document.querySelector<HTMLElement>('.items-table')!;
+    const panelBottom = document.querySelector('.table-settings-panel')!.getBoundingClientRect().bottom;
+    expect(table.getBoundingClientRect().bottom + parseFloat(table.style.marginBottom)).toBeGreaterThanOrEqual(
+      panelBottom,
+    );
     // A click outside closes the table settings.
     document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     await vi.waitFor(() => expect(document.querySelector('.table-settings-panel')).toBeNull());
+    expect(table.style.marginBottom).toBe('');
     expect(document.querySelectorAll('.items-table tr.item-hidden')).toHaveLength(2);
     expect(document.querySelector('.items-summary')!.textContent).toBe('8 of 8 open item(s) shown.');
 

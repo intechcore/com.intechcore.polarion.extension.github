@@ -60,8 +60,6 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     document.querySelector<HTMLButtonElement>('button[aria-label="Table settings"]')!.click();
 
     await vi.waitFor(() => expect(document.querySelector('.table-settings-panel')).not.toBeNull());
-    // The panel hangs below the short table: room under the page keeps it in the capture.
-    document.querySelector<HTMLElement>('.items-table')!.style.marginBottom = '120px';
     await captureApp('items-table-settings');
     window.localStorage.clear();
   });
