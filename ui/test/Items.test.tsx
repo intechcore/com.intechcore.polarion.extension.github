@@ -273,6 +273,65 @@ describe('GitHub items page', () => {
     );
   });
 
+  async function mountWidget(query: string) {
+    fetchMock = installFetchMock(itemsRoutes());
+    setUrl(`?feature=items&embedded=true&widget=true&scope=${encodeURIComponent(SCOPE)}${query}`);
+    render(<App />);
+    await vi.waitFor(() => expect(document.querySelector('.items-summary')).not.toBeNull());
+  }
+
+  it('opens as a report in a Live Report widget, with the filters of its settings', async () => {
+    const posted = vi.spyOn(window.parent, 'postMessage');
+    await mountWidget('&kinds=ISSUE&states=NEW');
+
+    await vi.waitFor(() =>
+      expect(numbers()).toEqual(['#7 Crash on start', '#10 Export to CSV', '#3 Typo in the guide']),
+    );
+    // No title of its own, no selection, no Create or Update, no hiding: the page is a report.
+    expect(document.querySelector('h1')).toBeNull();
+    expect(document.querySelector('.app.widget')).not.toBeNull();
+    expect(checkbox(ISSUE_7)).toBeNull();
+    expect(document.querySelector('[aria-label="Select all new and outdated items shown"]')).toBeNull();
+    expect(document.querySelector('[aria-label="Hide #7"]')).toBeNull();
+    expect(document.querySelector('.items-toolbar')!.textContent).not.toContain('Create work items');
+    // The filters stay, and the reader can change them.
+    expect(button('Clear filters').disabled).toBe(false);
+    button('Clear filters').click();
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
+    // The widget learns the height of the page, to fit its frame.
+    expect(posted).toHaveBeenCalledWith(expect.objectContaining({ type: 'github-app-height' }), window.location.origin);
+    posted.mockRestore();
+  });
+
+  it('shows only the table, in the columns of the widget, and keeps the layout of the reader', async () => {
+    window.localStorage.setItem('github-items-columns', JSON.stringify({ order: ['labels'], hidden: [] }));
+    await mountWidget('&hideFilters=true&columns=item%2Cstate');
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
+
+    expect(document.querySelector('.item-filters')).toBeNull();
+    expect(document.querySelector('.items-toolbar')).toBeNull();
+    expect(headers()).toEqual(['Item', 'State']);
+
+    await userEvent.click(settingsButton());
+    await userEvent.click(columnBox('Labels'));
+    expect(headers()).toEqual(['Item', 'State', 'Labels']);
+    // The columns of the widget never overwrite what the reader chose on the topic.
+    expect(JSON.parse(window.localStorage.getItem('github-items-columns')!)).toEqual({ order: ['labels'], hidden: [] });
+  });
+
+  it('lets a widget create work items when its settings allow it', async () => {
+    await mountWidget('&hideFilters=true&allowCreate=true');
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
+
+    expect(document.querySelector('.item-filters')).toBeNull();
+    // Only the actions on the selection: reading GitHub again belongs to the filters it hides.
+    expect(document.querySelector('.items-toolbar')!.textContent).toContain('Create work items');
+    expect(document.querySelector('.items-toolbar')!.textContent).not.toContain('Refresh');
+    expect(document.querySelector('.items-read-at')).toBeNull();
+    await userEvent.click(checkbox(ISSUE_7)!);
+    expect(button('Create work items').textContent).toContain('(1)');
+  });
+
   it('gives the search box and the filters the control height of 23 pixels', async () => {
     await mount();
 

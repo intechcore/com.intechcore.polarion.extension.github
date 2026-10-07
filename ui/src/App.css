@@ -348,3 +348,8 @@ body {
 .block-hint {
   max-width: 900px;
 }
+
+/* In the iframe of a Live Report widget the page has no frame of its own. */
+.app.widget {
+  padding: 0;
+}

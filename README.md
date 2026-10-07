@@ -186,6 +186,26 @@ the lists were read.
   the last minute stays, so a second click costs nothing. One repository costs one request per 100 open issues and one per 100
 discussions.
 
+## Live Report widget
+
+The widget **GitHub Items** (category *Reports*) shows the table of the topic `GitHub` in a Live
+Report page of a project, with its filters.
+
+1. Open a Live Report page of the project and edit it.
+2. Add the widget **GitHub Items**.
+3. Adjust the widget settings when needed, and save the page.
+
+| Setting | What it does |
+|---|---|
+| Repositories | The names of the repository settings to show, separated by commas. Empty shows all. |
+| Kinds, States | The filters the table opens with. The reader can change them. Empty shows all. |
+| Columns | The columns of the widget, in this order. Empty shows the columns each reader chose on the topic. |
+| Hide filters | Shows the table only, without the toolbar and the filters. |
+| Allow creating work items | Shows the selection and `Create work items` / `Update work items`. Off by default: the widget is a report. |
+
+The widget sizes itself to the table. The work items open in Polarion, as from the topic. A page
+outside a project shows that the table needs a project.
+
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
