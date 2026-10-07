@@ -47,7 +47,8 @@ All notable changes to this project are documented here. The format follows
   repositories, kinds, states and columns, the filters optionally hidden, and creating work items
   only when its settings allow it.
 - The widget picks its repositories from a list of the settings of the project, through the
-  enumeration `@GitHubRepositories`.
+  enumeration `@GitHubRepositories`. A widget without a repository asks for them instead of showing
+  every repository.
 - A PDF export or a print of a page shows the table of the widget, read on the server, instead of
   an empty frame.
 - An optional GitHub token, read from a Polarion secret named by the property `token.secret`, raises
