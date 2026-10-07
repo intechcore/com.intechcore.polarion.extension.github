@@ -52,7 +52,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     private final Supplier<ProjectItemsReader> reader;
 
     // The targets that turn the page into a document. A PDF export or a print shows no iframe.
-    private static final Set<RichTextRenderTarget> PRINTED = Set.of(RichTextRenderTarget.PDF_EXPORT,
+    private static final Set<RichTextRenderTarget> DOCUMENT_TARGETS = Set.of(RichTextRenderTarget.PDF_EXPORT,
             RichTextRenderTarget.COMPARE_PDF_EXPORT, RichTextRenderTarget.PRINT, RichTextRenderTarget.COMPARE_PRINT);
 
     public GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context) {
@@ -62,7 +62,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context, @NotNull Supplier<ProjectItemsReader> reader) {
         super(context);
         this.reader = reader;
-        printed = PRINTED.contains(context.target());
+        printed = DOCUMENT_TARGETS.contains(context.target());
         projectId = context.getDisplayedScope().projectId();
         EnumParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
         repositories = repositoriesParameter.values().asList().stream().map(EnumOption::id).toList();
