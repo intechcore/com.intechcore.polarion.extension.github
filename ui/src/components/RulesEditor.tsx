@@ -1,5 +1,7 @@
+import { faArrowDown, faArrowUp, faPlus, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { SearchableSelect } from '@sbb-polarion/react-sbb-polarion';
 import type { ProjectField, ProjectOption, RuleMatch } from '../types';
+import ButtonIcon from './ButtonIcon';
 import FieldValues, { type FieldRow } from './FieldValues';
 
 /** The form state of one rule: ItemRule with the field values as an ordered list. */
@@ -82,6 +84,7 @@ export default function RulesEditor({ kind, rules, onChange, workItemTypes, load
                 disabled={index === 0}
                 onClick={() => move(index, index - 1)}
               >
+                <ButtonIcon icon={faArrowUp} />
                 Up
               </button>
               <button
@@ -91,6 +94,7 @@ export default function RulesEditor({ kind, rules, onChange, workItemTypes, load
                 disabled={index === rules.length - 1}
                 onClick={() => move(index, index + 1)}
               >
+                <ButtonIcon icon={faArrowDown} />
                 Down
               </button>
               <button
@@ -99,6 +103,7 @@ export default function RulesEditor({ kind, rules, onChange, workItemTypes, load
                 aria-label={`Remove ${owner}`}
                 onClick={() => onChange(rules.filter((_, i) => i !== index))}
               >
+                <ButtonIcon icon={faTrashCan} />
                 Remove rule
               </button>
             </div>
@@ -142,6 +147,7 @@ export default function RulesEditor({ kind, rules, onChange, workItemTypes, load
         className="sbb-btn sbb-btn--control"
         onClick={() => onChange([...rules, { match: 'LABEL', value: '', skip: false, workItemType: '', fields: [] }])}
       >
+        <ButtonIcon icon={faPlus} />
         Add a rule
       </button>
     </div>
