@@ -45,7 +45,7 @@ public class GithubWatchJobUnitImpl extends AbstractJobUnit implements GithubWat
     static final int DEFAULT_INTERVAL_MINUTES = 15;
 
     // The job unit is made for every run; what the checks saw lives across them.
-    private static final NewItemsWatcher WATCHER = new NewItemsWatcher();
+    private static final NewItemsWatcher SHARED_WATCHER = new NewItemsWatcher();
 
     private final PolarionService polarionService;
     private final RepositorySettings repositorySettings;
@@ -59,7 +59,7 @@ public class GithubWatchJobUnitImpl extends AbstractJobUnit implements GithubWat
     private Integer intervalMinutes;
 
     public GithubWatchJobUnitImpl(String name, IJobUnitFactory creator) {
-        this(name, creator, new PolarionService(), new RepositorySettings(), new ImportService(), new HiddenItems(), WATCHER,
+        this(name, creator, new PolarionService(), new RepositorySettings(), new ImportService(), new HiddenItems(), SHARED_WATCHER,
                 () -> new SmtpMailer(System.getProperties(), GithubExtensionConfiguration.getInstance().getMailFrom()), Clock.systemUTC());
     }
 
@@ -158,8 +158,9 @@ public class GithubWatchJobUnitImpl extends AbstractJobUnit implements GithubWat
         private List<String> addresses(@Nullable List<String> userIds) {
             List<String> addresses = new ArrayList<>();
             for (String userId : userIds == null ? List.<String>of() : userIds) {
+                // An unknown ID gives a phantom user, without an address.
                 IUser user = polarionService.getProjectService().getUser(userId);
-                String address = user == null ? null : user.getEmail();
+                String address = user.getEmail();
                 if (address == null || address.isBlank()) {
                     getLogger().warn("User '" + userId + "' has no mail address, left out");
                 } else {

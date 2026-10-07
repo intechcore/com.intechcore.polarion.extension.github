@@ -30,7 +30,15 @@ public class NotificationMail {
     public NotificationMail(@NotNull String projectId, @NotNull String repository, @Nullable String baseUrl) {
         this.projectId = projectId;
         this.repository = repository;
-        this.baseUrl = baseUrl == null || baseUrl.isBlank() ? null : baseUrl.replaceAll("/+$", "");
+        this.baseUrl = baseUrl == null || baseUrl.isBlank() ? null : withoutTrailingSlashes(baseUrl.trim());
+    }
+
+    private static String withoutTrailingSlashes(String url) {
+        int end = url.length();
+        while (end > 0 && url.charAt(end - 1) == '/') {
+            end--;
+        }
+        return url.substring(0, end);
     }
 
     public @NotNull String subject(@NotNull List<ImportEntry> entries) {

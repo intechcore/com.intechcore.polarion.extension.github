@@ -75,6 +75,8 @@ class GithubWatchJobUnitImplTest {
         when(projectService.getRootProjectGroup()).thenReturn(root);
         user("alice", "alice@example.com");
         user("nomail", " ");
+        // Polarion answers an unknown ID with a phantom user without an address.
+        user("nobody", null);
 
         repositorySettings = mock(RepositorySettings.class);
         importService = mock(ImportService.class);
