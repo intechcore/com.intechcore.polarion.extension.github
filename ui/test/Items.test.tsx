@@ -339,6 +339,24 @@ describe('GitHub items page', () => {
     expect(button('Create work items').textContent).toContain('(1)');
   });
 
+  it('shows the read time on the 24-hour clock', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/items$/,
+        json: {
+          ...ITEMS,
+          repositories: [{ setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T18:48:00Z', error: null }],
+        },
+      },
+    ]);
+
+    const text = document.querySelector('.items-read-at')!.textContent!;
+    const local = new Date('2026-10-03T18:48:00Z');
+    expect(text).toContain(`Read from GitHub at ${String(local.getHours()).padStart(2, '0')}:48.`);
+    expect(text).not.toMatch(/AM|PM/);
+  });
+
   it('gives the search box and the filters the control height of 23 pixels', async () => {
     await mount();
 

@@ -34,7 +34,8 @@ function readTime(repositories: RepositoryState[]): string | null {
   const times = repositories.map((state) => state.readAt).filter((time): time is string => !!time);
   if (times.length === 0) return null;
   const oldest = times.sort()[0];
-  return new Date(oldest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // The 24-hour clock, whatever the locale of the browser would pick: 18:48, not 06:48 PM.
+  return new Date(oldest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
 /**
