@@ -8,6 +8,7 @@ import {
   faCodePullRequest,
   faComments,
   faLink,
+  faShieldHalved,
   faTriangleExclamation,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -18,6 +19,7 @@ const KIND_ICONS: Record<ItemKind, IconDefinition> = {
   ISSUE: faCircleDot,
   DISCUSSION: faComments,
   PULL_REQUEST: faCodePullRequest,
+  ADVISORY: faShieldHalved,
 };
 
 const STATUS_ICONS: Record<ImportStatus, IconDefinition> = {
@@ -44,10 +46,10 @@ export function ItemCell({ entry }: Readonly<{ entry: ImportEntry }>) {
           rel="noopener noreferrer"
           title={`${kind} on GitHub`}
         >
-          #{entry.number}
+          {itemNumber(entry)}
         </a>
       ) : (
-        <span className="item-number">#{entry.number}</span>
+        <span className="item-number">{itemNumber(entry)}</span>
       )}
       <span className="item-title">
         {entry.title}
@@ -56,6 +58,9 @@ export function ItemCell({ entry }: Readonly<{ entry: ImportEntry }>) {
     </div>
   );
 }
+
+/** The number of an item, or the GHSA ID of a security advisory, which has no number. */
+export const itemNumber = (entry: ImportEntry): string => entry.ghsaId ?? `#${entry.number}`;
 
 /** Dark text on a light label and white text on a dark one, as GitHub picks it. */
 export function labelTextColor(color: string): string {

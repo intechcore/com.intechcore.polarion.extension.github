@@ -518,6 +518,31 @@ class ImportServiceTest {
     }
 
     @Test
+    void createsAWorkItemForASecurityAdvisoryWithItsPlaceholders() {
+        RepositorySettingsModel settings = settings();
+        settings.setIssues(new ItemSettings());
+        settings.setAdvisories(ItemSettings.builder().enabled(true).workItemType("task")
+                .titleTemplate("{{ GHSA }} ({{ SEVERITY }}, CVSS {{ CVSS }}, {{ CWE }}) {{ TITLE }}").build());
+        String url = "https://github.com/acme/tool/security/advisories/GHSA-aaaa-bbbb-cccc";
+        com.intechcore.polarion.extension.github.client.GithubAdvisory advisory = new com.intechcore.polarion.extension.github.client.GithubAdvisory(
+                "GHSA-aaaa-bbbb-cccc", null, "Fetches any URL", "Details", "draft", "medium", url, "2026-10-07T20:02:52Z",
+                "2026-10-07T20:02:52Z", new GithubItem.User("alice"), Map.of("score", 6.5), List.of("CWE-918"));
+        when(githubClient.getSecurityAdvisories("acme", "tool")).thenReturn(List.of(advisory));
+
+        ImportEntry preview = service.importRepository(PROJECT, settings, true, null).getEntries().get(0);
+
+        assertThat(preview.getKind()).isEqualTo(ItemKind.ADVISORY);
+        assertThat(preview.getGhsaId()).isEqualTo("GHSA-aaaa-bbbb-cccc");
+        assertThat(preview.getGithubType()).isEqualTo("medium");
+        assertThat(preview.getStatus()).isEqualTo(ImportStatus.NEW);
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0)).setTitle("GHSA-aaaa-bbbb-cccc (medium, CVSS 6.5, CWE-918) Fetches any URL");
+        verify(created.get(0)).addHyperlink(url, hyperlinkRole);
+    }
+
+    @Test
     void leavesOutTheItemsOfAnAuthor() {
         RepositorySettingsModel settings = settings();
         settings.getIssues().setRules(List.of(ItemRule.builder().match(RuleMatch.AUTHOR).value("Renovate[bot]").skip(true).build()));

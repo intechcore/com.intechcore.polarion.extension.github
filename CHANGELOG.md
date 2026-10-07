@@ -51,6 +51,8 @@ All notable changes to this project are documented here. The format follows
   every repository.
 - A PDF export or a print of a page shows the table of the widget, read on the server, instead of
   an empty frame.
+- Security advisories in triage, drafted or published become work items like issues, with the
+  placeholders `{{ GHSA }}`, `{{ SEVERITY }}`, `{{ CVSS }}` and `{{ CWE }}`, and the watch job can mail them.
 - The job `github_watch.job` mails the users of a repository setting its new issues, discussions and
   pull requests with failed checks, each kind turned on per setting, every 15 minutes by default.
 - An optional GitHub token, read from a Polarion secret named by the property `token.secret`, raises

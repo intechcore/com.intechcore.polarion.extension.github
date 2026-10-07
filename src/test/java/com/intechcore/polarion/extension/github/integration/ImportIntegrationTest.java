@@ -318,7 +318,7 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json.get("entries").get(1))).containsExactlyInAnyOrder(
                 "kind", "number", "title", "url", "status", "workItemId", "message", "setting", "repository", "githubType",
                 "labels", "assignees", "workItemType", "workItemTypeName", "workItemStatus", "workItemAssignees",
-                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon", "hidden", "failedChecks", "createdAt", "updatedAt");
+                "shortName", "labelColors", "workItemTypeIcon", "workItemStatusIcon", "hidden", "failedChecks", "createdAt", "updatedAt", "ghsaId");
         assertThat(json.get("entries").get(1).get("status").asText()).isEqualTo("SKIPPED");
         assertThat(json.get("entries").get(0).get("kind").asText()).isEqualTo("ISSUE");
     }

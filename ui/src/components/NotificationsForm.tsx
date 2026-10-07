@@ -10,10 +10,11 @@ interface NotificationsFormProps {
 /** Who hears of new items of the repository, and of which kinds. The watch job of the scheduler sends the mails. */
 export default function NotificationsForm({ value, onChange, users }: Readonly<NotificationsFormProps>) {
   const set = (change: Partial<NotificationSettings>) => onChange({ ...value, ...change });
-  const kinds: { key: 'issues' | 'discussions' | 'pullRequests'; label: string }[] = [
+  const kinds: { key: 'issues' | 'discussions' | 'pullRequests' | 'advisories'; label: string }[] = [
     { key: 'issues', label: 'New issues' },
     { key: 'discussions', label: 'New discussions' },
     { key: 'pullRequests', label: 'Pull requests with failed checks' },
+    { key: 'advisories', label: 'Security advisories' },
   ];
 
   return (

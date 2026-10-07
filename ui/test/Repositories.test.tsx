@@ -140,8 +140,21 @@ describe('Repositories page', () => {
         rules: [],
       },
       pullRequestAuthors: 'renovate[bot]',
+      // A setting saved before advisories existed gets their block off, named by GHSA ID and severity.
+      advisories: {
+        enabled: false,
+        workItemType: null,
+        titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ GHSA }} ({{ SEVERITY }})',
+        descriptionTemplate: '<a href="{{ URL }}">{{ URL }}</a>',
+        duplicateKey: 'HYPERLINK',
+        duplicateKeyField: null,
+        epicId: null,
+        epicLinkRole: null,
+        fields: {},
+        rules: [],
+      },
       // A setting saved before notifications existed mails nobody.
-      notifications: { users: [], issues: false, discussions: false, pullRequests: false },
+      notifications: { users: [], issues: false, discussions: false, pullRequests: false, advisories: false },
     });
   });
 
@@ -157,10 +170,17 @@ describe('Repositories page', () => {
     expect(document.querySelector('.sd-trigger-multi')!.textContent).toContain('Bob Builder (bob)');
 
     await userEvent.click(input('notify-pullRequests'));
+    await userEvent.click(input('notify-advisories'));
     button('Save').click();
 
     await vi.waitFor(() => expect(toastText()).toContain('successfully saved'));
-    expect(savedBody().notifications).toEqual({ users: ['bob'], issues: true, discussions: false, pullRequests: true });
+    expect(savedBody().notifications).toEqual({
+      users: ['bob'],
+      issues: true,
+      discussions: false,
+      pullRequests: true,
+      advisories: true,
+    });
     expect(String(fetchMock.mock.calls.find((c) => /\/users$/.test(String(c[0])))![0])).toBe(
       '/polarion/github/rest/internal/users',
     );

@@ -16,6 +16,8 @@ import java.util.Objects;
 public class RepositorySettings extends GenericNamedSettings<RepositorySettingsModel> {
 
     public static final String FEATURE_NAME = "repositories";
+    // Under embargo an advisory is secret: by default the work item names it, and the link leads to it.
+    public static final String ADVISORY_TITLE_TEMPLATE = "[GitHub] {{ SHORT_NAME }} : {{ GHSA }} ({{ SEVERITY }})";
     public static final String PULL_REQUEST_TITLE_TEMPLATE = "[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}";
 
     public RepositorySettings() {
@@ -61,6 +63,7 @@ public class RepositorySettings extends GenericNamedSettings<RepositorySettingsM
                 .discussions(new ItemSettings())
                 .pullRequests(ItemSettings.builder().titleTemplate(PULL_REQUEST_TITLE_TEMPLATE).build())
                 .pullRequestAuthors(RepositorySettingsModel.DEFAULT_PULL_REQUEST_AUTHORS)
+                .advisories(ItemSettings.builder().titleTemplate(ADVISORY_TITLE_TEMPLATE).build())
                 .build();
     }
 }

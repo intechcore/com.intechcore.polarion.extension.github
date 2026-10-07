@@ -303,6 +303,38 @@ class GithubClientTest {
     }
 
     @Test
+    void readsTheAdvisoriesStillOpenAndPublished() {
+        answer("/repos/acme/tool/security-advisories", 200, Map.of(), """
+                [{"ghsa_id": "GHSA-aaaa-bbbb-cccc", "state": "draft", "severity": "medium", "summary": "Fetches any URL",
+                  "description": "Details", "html_url": "https://github.com/acme/tool/security/advisories/GHSA-aaaa-bbbb-cccc",
+                  "created_at": "2026-10-07T20:02:52Z", "author": {"login": "alice"}, "cvss": {"score": 6.5, "vector_string": "CVSS"},
+                  "cwe_ids": ["CWE-400", "CWE-918"]},
+                 {"ghsa_id": "GHSA-dddd", "state": "published", "cvss": {"score": null}, "cwe_ids": null},
+                 {"ghsa_id": "GHSA-eeee", "state": "triage", "cvss": "unexpected"},
+                 {"ghsa_id": "GHSA-ffff", "state": "closed"},
+                 {"ghsa_id": "GHSA-gggg", "state": "withdrawn"},
+                 {"ghsa_id": "GHSA-hhhh"}]""");
+
+        List<GithubAdvisory> advisories = client.getSecurityAdvisories("acme", "tool");
+
+        assertThat(advisories).extracting(GithubAdvisory::ghsaId).containsExactly("GHSA-aaaa-bbbb-cccc", "GHSA-dddd", "GHSA-eeee");
+        GithubAdvisory draft = advisories.get(0);
+        assertThat(draft.cvssScore()).isEqualTo("6.5");
+        assertThat(draft.cwes()).isEqualTo("CWE-400, CWE-918");
+        assertThat(advisories.get(1).cvssScore()).isNull();
+        assertThat(advisories.get(1).cwes()).isEmpty();
+        assertThat(advisories.get(2).cvssScore()).isNull();
+        GithubItem item = draft.toItem();
+        assertThat(item.title()).isEqualTo("Fetches any URL");
+        assertThat(item.body()).isEqualTo("Details");
+        assertThat(item.htmlUrl()).endsWith("/GHSA-aaaa-bbbb-cccc");
+        assertThat(item.user().login()).isEqualTo("alice");
+        // The list serves from the cache, as every list does.
+        client.getSecurityAdvisories("acme", "tool");
+        assertThat(requests).hasSize(1);
+    }
+
+    @Test
     void followsTheNextLinkUntilTheLastPage() {
         server.createContext("/repos/acme/tool/issues", exchange -> {
             String uri = exchange.getRequestURI().toString();

@@ -79,6 +79,9 @@ public class ImportEntry {
     @Schema(description = "The names of the users the work item is assigned to")
     private List<String> workItemAssignees;
 
+    @Schema(description = "The GHSA ID of a security advisory, which has no number")
+    private String ghsaId;
+
     @Schema(description = "When the item was opened on GitHub, ISO-8601")
     private String createdAt;
 

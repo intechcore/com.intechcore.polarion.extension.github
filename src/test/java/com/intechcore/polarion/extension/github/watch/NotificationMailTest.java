@@ -35,4 +35,15 @@ class NotificationMailTest {
         assertThat(new NotificationMail("elibrary", "Tool", null).html(List.of(ISSUE))).doesNotContain("Open the GitHub page");
         assertThat(NotificationMail.escape(null)).isEmpty();
     }
+
+    /** Under embargo an advisory is secret: the mail names it and its severity, never its summary. */
+    @Test
+    void namesAnAdvisoryWithoutItsSummary() {
+        ImportEntry advisory = ImportEntry.builder().kind(ItemKind.ADVISORY).ghsaId("GHSA-aaaa").githubType("medium")
+                .title("Fetches any URL").url("https://github.com/acme/tool/security/advisories/GHSA-aaaa").build();
+
+        assertThat(new NotificationMail("elibrary", "Tool", null).html(List.of(advisory)))
+                .contains("<li>Security advisory <a href=\"https://github.com/acme/tool/security/advisories/GHSA-aaaa\">GHSA-aaaa</a> (medium)</li>")
+                .doesNotContain("Fetches any URL");
+    }
 }

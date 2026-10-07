@@ -22,7 +22,8 @@ import java.util.Map;
 public class ItemsTableHtml {
 
     private static final Map<ItemKind, String> KIND_LABELS = Map.of(
-            ItemKind.ISSUE, "Issue", ItemKind.DISCUSSION, "Discussion", ItemKind.PULL_REQUEST, "Pull request");
+            ItemKind.ISSUE, "Issue", ItemKind.DISCUSSION, "Discussion", ItemKind.PULL_REQUEST, "Pull request",
+            ItemKind.ADVISORY, "Security advisory");
 
     private static final Map<ImportStatus, String> STATUS_LABELS = Map.of(
             ImportStatus.NEW, "New",
@@ -114,7 +115,8 @@ public class ItemsTableHtml {
     }
 
     private static String item(ImportEntry entry) {
-        String number = "#" + entry.getNumber();
+        // An advisory has no number: its GHSA ID names it.
+        String number = entry.getGhsaId() != null ? entry.getGhsaId() : "#" + entry.getNumber();
         String link = isGithubUrl(entry.getUrl()) ? "<a href=\"" + escape(entry.getUrl()) + "\">" + number + "</a>" : number;
         String checks = entry.getFailedChecks() == null ? ""
                 : "<br/><span style=\"color:#b42318;font-size:85%;\">Failed checks: " + escape(entry.getFailedChecks()) + "</span>";

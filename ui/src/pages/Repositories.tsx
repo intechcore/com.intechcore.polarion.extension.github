@@ -40,7 +40,18 @@ const EMPTY_ITEM: ItemForm = {
 };
 
 const DEFAULT_AUTHORS = 'renovate[bot]';
-const NO_NOTIFICATIONS: NotificationSettings = { users: [], issues: false, discussions: false, pullRequests: false };
+const NO_NOTIFICATIONS: NotificationSettings = {
+  users: [],
+  issues: false,
+  discussions: false,
+  pullRequests: false,
+  advisories: false,
+};
+// Under embargo an advisory is secret: by default the work item names it, and the link leads to it.
+const EMPTY_ADVISORIES: ItemForm = {
+  ...EMPTY_ITEM,
+  titleTemplate: '[GitHub] {{ SHORT_NAME }} : {{ GHSA }} ({{ SEVERITY }})',
+};
 const EMPTY_PULL_REQUESTS: ItemForm = {
   ...EMPTY_ITEM,
   titleTemplate: '[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}',
@@ -119,6 +130,7 @@ export default function Repositories() {
   const [discussions, setDiscussions] = useState<ItemForm>(EMPTY_ITEM);
   const [pullRequests, setPullRequests] = useState<ItemForm>(EMPTY_PULL_REQUESTS);
   const [authors, setAuthors] = useState(DEFAULT_AUTHORS);
+  const [advisories, setAdvisories] = useState<ItemForm>(EMPTY_ADVISORIES);
   const [notifications, setNotifications] = useState<NotificationSettings>(NO_NOTIFICATIONS);
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -153,6 +165,7 @@ export default function Repositories() {
     setDiscussions(toForm(model.discussions));
     setPullRequests(model.pullRequests ? toForm(model.pullRequests) : EMPTY_PULL_REQUESTS);
     setAuthors(model.pullRequestAuthors ?? DEFAULT_AUTHORS);
+    setAdvisories(model.advisories ? toForm(model.advisories) : EMPTY_ADVISORIES);
     setNotifications({ ...NO_NOTIFICATIONS, ...model.notifications, users: model.notifications?.users ?? [] });
   }, []);
 
@@ -188,6 +201,7 @@ export default function Repositories() {
         discussions: toSettings(discussions),
         pullRequests: toSettings(pullRequests),
         pullRequestAuthors: authors.trim(),
+        advisories: toSettings(advisories),
         notifications,
       });
       await paneRef.current?.reloadNames(name);
@@ -320,6 +334,25 @@ export default function Repositories() {
             loadFields={loadFields}
           />
 
+          <h2>Security advisories</h2>
+          <p className="block-hint">
+            Lists the security advisories of the repository in triage, drafted or published. GitHub shows those in
+            triage and the drafts only to a GitHub token of an administrator or security manager of the repository, with
+            the permission to read its advisories.{' '}
+            <strong>
+              Until it is published an advisory is under embargo: everyone who reads the project sees what the templates
+              put into the work item.
+            </strong>
+          </p>
+          <ItemSettingsForm
+            kind="security advisories"
+            value={advisories}
+            onChange={setAdvisories}
+            workItemTypes={workItemTypes}
+            linkRoles={linkRoles}
+            loadFields={loadFields}
+          />
+
           <h2>Notifications</h2>
           <p className="block-hint">
             The job <code>github_watch.job</code> of the Polarion scheduler mails the recipients the items that are new
@@ -352,10 +385,11 @@ export default function Repositories() {
               <code>{'{{ REPOSITORY }}'}</code>, <code>{'{{ NUMBER }}'}</code>, <code>{'{{ TITLE }}'}</code>,{' '}
               <code>{'{{ AUTHOR }}'}</code>, <code>{'{{ URL }}'}</code>, <code>{'{{ LABELS }}'}</code>,{' '}
               <code>{'{{ TYPE }}'}</code>, <code>{'{{ CATEGORY }}'}</code>, <code>{'{{ CHECKS }}'}</code> (the failed
-              checks of a pull request). The description also takes <code>{'{{ BODY }}'}</code>. The description is
-              HTML. <code>{'{{ BODY }}'}</code> is the rich text GitHub shows for the Markdown of the item, so place it
-              outside a paragraph. Every other value is escaped. A name ignores case, underscores and the spaces inside
-              the braces.
+              checks of a pull request), <code>{'{{ GHSA }}'}</code>, <code>{'{{ SEVERITY }}'}</code>,{' '}
+              <code>{'{{ CVSS }}'}</code>, <code>{'{{ CWE }}'}</code> (of a security advisory). The description also
+              takes <code>{'{{ BODY }}'}</code>. The description is HTML. <code>{'{{ BODY }}'}</code> is the rich text
+              GitHub shows for the Markdown of the item, so place it outside a paragraph. Every other value is escaped.
+              A name ignores case, underscores and the spaces inside the braces.
             </p>
             <h3>Rules</h3>
             <p>

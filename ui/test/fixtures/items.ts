@@ -154,6 +154,18 @@ export const FAILED_PULL_REQUEST: ImportEntry = {
   failedChecks: 'build, e2e',
 };
 
+/** A drafted security advisory: no number, its GHSA ID names it, its severity is its GitHub type. */
+export const ADVISORY: ImportEntry = {
+  ...base,
+  kind: 'ADVISORY',
+  number: 0,
+  ghsaId: 'GHSA-r7fg-v8g5-j6jr',
+  title: 'Table measurement fetches image URLs',
+  url: 'https://github.com/acme/tool/security/advisories/GHSA-r7fg-v8g5-j6jr',
+  status: 'NEW',
+  githubType: 'medium',
+};
+
 export const ITEMS = {
   repositories: [
     { setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T08:00:00Z', error: null },

@@ -34,8 +34,11 @@ public class NotificationSettings {
     @Schema(description = "Mail pull requests of the watched authors whose checks failed")
     private boolean pullRequests;
 
+    @Schema(description = "Mail new security advisories, by their GHSA ID and severity only")
+    private boolean advisories;
+
     /** Whether any kind is turned on. */
     public boolean isEnabled() {
-        return issues || discussions || pullRequests;
+        return issues || discussions || pullRequests || advisories;
     }
 }
