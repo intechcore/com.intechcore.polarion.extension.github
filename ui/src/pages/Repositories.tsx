@@ -12,8 +12,16 @@ import { toast } from 'sonner';
 import ErrorNotice from '../components/ErrorNotice';
 import type { FieldRow } from '../components/FieldValues';
 import ItemSettingsForm, { type ItemForm } from '../components/ItemSettingsForm';
+import NotificationsForm from '../components/NotificationsForm';
 import useSettings from '../services/settings';
-import type { ItemSettings, ProjectField, ProjectOption, RepositorySettings, Revision } from '../types';
+import type {
+  ItemSettings,
+  NotificationSettings,
+  ProjectField,
+  ProjectOption,
+  RepositorySettings,
+  Revision,
+} from '../types';
 
 const DEFAULT_TITLE = '[GitHub] {{ SHORT_NAME }} : {{ TITLE }}';
 const DEFAULT_DESCRIPTION = '<a href="{{ URL }}">{{ URL }}</a>';
@@ -32,6 +40,7 @@ const EMPTY_ITEM: ItemForm = {
 };
 
 const DEFAULT_AUTHORS = 'renovate[bot]';
+const NO_NOTIFICATIONS: NotificationSettings = { users: [], issues: false, discussions: false, pullRequests: false };
 const EMPTY_PULL_REQUESTS: ItemForm = {
   ...EMPTY_ITEM,
   titleTemplate: '[GitHub] {{ SHORT_NAME }} : Fix the failed checks of {{ TITLE }}',
@@ -101,6 +110,7 @@ export default function Repositories() {
 
   const [workItemTypes, setWorkItemTypes] = useState<ProjectOption[]>([]);
   const [linkRoles, setLinkRoles] = useState<ProjectOption[]>([]);
+  const [users, setUsers] = useState<ProjectOption[]>([]);
   const [loadingError, setLoadingError] = useState('');
 
   const [repository, setRepository] = useState('');
@@ -109,6 +119,7 @@ export default function Repositories() {
   const [discussions, setDiscussions] = useState<ItemForm>(EMPTY_ITEM);
   const [pullRequests, setPullRequests] = useState<ItemForm>(EMPTY_PULL_REQUESTS);
   const [authors, setAuthors] = useState(DEFAULT_AUTHORS);
+  const [notifications, setNotifications] = useState<NotificationSettings>(NO_NOTIFICATIONS);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -120,11 +131,12 @@ export default function Repositories() {
       return;
     }
     let cancelled = false;
-    Promise.all([settings.loadWorkItemTypes(projectId), settings.loadLinkRoles(projectId)])
-      .then(([types, roles]) => {
+    Promise.all([settings.loadWorkItemTypes(projectId), settings.loadLinkRoles(projectId), settings.loadUsers()])
+      .then(([types, roles, polarionUsers]) => {
         if (cancelled) return;
         setWorkItemTypes(types);
         setLinkRoles(roles);
+        setUsers(polarionUsers);
       })
       .catch((e: Error) => {
         if (!cancelled) setLoadingError(e.message);
@@ -141,6 +153,7 @@ export default function Repositories() {
     setDiscussions(toForm(model.discussions));
     setPullRequests(model.pullRequests ? toForm(model.pullRequests) : EMPTY_PULL_REQUESTS);
     setAuthors(model.pullRequestAuthors ?? DEFAULT_AUTHORS);
+    setNotifications({ ...NO_NOTIFICATIONS, ...model.notifications, users: model.notifications?.users ?? [] });
   }, []);
 
   const handleSelectedChange = useCallback((name: string | null) => {
@@ -175,6 +188,7 @@ export default function Repositories() {
         discussions: toSettings(discussions),
         pullRequests: toSettings(pullRequests),
         pullRequestAuthors: authors.trim(),
+        notifications,
       });
       await paneRef.current?.reloadNames(name);
       setRevisionsToken((token) => token + 1);
@@ -305,6 +319,14 @@ export default function Repositories() {
             linkRoles={linkRoles}
             loadFields={loadFields}
           />
+
+          <h2>Notifications</h2>
+          <p className="block-hint">
+            The job <code>github_watch.job</code> of the Polarion scheduler mails the recipients the items that are new
+            since its last check, every 15 minutes by default. New issues and discussions are the ones without a work
+            item.
+          </p>
+          <NotificationsForm value={notifications} onChange={setNotifications} users={users} />
 
           <ConfigurationButtons
             onSave={() => void handleSave(selected)}

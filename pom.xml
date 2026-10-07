@@ -54,8 +54,9 @@
         <maven-jar-plugin.Discover-Base-Package>com.intechcore.polarion.extension.github</maven-jar-plugin.Discover-Base-Package>
         <maven-jar-plugin.Configuration-Properties-Prefix>com.intechcore.polarion.extension.github</maven-jar-plugin.Configuration-Properties-Prefix>
 
-        <!-- Polarion ships jsoup. The import cleans the HTML of a GitHub item with it. -->
-        <maven-jar-plugin.Require-Bundle.extension>org.jsoup</maven-jar-plugin.Require-Bundle.extension>
+        <!-- Polarion ships these bundles: jsoup cleans the HTML of a GitHub item, the jobs bundle runs the
+             watch job, and jakarta.mail sends its notifications. -->
+        <maven-jar-plugin.Require-Bundle.extension>org.jsoup,com.polarion.platform.jobs,jakarta.mail</maven-jar-plugin.Require-Bundle.extension>
         <maven-jar-plugin.Require-Bundle>${maven-jar-plugin.Require-Bundle.common},${maven-jar-plugin.Require-Bundle.extension}</maven-jar-plugin.Require-Bundle>
 
         <!-- The Playwright end-to-end layer. It is this extension's own addition on top of the
@@ -71,6 +72,13 @@
         <dependency>
             <groupId>com.polarion.thirdparty</groupId>
             <artifactId>org.jsoup_1.21.2</artifactId>
+            <version>${polarion.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.polarion.thirdparty</groupId>
+            <artifactId>jakarta.mail_2.0.5</artifactId>
             <version>${polarion.version}</version>
             <scope>provided</scope>
         </dependency>

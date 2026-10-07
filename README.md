@@ -227,6 +227,45 @@ serves every page and user from it. The page shows when the lists were read.
   the last minute stays, so a second click costs nothing. One repository costs one request per 100 open issues and one per 100
 discussions.
 
+## Notifications
+
+The job `github_watch.job` mails the items that are new since its last check, every 15 minutes by
+default. Each repository setting names its recipients and the kinds they hear of.
+
+1. In the repository setting, under `Notifications`, turn on the kinds: `New issues`, `New
+   discussions`, `Pull requests with failed checks`.
+2. Select the recipients: Polarion users. The mail goes to the address of their user profile.
+3. Add the job in the global `Administration` ➙ `Scheduler`:
+   ```xml
+   <job id="github_watch.job" name="GitHub notifications" cronExpression="0 0/15 * * * ?" scope="system">
+       <intervalMinutes>15</intervalMinutes>
+   </job>
+   ```
+   Keep `intervalMinutes` equal to the period of the cron expression. After a start of Polarion the
+   first check takes the items of that window as new.
+
+New issues and discussions are open and have no work item. A pull request counts while its checks
+fail, as on the GitHub page. A hidden item and an item a rule leaves out send no mail. One mail per
+repository and check lists the new items, with links to GitHub and to the GitHub page of the project.
+
+The job only reads: GitHub, the settings and the work items. It writes nothing into Polarion, so the
+system user that runs it needs no write access. It remembers what it saw in memory only.
+
+### Mail server
+
+The mails go through the SMTP server of Polarion's own notifications: the properties
+`announcer.smtp.host`, `announcer.smtp.port`, `announcer.smtp.auth`, `announcer.smtp.user`,
+`announcer.smtp.password` and the other `announcer.smtp.*` in `polarion.properties`. The sender is the
+property `com.intechcore.polarion.extension.github.mail.from`, or `announcer.smtp.user` when it is an
+address. The link to the GitHub page needs `base.url`.
+
+### GitHub requests
+
+Every check reads the lists of every repository with notifications: issues and discussions, and the
+pull requests with their checks when that kind is on. Four checks an hour for five repositories
+already reach the 60 requests per hour GitHub allows without a token. With more repositories, use a
+[GitHub token](#github-token), or a longer interval.
+
 ## Live Report widget
 
 The widget **GitHub Items** (category *Reports*) shows the table of the topic `GitHub` in a Live

@@ -140,7 +140,30 @@ describe('Repositories page', () => {
         rules: [],
       },
       pullRequestAuthors: 'renovate[bot]',
+      // A setting saved before notifications existed mails nobody.
+      notifications: { users: [], issues: false, discussions: false, pullRequests: false },
     });
+  });
+
+  it('mails the chosen users about the kinds turned on', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/content/,
+        json: { ...CONTENT, notifications: { users: ['bob'], issues: true, discussions: false, pullRequests: false } },
+      },
+    ]);
+    await vi.waitFor(() => expect(input('notify-issues').checked).toBe(true));
+    expect(document.querySelector('.sd-trigger-multi')!.textContent).toContain('Bob Builder (bob)');
+
+    await userEvent.click(input('notify-pullRequests'));
+    button('Save').click();
+
+    await vi.waitFor(() => expect(toastText()).toContain('successfully saved'));
+    expect(savedBody().notifications).toEqual({ users: ['bob'], issues: true, discussions: false, pullRequests: true });
+    expect(String(fetchMock.mock.calls.find((c) => /\/users$/.test(String(c[0])))![0])).toBe(
+      '/polarion/github/rest/internal/users',
+    );
   });
 
   it('watches the failed pull requests of the authors given', async () => {

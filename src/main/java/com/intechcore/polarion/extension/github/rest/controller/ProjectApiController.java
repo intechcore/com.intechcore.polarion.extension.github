@@ -28,6 +28,11 @@ public class ProjectApiController extends ProjectInternalController {
     }
 
     @Override
+    public List<ProjectOption> getUsers() {
+        return polarionService.callPrivileged(super::getUsers);
+    }
+
+    @Override
     public List<ProjectOption> getLinkRoles(String projectId) {
         return polarionService.callPrivileged(() -> super.getLinkRoles(projectId));
     }

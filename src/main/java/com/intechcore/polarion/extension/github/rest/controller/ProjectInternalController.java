@@ -5,6 +5,7 @@ import ch.sbb.polarion.extension.generic.fields.model.FieldMetadata;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ProjectField;
 import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
+import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.IWorkItem;
 import com.polarion.subterra.base.data.identification.IContextId;
@@ -18,6 +19,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +57,21 @@ public class ProjectInternalController {
         return polarionService.getTrackerProject(projectId).getWorkItemTypeEnum().getAllOptions().stream()
                 .map(option -> new ProjectOption(option.getId(), option.getName()))
                 .toList();
+    }
+
+    @Operation(summary = "Returns the enabled Polarion users, the possible recipients of notifications")
+    @GET
+    @Path("/users")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ProjectOption> getUsers() {
+        List<ProjectOption> users = new ArrayList<>();
+        for (IUser user : polarionService.getProjectService().getUsers()) {
+            if (!user.isDisabled()) {
+                users.add(new ProjectOption(user.getId(), user.getName() == null ? user.getId() : user.getName()));
+            }
+        }
+        users.sort(Comparator.comparing(ProjectOption::name, String.CASE_INSENSITIVE_ORDER));
+        return users;
     }
 
     @Operation(summary = "Returns the work item link roles of a project")

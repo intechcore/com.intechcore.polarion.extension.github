@@ -24,6 +24,28 @@ public class GithubExtensionConfiguration extends ExtensionConfiguration {
             + " Empty: GitHub is read without a token, 60 requests per hour for the server.";
     public static final String TOKEN_SECRET_DEFAULT_VALUE = "";
 
+    public static final String MAIL_FROM = "mail.from";
+    public static final String MAIL_FROM_DESCRIPTION = "The sender of the notification mails of the watch job."
+            + " Empty: announcer.smtp.user, when it is an address.";
+    public static final String MAIL_FROM_DEFAULT_VALUE = "";
+
+    @PropertyMapping(MAIL_FROM)
+    public String getMailFrom() {
+        return SystemValueReader.getInstance().readString(getPropertyPrefix() + MAIL_FROM, MAIL_FROM_DEFAULT_VALUE);
+    }
+
+    @SuppressWarnings("unused")
+    @PropertyMappingDescription(MAIL_FROM)
+    public String getMailFromDescription() {
+        return MAIL_FROM_DESCRIPTION;
+    }
+
+    @SuppressWarnings("unused")
+    @PropertyMappingDefaultValue(MAIL_FROM)
+    public String getMailFromDefaultValue() {
+        return MAIL_FROM_DEFAULT_VALUE;
+    }
+
     @PropertyMapping(TOKEN_SECRET)
     public String getTokenSecret() {
         return SystemValueReader.getInstance().readString(getPropertyPrefix() + TOKEN_SECRET, TOKEN_SECRET_DEFAULT_VALUE);
@@ -45,6 +67,7 @@ public class GithubExtensionConfiguration extends ExtensionConfiguration {
     public @NotNull List<String> getSupportedProperties() {
         List<String> supportedProperties = new ArrayList<>(super.getSupportedProperties());
         supportedProperties.add(TOKEN_SECRET);
+        supportedProperties.add(MAIL_FROM);
         return supportedProperties;
     }
 

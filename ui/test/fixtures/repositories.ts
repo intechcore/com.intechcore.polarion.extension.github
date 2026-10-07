@@ -54,6 +54,11 @@ export const FIELDS = [
   { id: 'priority', name: 'priority', custom: false, urlKey: false },
 ];
 
+export const USERS = [
+  { id: 'alice', name: 'Alice Admin' },
+  { id: 'bob', name: 'Bob Builder' },
+];
+
 export const REVISIONS = [
   { name: '120', date: '2026-10-02 14:25', author: 'admin', baseline: '', description: 'Saved' },
   { name: '110', date: '2026-10-01 09:00', author: 'admin', baseline: '', description: 'Created' },
@@ -73,6 +78,7 @@ export function repositoriesRoutes(overrides: Route[] = []): Route[] {
       respond: () => new Response(null, { status: 204 }),
     },
     { method: 'GET', match: /\/projects\/[^/]+\/workitem-types\/[^/]+\/fields/, json: FIELDS },
+    { method: 'GET', match: /\/internal\/users$/, json: USERS },
     { method: 'GET', match: /\/projects\/[^/]+\/workitem-types$/, json: WORKITEM_TYPES },
     { method: 'GET', match: /\/projects\/[^/]+\/link-roles$/, json: LINK_ROLES },
   ];

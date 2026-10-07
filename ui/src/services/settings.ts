@@ -125,6 +125,13 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** The enabled Polarion users, the possible recipients of notifications. */
+  const loadUsers = useCallback(
+    (): Promise<ProjectOption[]> =>
+      sendRequest({ method: 'GET', url: '/users' }).then((r) => jsonOrThrow<ProjectOption[]>(r)),
+    [sendRequest],
+  );
+
   const loadLinkRoles = useCallback(
     (projectId: string): Promise<ProjectOption[]> =>
       sendRequest({ method: 'GET', url: projectPath(projectId, '/link-roles') }).then((r) =>
@@ -200,6 +207,7 @@ export default function useSettings() {
       deleteConfiguration,
       loadRevisions,
       loadWorkItemTypes,
+      loadUsers,
       loadLinkRoles,
       loadFields,
       runImport,
@@ -216,6 +224,7 @@ export default function useSettings() {
       deleteConfiguration,
       loadRevisions,
       loadWorkItemTypes,
+      loadUsers,
       loadLinkRoles,
       loadFields,
       runImport,
