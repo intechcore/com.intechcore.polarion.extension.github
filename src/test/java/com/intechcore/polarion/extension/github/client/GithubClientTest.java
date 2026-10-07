@@ -238,6 +238,70 @@ class GithubClientTest {
                 .hasMessageContaining("unreadable");
     }
 
+    private final List<String> authorizations = new ArrayList<>();
+
+    private void answerWithHeaders(String path, int status, Map<String, String> headers, String body) {
+        server.createContext(path, exchange -> {
+            requests.add(exchange.getRequestURI().toString());
+            authorizations.add(String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+            respond(exchange, status, headers, body);
+        });
+    }
+
+    private GithubClient withToken(String token) {
+        return new GithubClient(baseUrl, java.time.Clock.systemUTC(), () -> token);
+    }
+
+    @Test
+    void sendsTheTokenAndNoneWithoutOne() {
+        answerWithHeaders("/repos/acme/tool/issues", 200, Map.of(), "[]");
+        answerWithHeaders("/repos/acme/other/issues", 200, Map.of(), "[]");
+
+        withToken("ghp_secret").getOpenIssues("acme", "tool");
+        client.getOpenIssues("acme", "other");
+
+        assertThat(authorizations).containsExactly("Bearer ghp_secret", "null");
+    }
+
+    /** A renamed repository answers with a redirect on the API host, which keeps the token. */
+    @Test
+    void followsARedirectOnTheApiHostWithTheToken() {
+        answerWithHeaders("/repos/acme/old/issues", 301, Map.of("Location", baseUrl + "/repositories/42/issues?state=open&per_page=100"), "");
+        answerWithHeaders("/repositories/42/issues", 200, Map.of(), "[{\"number\": 1, \"state\": \"open\"}]");
+
+        assertThat(withToken("ghp_secret").getOpenIssues("acme", "old")).hasSize(1);
+        assertThat(authorizations).containsExactly("Bearer ghp_secret", "Bearer ghp_secret");
+    }
+
+    @Test
+    void refusesARedirectAwayFromTheApiHost() {
+        answerWithHeaders("/repos/acme/tool/issues", 302, Map.of("Location", "https://example.invalid/steal"), "");
+
+        assertThatThrownBy(() -> withToken("ghp_secret").getOpenIssues("acme", "tool"))
+                .isInstanceOf(GithubClientException.class).hasMessageContaining("redirected");
+        assertThat(requests).hasSize(1);
+    }
+
+    @Test
+    void saysThatGithubRefusedTheToken() {
+        answerWithHeaders("/repos/acme/tool/issues", 401, Map.of(), "{\"message\": \"Bad credentials\"}");
+
+        assertThatThrownBy(() -> withToken("ghp_wrong").getOpenIssues("acme", "tool"))
+                .isInstanceOf(GithubClientException.class).hasMessageContaining("refused the token")
+                .hasMessageNotContaining("ghp_wrong");
+    }
+
+    /** Without a token the rate limit names the way out; with one it does not. */
+    @Test
+    void namesTheTokenWhenTheAnonymousLimitIsUsedUp() {
+        answerWithHeaders("/repos/acme/tool/issues", 403, Map.of("x-ratelimit-remaining", "0"), "{}");
+
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool"))
+                .isInstanceOf(GithubRateLimitException.class).hasMessageContaining("token.secret");
+        assertThatThrownBy(() -> withToken("ghp_secret").getOpenIssues("acme", "tool"))
+                .isInstanceOf(GithubRateLimitException.class).hasMessageNotContaining("token.secret");
+    }
+
     @Test
     void followsTheNextLinkUntilTheLastPage() {
         server.createContext("/repos/acme/tool/issues", exchange -> {

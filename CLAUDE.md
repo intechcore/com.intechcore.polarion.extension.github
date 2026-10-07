@@ -71,8 +71,10 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 - `rest/GithubRestApplication` - the REST application. It registers the repository settings, the import
   controllers and the GitHub error mapper.
 - `client/GithubClient` - reads the open issues, discussions and pull requests of a public repository
-  and the check runs of a commit from the GitHub REST API, without a token. Anonymous access allows
-  60 requests per hour. The search API's `status:failure` sees only commit statuses, not check runs,
+  and the check runs of a commit from the GitHub REST API. Anonymous access allows 60 requests per
+  hour. `client/GithubToken` reads an optional token from the Polarion secret that
+  `properties/GithubExtensionConfiguration` names (`token.secret`); it raises the limit to 5000. The
+  client follows redirects only on the API host, so the token goes nowhere else. The search API's `status:failure` sees only commit statuses, not check runs,
   so the failed checks of a pull request cost one request each.
 - `settings/RepositorySettings` - named settings under the feature `repositories`, one setting per
   repository, in the scope of a project only. `RepositorySettingsModel.validate()` runs before

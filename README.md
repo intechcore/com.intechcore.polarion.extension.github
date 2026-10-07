@@ -82,6 +82,47 @@ type matches nothing.
 
 A work item is not created again when its issue gets another label later.
 
+## GitHub token
+
+A token is optional. Without one the extension reads public repositories anonymously, and GitHub
+allows 60 requests per hour for the whole Polarion server. One repository costs at least one request
+per list it reads: issues, discussions, pull requests, and the checks of each watched pull request.
+A project with several repositories uses up the hour quickly. A token raises the limit to 5000
+requests per hour.
+
+### Minimal requirements
+
+| Repositories | Token | Permissions |
+|---|---|---|
+| Public only | Fine-grained personal access token, `Repository access`: `Public repositories` | None |
+| Public only | Classic personal access token | No scope |
+| Private | Fine-grained personal access token, `Repository access`: `Only select repositories` | Repository permissions, read-only: `Issues`; `Discussions` for discussions; `Pull requests` and `Checks` for pull requests. `Metadata` is added by GitHub. |
+
+- The extension only reads. It needs no write permission, and no permission on an organization or an account.
+- The limit of 5000 requests belongs to the user of the token, across all their tools. A token of
+  a dedicated machine user keeps the extension apart.
+- An organization may require approval of fine-grained tokens for its private repositories.
+- A token expires as set on GitHub. Renew it before then: an expired token fails every request.
+- A GitHub App is not supported: its installation tokens expire after one hour.
+
+### Configure the token
+
+1. Create the token on GitHub (`Settings` ➙ `Developer settings` ➙ `Personal access tokens`).
+2. Store it as a secret in the secrets manager of the Polarion installation, for example under the name `github-token`.
+3. Name that secret in `polarion.properties`:
+   ```properties
+   com.intechcore.polarion.extension.github.token.secret=github-token
+   ```
+4. Restart Polarion. The About page lists the property `token.secret`.
+
+The properties file and the About page carry the name of the secret, never the token. The server
+reads the secret for each request, so a renewed token works without a restart. The token goes only to
+`api.github.com`: the extension follows no redirect to another host.
+
+A secret that is missing or empty, and a token GitHub refuses (wrong, expired or revoked), show
+their reason above the list of the GitHub page, per repository. Without the property nothing
+changes: the extension stays anonymous.
+
 ## Build
 
 This extension can be produced using Maven:
@@ -177,9 +218,9 @@ A work item that a rule would leave out today stays as it is.
 
 A repository that cannot be read shows its reason above the list, and the others stay readable.
 
-GitHub allows 60 requests per hour without a token, for the whole Polarion server. The server keeps a
-list it read from GitHub for 5 minutes and serves every page and user from it. The page shows when
-the lists were read.
+GitHub allows 60 requests per hour without a token, for the whole Polarion server, and 5000 with one,
+see [GitHub token](#github-token). The server keeps a list it read from GitHub for 5 minutes and
+serves every page and user from it. The page shows when the lists were read.
 
 - `Refresh` reads the list again: the GitHub items from that cache, the work items from Polarion.
 - `Update from GitHub` reads GitHub again, for every repository of the project. A list read within
