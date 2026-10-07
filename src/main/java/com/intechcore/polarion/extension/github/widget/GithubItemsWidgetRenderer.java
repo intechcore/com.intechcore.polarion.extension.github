@@ -8,6 +8,11 @@ import com.polarion.alm.shared.api.model.rp.parameter.EnumParameter;
 import com.polarion.alm.shared.api.model.rp.widget.RichPageWidgetCommonContext;
 import com.polarion.alm.shared.api.utils.html.HtmlFragmentBuilder;
 import com.polarion.alm.shared.api.utils.html.HtmlTagBuilder;
+import com.polarion.alm.shared.api.utils.html.RichTextRenderTarget;
+import com.intechcore.polarion.extension.github.service.ImportService;
+import com.intechcore.polarion.extension.github.service.ProjectItemsReader;
+import com.intechcore.polarion.extension.github.settings.HiddenItems;
+import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,6 +21,8 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.UUID;
 
 /**
@@ -41,9 +48,21 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     private final List<String> columns;
     private final boolean hideFilters;
     private final boolean allowCreate;
+    private final boolean printed;
+    private final Supplier<ProjectItemsReader> reader;
+
+    // The targets that turn the page into a document. A PDF export or a print shows no iframe.
+    private static final Set<RichTextRenderTarget> DOCUMENT_TARGETS = Set.of(RichTextRenderTarget.PDF_EXPORT,
+            RichTextRenderTarget.COMPARE_PDF_EXPORT, RichTextRenderTarget.PRINT, RichTextRenderTarget.COMPARE_PRINT);
 
     public GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context) {
+        this(context, () -> new ProjectItemsReader(new RepositorySettings(), new ImportService(), new HiddenItems()));
+    }
+
+    GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context, @NotNull Supplier<ProjectItemsReader> reader) {
         super(context);
+        this.reader = reader;
+        printed = DOCUMENT_TARGETS.contains(context.target());
         projectId = context.getDisplayedScope().projectId();
         EnumParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
         repositories = repositoriesParameter.values().asList().stream().map(EnumOption::id).toList();
@@ -65,6 +84,10 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
 
     @Override
     protected void render(@NotNull HtmlFragmentBuilder builder) {
+        if (printed) {
+            builder.html(printedTable());
+            return;
+        }
         String iframeId = "github-items-" + UUID.randomUUID();
 
         HtmlTagBuilder iframe = builder.tag().byName("iframe");
@@ -77,6 +100,14 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
 
         // The id is a UUID this method made, so it needs no escaping.
         builder.tag().script().append().javaScript(HEIGHT_SYNC_SCRIPT + "%ngithubSyncIframeHeight('%s');".formatted(iframeId));
+    }
+
+    /** The table as the page shows it when it opens, read on the server, for a document without iframes. */
+    @NotNull String printedTable() {
+        if (projectId == null) {
+            return "<p>The GitHub items belong to a project.</p>";
+        }
+        return new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false));
     }
 
     @NotNull String appUrl() {

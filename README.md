@@ -206,6 +206,10 @@ Report page of a project, with its filters.
 The widget sizes itself to the table. The work items open in Polarion, as from the topic. A page
 outside a project shows that the table needs a project.
 
+A PDF export or a print of the page (for example with the PDF Exporter) shows the table as it opens
+with the settings of the widget: without hidden items, filtered by repositories, kinds and states, in
+the columns of the widget, or in all columns. The server reads it when the document is made.
+
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
