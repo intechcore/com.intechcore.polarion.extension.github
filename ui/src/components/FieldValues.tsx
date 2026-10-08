@@ -42,6 +42,43 @@ export function useFields(
   return fields;
 }
 
+/**
+ * The value of one field: a choice of its options for an enumeration, several for one that takes
+ * several values, and text for any other field. Several values travel as "a,b", as Polarion reads them.
+ */
+function FieldValue({
+  field,
+  label,
+  value,
+  onChange,
+}: Readonly<{ field: ProjectField | undefined; label: string; value: string; onChange: (value: string) => void }>) {
+  if (!field?.options) {
+    return <input type="text" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />;
+  }
+  const choices = field.options.map((option) => ({
+    id: option.id,
+    name: option.name,
+    iconURL: option.iconUrl ?? undefined,
+  }));
+  if (field.multi) {
+    const values = value
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part);
+    return (
+      <SearchableSelect
+        multiple
+        ariaLabel={label}
+        value={values}
+        onChange={(chosen) => onChange(chosen.join(','))}
+        options={choices}
+        placeholder="None"
+      />
+    );
+  }
+  return <SearchableSelect ariaLabel={label} value={value} onChange={onChange} options={choices} allowEmpty />;
+}
+
 interface FieldValuesProps {
   /** Whose field values these are, for the labels of the controls: `issues`, or `rule 1 of issues`. */
   owner: string;
@@ -56,7 +93,8 @@ interface FieldValuesProps {
  * work item type.
  */
 export default function FieldValues({ owner, workItemType, rows, onChange, loadFields }: Readonly<FieldValuesProps>) {
-  const options = useFields(workItemType, loadFields).map(fieldOption);
+  const fields = useFields(workItemType, loadFields);
+  const options = fields.map(fieldOption);
   const setRow = (index: number, change: Partial<FieldRow>) =>
     onChange(rows.map((row, i) => (i === index ? { ...row, ...change } : row)));
 
@@ -72,11 +110,11 @@ export default function FieldValues({ owner, workItemType, rows, onChange, loadF
             options={options}
             allowEmpty
           />
-          <input
-            type="text"
-            aria-label={`Value ${index + 1} of ${owner}`}
+          <FieldValue
+            field={fields.find((field) => field.id === row.id)}
+            label={`Value ${index + 1} of ${owner}`}
             value={row.value}
-            onChange={(e) => setRow(index, { value: e.target.value })}
+            onChange={(value) => setRow(index, { value })}
           />
           <button
             type="button"

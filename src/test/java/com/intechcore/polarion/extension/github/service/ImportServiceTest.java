@@ -542,6 +542,17 @@ class ImportServiceTest {
         verify(created.get(0)).addHyperlink(url, hyperlinkRole);
     }
 
+    /** A field with several values holds them in an order of its own: the values compare as a set. */
+    @Test
+    void comparesTheValuesOfAFieldAsASet() {
+        assertThat(ImportService.sameValue("plugin,core", "core, plugin")).isTrue();
+        assertThat(ImportService.sameValue("major", "major")).isTrue();
+        assertThat(ImportService.sameValue(null, null)).isTrue();
+        assertThat(ImportService.sameValue("plugin", "plugin,core")).isFalse();
+        assertThat(ImportService.sameValue("major", null)).isFalse();
+        assertThat(ImportService.sameValue(null, "major")).isFalse();
+    }
+
     @Test
     void leavesOutTheItemsOfAnAuthor() {
         RepositorySettingsModel settings = settings();

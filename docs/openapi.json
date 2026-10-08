@@ -587,6 +587,21 @@
         },
         "type": "object"
       },
+      "FieldOption": {
+        "description": "An option of an enumeration field",
+        "properties": {
+          "iconUrl": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "HideRequest": {
         "description": "Which items to hide or to show again on the GitHub page",
         "properties": {
@@ -792,8 +807,19 @@
           "id": {
             "type": "string"
           },
+          "multi": {
+            "description": "Whether the field takes several values, separated by commas",
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
+          },
+          "options": {
+            "description": "The options of an enumeration field, or null for any other field",
+            "items": {
+              "$ref": "#/components/schemas/FieldOption"
+            },
+            "type": "array"
           },
           "urlKey": {
             "description": "Whether the field can keep the URL of a GitHub item: a custom field of the type String",

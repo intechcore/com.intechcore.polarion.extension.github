@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The field values offer all fields that take a value, enumerations with several values included.
+  An enumeration field shows its options in a dropdown.
+
 ### Fixed
 - The widget reads only its repositories from GitHub, and shows them in the order of its settings.
   The other settings of the project no longer show their errors in it.

@@ -24,14 +24,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Creates work items from the open issues and discussions of a GitHub repository. One GitHub item
@@ -351,7 +354,7 @@ public class ImportService {
             differences.add(TYPE);
         }
         outcome.fields().forEach((fieldId, value) -> {
-            if (!Objects.equals(value, fieldValue(workItem, fieldId))) {
+            if (!sameValue(value, fieldValue(workItem, fieldId))) {
                 differences.add(fieldId);
             }
         });
@@ -359,6 +362,24 @@ public class ImportService {
             differences.add(EPIC_LINK);
         }
         return differences;
+    }
+
+    /**
+     * Whether a field holds the value of the settings. A field with several values holds them as
+     * "a,b" in an order of its own, so the values compare as a set.
+     */
+    static boolean sameValue(@Nullable String expected, @Nullable String actual) {
+        if (Objects.equals(expected, actual)) {
+            return true;
+        }
+        if (expected == null || actual == null) {
+            return false;
+        }
+        return values(expected).equals(values(actual));
+    }
+
+    private static Set<String> values(String value) {
+        return Arrays.stream(value.split(",")).map(String::trim).filter(part -> !part.isEmpty()).collect(Collectors.toSet());
     }
 
     private @Nullable String fieldValue(IWorkItem workItem, String fieldId) {
