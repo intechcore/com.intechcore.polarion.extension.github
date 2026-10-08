@@ -29,6 +29,7 @@ export const KIND_LABELS: Record<ItemKind, string> = {
   ISSUE: 'Issue',
   DISCUSSION: 'Discussion',
   PULL_REQUEST: 'Pull request',
+  ADVISORY: 'Security advisory',
 };
 
 export const STATUS_LABELS: Record<ImportStatus, string> = {
@@ -64,7 +65,7 @@ export function applyFilters(entries: ImportEntry[], filters: ItemFilters): Impo
         (key) => filters[key].length === 0 || values[key](entry).some((value) => filters[key].includes(value)),
       ) &&
       (!text ||
-        `${entry.title ?? ''} #${entry.number} ${entry.workItemId ?? ''} ${(entry.labels ?? []).join(' ')}`
+        `${entry.title ?? ''} #${entry.number} ${entry.ghsaId ?? ''} ${entry.workItemId ?? ''} ${(entry.labels ?? []).join(' ')}`
           .toLowerCase()
           .includes(text)),
   );

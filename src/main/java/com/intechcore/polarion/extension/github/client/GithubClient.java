@@ -49,6 +49,8 @@ public class GithubClient {
     private static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
     private static final TypeReference<List<GithubItem>> ITEMS = new TypeReference<>() {
     };
+    private static final TypeReference<List<GithubAdvisory>> ADVISORIES = new TypeReference<>() {
+    };
 
     /**
      * How long a list read from GitHub serves again. Without a token GitHub allows 60 requests per
@@ -73,7 +75,7 @@ public class GithubClient {
     private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
     private final Map<String, CachedChecks> checksCache = new ConcurrentHashMap<>();
 
-    private record CachedList(Instant readAt, List<GithubItem> items) {
+    private record CachedList(Instant readAt, List<?> items) {
     }
 
     private record CachedChecks(Instant readAt, List<String> failed) {
@@ -215,6 +217,16 @@ public class GithubClient {
     private record CheckRun(String name, String conclusion) {
     }
 
+    /**
+     * The security advisories of a repository in triage, drafted or published. Without a token, or with
+     * one that may not see them, GitHub lists the published ones only.
+     */
+    public @NotNull List<GithubAdvisory> getSecurityAdvisories(@NotNull String owner, @NotNull String repository) {
+        return readAll(repositoryUrl(owner, repository) + "/security-advisories?per_page=" + PAGE_SIZE, ADVISORIES).stream()
+                .filter(GithubAdvisory::isShown)
+                .toList();
+    }
+
     private String repositoryUrl(String owner, String repository) {
         return apiUrl + "/repos/" + pathSegment(owner) + "/" + pathSegment(repository);
     }
@@ -228,24 +240,30 @@ public class GithubClient {
     }
 
     private List<GithubItem> readAll(String firstPageUrl) {
+        return readAll(firstPageUrl, ITEMS);
+    }
+
+    // A cache entry belongs to its URL, and a URL always reads the same type.
+    @SuppressWarnings("unchecked")
+    private <T> List<T> readAll(String firstPageUrl, TypeReference<List<T>> type) {
         Instant now = clock.instant();
         cache.values().removeIf(cached -> cached.readAt().plus(CACHE_TIME).isBefore(now));
         CachedList cached = cache.get(firstPageUrl);
         if (cached != null) {
-            return cached.items();
+            return (List<T>) cached.items();
         }
-        List<GithubItem> items = readAllPages(firstPageUrl);
+        List<T> items = readAllPages(firstPageUrl, type);
         cache.put(firstPageUrl, new CachedList(now, List.copyOf(items)));
         return items;
     }
 
-    private List<GithubItem> readAllPages(String firstPageUrl) {
-        List<GithubItem> items = new ArrayList<>();
+    private <T> List<T> readAllPages(String firstPageUrl, TypeReference<List<T>> type) {
+        List<T> items = new ArrayList<>();
         String url = firstPageUrl;
         for (int page = 0; url != null && page < MAX_PAGES; page++) {
             HttpResponse<String> response = send(url);
             try {
-                items.addAll(objectMapper.readValue(response.body(), ITEMS));
+                items.addAll(objectMapper.readValue(response.body(), type));
             } catch (IOException e) {
                 throw new GithubClientException("GitHub answered " + url + " with an unreadable body", e);
             }

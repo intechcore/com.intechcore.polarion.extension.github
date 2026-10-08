@@ -13,7 +13,7 @@ import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@
 import { toast } from 'sonner';
 import ButtonIcon from '../components/ButtonIcon';
 import ErrorNotice from '../components/ErrorNotice';
-import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell } from '../components/ItemCells';
+import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell, itemNumber } from '../components/ItemCells';
 import TableSettings from '../components/TableSettings';
 import {
   COLUMN_LABELS,
@@ -447,7 +447,7 @@ export default function Items() {
                 )}
                 {visible.map((entry) => (
                   <tr
-                    key={`${entry.setting}-${entry.kind}-${entry.number}`}
+                    key={`${entry.setting}-${entry.kind}-${entry.ghsaId ?? entry.number}`}
                     className={entry.hidden ? 'item-hidden' : undefined}
                   >
                     {options.allowCreate && (
@@ -469,7 +469,7 @@ export default function Items() {
                         <button
                           type="button"
                           className="item-hide"
-                          aria-label={`${entry.hidden ? 'Show' : 'Hide'} #${entry.number}`}
+                          aria-label={`${entry.hidden ? 'Show' : 'Hide'} ${itemNumber(entry)}`}
                           title={
                             entry.hidden
                               ? 'Shows the item again, for every user of the project'

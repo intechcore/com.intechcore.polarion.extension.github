@@ -613,6 +613,10 @@
             "description": "The names of the failed checks of a pull request, separated by commas",
             "type": "string"
           },
+          "ghsaId": {
+            "description": "The GHSA ID of a security advisory, which has no number",
+            "type": "string"
+          },
           "githubType": {
             "description": "The issue type, or the category of a discussion",
             "type": "string"
@@ -626,7 +630,8 @@
             "enum": [
               "ISSUE",
               "DISCUSSION",
-              "PULL_REQUEST"
+              "PULL_REQUEST",
+              "ADVISORY"
             ],
             "type": "string"
           },

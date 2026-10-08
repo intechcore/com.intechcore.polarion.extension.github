@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import App from '../src/App';
 import { appButton, captureApp } from './captureApp';
-import { FAILED_PULL_REQUEST, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
+import { ADVISORY, FAILED_PULL_REQUEST, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
 import { type Route, installFetchMock } from './mockFetch';
 
 // Docker-only full-page snapshots of the page of the GitHub items (the topic GitHub of a project and the
@@ -77,16 +77,16 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-show-hidden');
   });
 
-  it('a pull request of Renovate whose checks failed', async () => {
+  it('a pull request of Renovate whose checks failed, and a drafted security advisory', async () => {
     await open([
       {
         method: 'GET',
         match: /\/items$/,
-        json: { ...ITEMS, entries: [...ITEMS.entries.slice(0, 2), FAILED_PULL_REQUEST] },
+        json: { ...ITEMS, entries: [...ITEMS.entries.slice(0, 2), FAILED_PULL_REQUEST, ADVISORY] },
       },
     ]);
 
-    await vi.waitFor(() => expect(rows()).toHaveLength(3));
+    await vi.waitFor(() => expect(rows()).toHaveLength(4));
     await captureApp('items-pull-request');
   });
 

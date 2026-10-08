@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser';
 import App from '../src/App';
 import { COLUMN_LABELS, loadLayout, visibleColumns } from '../src/services/columns';
 import {
+  ADVISORY,
   DASHBOARD_2,
   DEFECT_ICON,
   DISCUSSION_30,
@@ -257,6 +258,23 @@ describe('GitHub items page', () => {
 
     await vi.waitFor(() => expect(alerts()).toContain('No permission'));
     expect(numbers()).toHaveLength(7);
+  });
+
+  it('shows a security advisory by its GHSA ID and finds it by it', async () => {
+    fetchMock = installFetchMock(
+      itemsRoutes([{ method: 'GET', match: /\/items$/, json: { ...ITEMS, entries: [...ITEMS.entries, ADVISORY] } }]),
+    );
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(8));
+
+    const row = document.querySelectorAll('.items-table tbody tr')[7];
+    expect(row.querySelector('.kind-ADVISORY')).not.toBeNull();
+    expect(row.querySelector('a.item-number')!.textContent).toBe('GHSA-r7fg-v8g5-j6jr');
+    expect(document.querySelector('[aria-label="Hide GHSA-r7fg-v8g5-j6jr"]')).not.toBeNull();
+
+    await userEvent.fill(document.querySelector<HTMLInputElement>('[aria-label="Search"]')!, 'ghsa-r7fg');
+    await vi.waitFor(() => expect(numbers()).toEqual(['GHSA-r7fg-v8g5-j6jr Table measurement fetches image URLs']));
   });
 
   it('shows a pull request with its failed checks, and filters it by its kind', async () => {

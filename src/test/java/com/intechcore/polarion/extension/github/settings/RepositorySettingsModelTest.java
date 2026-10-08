@@ -28,6 +28,7 @@ class RepositorySettingsModelTest {
                 .discussions(new ItemSettings())
                 .pullRequests(ItemSettings.builder().enabled(true).workItemType("task").build())
                 .pullRequestAuthors("renovate[bot], dependabot[bot]")
+                .advisories(ItemSettings.builder().enabled(true).workItemType("task").build())
                 .notifications(NotificationSettings.builder().users(new java.util.ArrayList<>(List.of("alice"))).issues(true).build())
                 .build();
     }
@@ -224,6 +225,21 @@ class RepositorySettingsModelTest {
                 "Rule 1 for pull requests compares what these items do not have");
         assertRejected(model -> model.getPullRequests().setRules(List.of(rule(RuleMatch.TYPE, "Bug", true, null))),
                 "Rule 1 for pull requests compares what these items do not have");
+    }
+
+    /** An advisory has no label, issue type or category: a rule on one compares only the author. */
+    @Test
+    void comparesOnlyTheAuthorOfAnAdvisory() {
+        assertRejected(model -> model.getAdvisories().setRules(List.of(rule(RuleMatch.LABEL, "bug", true, null))),
+                "Rule 1 for security advisories compares what these items do not have");
+        RepositorySettingsModel model = valid();
+        model.getAdvisories().setRules(List.of(rule(RuleMatch.AUTHOR, "alice", true, null)));
+        model.validate();
+
+        RepositorySettingsModel read = new RepositorySettingsModel();
+        model.setAdvisories(null);
+        read.deserialize(model.serialize());
+        assertThat(read.getAdvisories().isEnabled()).isFalse();
     }
 
     @Test

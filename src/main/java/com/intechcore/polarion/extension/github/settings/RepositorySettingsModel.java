@@ -40,6 +40,7 @@ public class RepositorySettingsModel extends SettingsModel {
     private static final String PULL_REQUESTS_ENTRY = "PULL_REQUESTS";
     private static final String PULL_REQUEST_AUTHORS_ENTRY = "PULL_REQUEST_AUTHORS";
     private static final String NOTIFICATIONS_ENTRY = "NOTIFICATIONS";
+    private static final String ADVISORIES_ENTRY = "ADVISORIES";
 
     /** The bot whose pull requests a new setting watches. */
     public static final String DEFAULT_PULL_REQUEST_AUTHORS = "renovate[bot]";
@@ -64,6 +65,9 @@ public class RepositorySettingsModel extends SettingsModel {
     @Schema(description = "The GitHub logins whose pull requests the import watches, separated by commas", example = DEFAULT_PULL_REQUEST_AUTHORS)
     private String pullRequestAuthors;
 
+    @Schema(description = "How the security advisories of the repository become work items")
+    private ItemSettings advisories;
+
     @Schema(description = "Who hears of new items of the repository, and of which kinds")
     private NotificationSettings notifications;
 
@@ -75,6 +79,7 @@ public class RepositorySettingsModel extends SettingsModel {
                 serializeEntry(DISCUSSIONS_ENTRY, discussions) +
                 serializeEntry(PULL_REQUESTS_ENTRY, pullRequests) +
                 serializeEntry(PULL_REQUEST_AUTHORS_ENTRY, pullRequestAuthors) +
+                serializeEntry(ADVISORIES_ENTRY, advisories) +
                 serializeEntry(NOTIFICATIONS_ENTRY, notifications);
     }
 
@@ -86,6 +91,7 @@ public class RepositorySettingsModel extends SettingsModel {
         discussions = deserializeEntry(DISCUSSIONS_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
         pullRequests = deserializeEntry(PULL_REQUESTS_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
         pullRequestAuthors = deserializeEntry(PULL_REQUEST_AUTHORS_ENTRY, serializedString, DEFAULT_PULL_REQUEST_AUTHORS);
+        advisories = deserializeEntry(ADVISORIES_ENTRY, serializedString, ItemSettings.class, new ItemSettings());
         notifications = deserializeEntry(NOTIFICATIONS_ENTRY, serializedString, NotificationSettings.class, new NotificationSettings());
     }
 
@@ -104,6 +110,7 @@ public class RepositorySettingsModel extends SettingsModel {
         validate("issues", issues, Set.of(RuleMatch.CATEGORY));
         validate("discussions", discussions, Set.of(RuleMatch.TYPE));
         validate("pull requests", pullRequests, Set.of(RuleMatch.TYPE, RuleMatch.CATEGORY));
+        validate("security advisories", advisories, Set.of(RuleMatch.LABEL, RuleMatch.TYPE, RuleMatch.CATEGORY));
         if (pullRequests != null && pullRequests.isEnabled() && authors().isEmpty()) {
             throw new IllegalArgumentException("The authors of the pull requests are required");
         }

@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.github.service;
 
 import ch.sbb.polarion.extension.generic.service.PolarionService;
+import com.intechcore.polarion.extension.github.client.GithubAdvisory;
 import com.intechcore.polarion.extension.github.client.GithubClient;
 import com.intechcore.polarion.extension.github.client.GithubItem;
 import com.intechcore.polarion.extension.github.settings.DuplicateKey;
@@ -126,6 +127,8 @@ public class ImportService {
         List<GithubItem> discussions = discussionTarget == null ? List.of() : githubClient.getOpenDiscussions(name[0], name[1]);
         Target pullRequestTarget = isEnabled(settings.getPullRequests()) ? resolveTarget(project, settings.getPullRequests()) : null;
         List<GithubItem> pullRequests = pullRequestTarget == null ? List.of() : failedPullRequests(name, settings, pullRequestTarget, onlyUrls);
+        Target advisoryTarget = isEnabled(settings.getAdvisories()) ? resolveTarget(project, settings.getAdvisories()) : null;
+        List<GithubItem> advisories = advisoryTarget == null ? List.of() : advisories(name, advisoryTarget);
 
         if (issueTarget != null) {
             importItems(ItemKind.ISSUE, issues, issueTarget, settings, result, mode, onlyUrls);
@@ -135,6 +138,9 @@ public class ImportService {
         }
         if (pullRequestTarget != null) {
             importItems(ItemKind.PULL_REQUEST, pullRequests, pullRequestTarget, settings, result, mode, onlyUrls);
+        }
+        if (advisoryTarget != null) {
+            importItems(ItemKind.ADVISORY, advisories, advisoryTarget, settings, result, mode, onlyUrls);
         }
         Instant readAt = githubClient.readAt(name[0], name[1]);
         result.setReadAt(readAt == null ? null : readAt.toString());
@@ -161,6 +167,16 @@ public class ImportService {
             }
         }
         return failed;
+    }
+
+    /** The security advisories of the repository as items, each kept with its advisory for the placeholders. */
+    private List<GithubItem> advisories(String[] name, Target target) {
+        List<GithubItem> items = new ArrayList<>();
+        for (GithubAdvisory advisory : githubClient.getSecurityAdvisories(name[0], name[1])) {
+            target.advisories().put(advisory.htmlUrl(), advisory);
+            items.add(advisory.toItem());
+        }
+        return items;
     }
 
     /**
@@ -201,7 +217,7 @@ public class ImportService {
                 rules.add(new ResolvedRule(rule, outcome));
             }
         }
-        return new Target(project, settings, epic, fallback, rules, new HashMap<>());
+        return new Target(project, settings, epic, fallback, rules, new HashMap<>(), new HashMap<>());
     }
 
     private static Outcome resolveOutcome(ITrackerProject project, ItemSettings settings, String typeId,
@@ -243,7 +259,8 @@ public class ImportService {
             ImportEntry entry = ImportEntry.builder()
                     .kind(kind).number(item.number()).title(item.title()).url(url)
                     .setting(settings.getName()).repository(settings.getRepository()).shortName(settings.getShortName())
-                    .githubType(kind == ItemKind.ISSUE ? item.typeName() : item.categoryName())
+                    .githubType(githubType(kind, item, target))
+                    .ghsaId(target.advisories().containsKey(url) ? target.advisories().get(url).ghsaId() : null)
                     .labels(item.labelNames()).labelColors(item.labelColors()).assignees(item.assigneeLogins())
                     .failedChecks(target.checks().get(url))
                     .createdAt(item.createdAt()).updatedAt(item.updatedAt())
@@ -464,7 +481,21 @@ public class ImportService {
         values.put("type", item.typeName());
         values.put("category", item.categoryName());
         values.put("checks", target.checks().getOrDefault(item.htmlUrl(), ""));
+        GithubAdvisory advisory = target.advisories().get(item.htmlUrl());
+        values.put("ghsa", advisory == null ? "" : advisory.ghsaId());
+        values.put("severity", advisory == null ? "" : advisory.severity());
+        values.put("cvss", advisory == null ? "" : advisory.cvssScore());
+        values.put("cwe", advisory == null ? "" : advisory.cwes());
         return values;
+    }
+
+    /** The issue type, the category of a discussion, or the severity of an advisory. */
+    private static @Nullable String githubType(ItemKind kind, GithubItem item, Target target) {
+        return switch (kind) {
+            case ISSUE -> item.typeName();
+            case ADVISORY -> target.advisories().containsKey(item.htmlUrl()) ? target.advisories().get(item.htmlUrl()).severity() : null;
+            default -> item.categoryName();
+        };
     }
 
     /**
@@ -538,7 +569,7 @@ public class ImportService {
 
     /** What the import needs of one block of the settings, looked up in the project. */
     private record Target(ITrackerProject project, ItemSettings settings, @Nullable IWorkItem epic, Outcome fallback, List<ResolvedRule> rules,
-                          Map<String, String> checks) {
+                          Map<String, String> checks, Map<String, GithubAdvisory> advisories) {
     }
 
     /** The work item an item becomes: its type, the role of its link to the epic, and its field values. */

@@ -28,6 +28,7 @@ const MATCH_OPTIONS: Record<string, { id: RuleMatch; name: string }[]> = {
     { id: 'LABEL', name: 'Label' },
     { id: 'AUTHOR', name: 'Author' },
   ],
+  'security advisories': [{ id: 'AUTHOR', name: 'Author' }],
 };
 
 interface RulesEditorProps {

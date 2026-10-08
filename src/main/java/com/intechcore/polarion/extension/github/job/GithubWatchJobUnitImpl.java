@@ -180,6 +180,7 @@ public class GithubWatchJobUnitImpl extends AbstractJobUnit implements GithubWat
                     case ISSUE -> notifications.isIssues();
                     case DISCUSSION -> notifications.isDiscussions();
                     case PULL_REQUEST -> notifications.isPullRequests();
+                    case ADVISORY -> notifications.isAdvisories();
                 })
                 .toList();
     }

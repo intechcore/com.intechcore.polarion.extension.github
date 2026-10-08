@@ -64,6 +64,24 @@ A failed check is a check run that ended with `failure`, `timed_out`, `action_re
 GitHub request for its checks, once per five minutes. A rule on a pull request can compare a label or
 the author.
 
+### Security advisories
+
+The block `Security advisories` lists the security advisories of the repository in triage, drafted
+or published, and creates work items from them like issues. A closed or withdrawn advisory is left
+out. An advisory has no number: its GHSA ID names it, and its severity shows as its GitHub type.
+
+The templates take `{{ GHSA }}`, `{{ SEVERITY }}`, `{{ CVSS }}` and `{{ CWE }}` for an advisory, and
+`{{ TITLE }}` and `{{ BODY }}` are its summary and description. A new setting names the work item by
+GHSA ID and severity, and its description holds only the link.
+
+Without a token GitHub lists the published advisories only. Those in triage and the drafts need a
+[GitHub token](#github-token) of an administrator or security manager of the repository.
+
+> [!WARNING]
+> Until it is published an advisory is under embargo. Everyone who reads the project sees what the
+> templates put into the work item: keep the summary and the description out of them while that
+> matters.
+
 ### Rules
 
 A rule applies to the items that carry a given label, issue type or discussion category, or to the
@@ -97,6 +115,7 @@ requests per hour.
 | Public only | Fine-grained personal access token, `Repository access`: `Public repositories` | None |
 | Public only | Classic personal access token | No scope |
 | Private | Fine-grained personal access token, `Repository access`: `Only select repositories` | Repository permissions, read-only: `Issues`; `Discussions` for discussions; `Pull requests` and `Checks` for pull requests. `Metadata` is added by GitHub. |
+| Security advisories in triage and drafts | Fine-grained personal access token of an administrator or security manager of the repository | Repository permission, read-only: `Repository security advisories` |
 
 - The extension only reads. It needs no write permission, and no permission on an organization or an account.
 - The limit of 5000 requests belongs to the user of the token, across all their tools. A token of
@@ -233,7 +252,7 @@ The job `github_watch.job` mails the items that are new since its last check, ev
 default. Each repository setting names its recipients and the kinds they hear of.
 
 1. In the repository setting, under `Notifications`, turn on the kinds: `New issues`, `New
-   discussions`, `Pull requests with failed checks`.
+   discussions`, `Pull requests with failed checks`, `Security advisories`.
 2. Select the recipients: Polarion users. The mail goes to the address of their user profile.
 3. Add the job in the global `Administration` ➙ `Scheduler`:
    ```xml
@@ -245,7 +264,8 @@ default. Each repository setting names its recipients and the kinds they hear of
    first check takes the items of that window as new.
 
 New issues and discussions are open and have no work item. A pull request counts while its checks
-fail, as on the GitHub page. A hidden item and an item a rule leaves out send no mail. One mail per
+fail, as on the GitHub page. A security advisory shows in the mail by its GHSA ID and severity only,
+never by its summary. A hidden item and an item a rule leaves out send no mail. One mail per
 repository and check lists the new items, with links to GitHub and to the GitHub page of the project.
 
 The job only reads: GitHub, the settings and the work items. It writes nothing into Polarion, so the

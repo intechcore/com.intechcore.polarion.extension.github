@@ -186,4 +186,14 @@ class GithubWatchJobUnitImplTest {
         assertThat(status.getMessage()).contains("rate limit");
         verify(repositorySettings, never()).read(eq(SCOPE), argThat(id -> id != null && "docs".equals(id.getIdentifier())), any());
     }
+
+    @Test
+    void takesTheAdvisoriesOnlyWhenTheSettingWatchesThem() {
+        ImportEntry advisory = ImportEntry.builder().kind(ItemKind.ADVISORY).status(ImportStatus.NEW).url("https://github.com/x").build();
+
+        assertThat(GithubWatchJobUnitImpl.candidates(List.of(advisory), NotificationSettings.builder().advisories(true).build(), Set.of()))
+                .containsExactly(advisory);
+        assertThat(GithubWatchJobUnitImpl.candidates(List.of(advisory), NotificationSettings.builder().issues(true).build(), Set.of()))
+                .isEmpty();
+    }
 }

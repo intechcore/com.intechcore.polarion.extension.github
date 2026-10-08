@@ -40,6 +40,7 @@ export interface RepositorySettings {
   pullRequests: ItemSettings | null;
   /** The GitHub logins whose pull requests the import watches, separated by commas. */
   pullRequestAuthors: string | null;
+  advisories: ItemSettings | null;
   notifications: NotificationSettings | null;
 }
 
@@ -50,6 +51,7 @@ export interface NotificationSettings {
   issues: boolean;
   discussions: boolean;
   pullRequests: boolean;
+  advisories: boolean;
 }
 
 /** A work item type or a link role of a project (rest.model.ProjectOption). */
@@ -66,7 +68,7 @@ export interface ProjectField {
   urlKey: boolean;
 }
 
-export type ItemKind = 'ISSUE' | 'DISCUSSION' | 'PULL_REQUEST';
+export type ItemKind = 'ISSUE' | 'DISCUSSION' | 'PULL_REQUEST' | 'ADVISORY';
 
 export type ImportStatus = 'NEW' | 'CREATED' | 'EXISTS' | 'OUTDATED' | 'UPDATED' | 'SKIPPED' | 'FAILED';
 
@@ -98,6 +100,8 @@ export interface ImportEntry {
   workItemStatusIcon: string | null;
   /** Polarion user names. */
   workItemAssignees: string[] | null;
+  /** The GHSA ID of a security advisory, which has no number. */
+  ghsaId?: string | null;
   /** The names of the failed checks of a pull request, separated by commas. */
   failedChecks: string | null;
   /** True when the project hides the item on its GitHub page. */

@@ -17,7 +17,8 @@ import java.util.Map;
 public class NotificationMail {
 
     private static final Map<ItemKind, String> KINDS = Map.of(
-            ItemKind.ISSUE, "Issue", ItemKind.DISCUSSION, "Discussion", ItemKind.PULL_REQUEST, "Pull request with failed checks");
+            ItemKind.ISSUE, "Issue", ItemKind.DISCUSSION, "Discussion", ItemKind.PULL_REQUEST, "Pull request with failed checks",
+            ItemKind.ADVISORY, "Security advisory");
 
     private final String projectId;
     private final String repository;
@@ -49,11 +50,13 @@ public class NotificationMail {
         StringBuilder html = new StringBuilder("<p>New in <b>").append(escape(repository)).append("</b>, project ")
                 .append(escape(projectId)).append(":</p><ul>");
         for (ImportEntry entry : entries) {
-            String number = "#" + entry.getNumber();
+            // An advisory under embargo is secret: the mail names it and its severity, and leaves the rest on GitHub.
+            boolean advisory = entry.getKind() == ItemKind.ADVISORY;
+            String number = advisory ? String.valueOf(entry.getGhsaId()) : "#" + entry.getNumber();
             String link = entry.getUrl() != null && entry.getUrl().startsWith("https://github.com/")
                     ? "<a href=\"" + escape(entry.getUrl()) + "\">" + number + "</a>" : number;
             html.append("<li>").append(escape(KINDS.get(entry.getKind()))).append(' ').append(link).append(' ')
-                    .append(escape(entry.getTitle()));
+                    .append(advisory ? "(" + escape(entry.getGithubType()) + ")" : escape(entry.getTitle()));
             if (entry.getFailedChecks() != null) {
                 html.append(" (failed: ").append(escape(entry.getFailedChecks())).append(')');
             }
