@@ -328,6 +328,20 @@ describe('GitHub items page', () => {
     posted.mockRestore();
   });
 
+  it('reads only the repositories of the widget, in its order', async () => {
+    await mountWidget('&settings=docs%2Ctool');
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=docs&settings=tool',
+    );
+    button('Update from GitHub').click();
+    await vi.waitFor(() =>
+      expect(String(fetchMock.mock.calls.at(-1)![0])).toBe(
+        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true&settings=docs&settings=tool',
+      ),
+    );
+  });
+
   it('shows only the table, in the columns of the widget, and keeps the layout of the reader', async () => {
     window.localStorage.setItem('github-items-columns', JSON.stringify({ order: ['labels'], hidden: [] }));
     await mountWidget('&hideFilters=true&columns=item%2Cstate');

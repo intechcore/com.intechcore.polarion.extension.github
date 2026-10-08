@@ -27,6 +27,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Set;
 
 @Tag(name = "Import")
@@ -59,8 +60,11 @@ public class ImportInternalController {
     public ProjectItems getItems(@Parameter(description = "The project") @PathParam("projectId") String projectId,
                                  @Parameter(description = "True to read GitHub again instead of the lists of the last five minutes."
                                          + " A list read within the last minute stays.")
-                                 @QueryParam("refresh") @DefaultValue("false") boolean refresh) {
-        return new ProjectItemsReader(repositorySettings, importService, hiddenItems).read(projectId, refresh);
+                                 @QueryParam("refresh") @DefaultValue("false") boolean refresh,
+                                 @Parameter(description = "The settings to read, in the order to show them. None reads all settings of the project.")
+                                 @QueryParam("settings") List<String> settings) {
+        return new ProjectItemsReader(repositorySettings, importService, hiddenItems)
+                .read(projectId, refresh, settings == null ? List.of() : settings);
     }
 
     @Operation(summary = "Hides GitHub items on the GitHub page of a project, or shows them again. Answers with all URLs the project hides")

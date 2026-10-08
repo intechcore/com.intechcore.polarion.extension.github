@@ -81,7 +81,8 @@ export default function Items() {
       setBusy(true);
       setError('');
       try {
-        const items = await settings.loadItems(projectId, refresh);
+        // A widget reads only the repositories it names, in their order.
+        const items = await settings.loadItems(projectId, refresh, options.widget ? options.filters.settings : []);
         setRepositories(items.repositories);
         setEntries(items.entries);
         setChecked(new Set());
@@ -91,7 +92,7 @@ export default function Items() {
         setBusy(false);
       }
     },
-    [settings, projectId],
+    [settings, projectId, options],
   );
 
   useEffect(() => {

@@ -201,7 +201,7 @@ class ImportIntegrationTest {
                 .replace("\"titleTemplate\": \"[GitHub] {{ SHORT_NAME }} : {{ TITLE }}\"", "\"titleTemplate\": \"{{ SHORT_NAME }} #{{ NUMBER }}: {{ TITLE }}\"")
                 .replace("\"component\": \"core\"", "\"component\": \"ui\""));
 
-        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false);
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null);
         ImportEntry outdated = items.getEntries().get(0);
         assertThat(outdated.getStatus()).isEqualTo(ImportStatus.OUTDATED);
         assertThat(outdated.getMessage()).isEqualTo("differs in title, component");
@@ -288,13 +288,13 @@ class ImportIntegrationTest {
         assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), true)))
                 .containsExactly(ISSUES + "7");
 
-        List<ImportEntry> entries = importEndpoint.getItems(FakePolarion.PROJECT, false).getEntries();
+        List<ImportEntry> entries = importEndpoint.getItems(FakePolarion.PROJECT, false, null).getEntries();
         assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getUrl).containsExactly(ISSUES + "7");
         // A hidden item stays importable: hiding changes only the page.
         assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW);
 
         assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), false))).isEmpty();
-        assertThat(importEndpoint.getItems(FakePolarion.PROJECT, false).getEntries()).noneMatch(ImportEntry::isHidden);
+        assertThat(importEndpoint.getItems(FakePolarion.PROJECT, false, null).getEntries()).noneMatch(ImportEntry::isHidden);
     }
 
     @Test
@@ -337,7 +337,7 @@ class ImportIntegrationTest {
         saveSetting("missing", ISSUES_AND_DISCUSSIONS.replace("acme/tool", "acme/missing"));
         importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7")));
 
-        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false);
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null);
 
         assertThat(items.getRepositories()).extracting(RepositoryState::getSetting, RepositoryState::getRepository, RepositoryState::getError)
                 .containsExactlyInAnyOrder(
@@ -375,7 +375,7 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json.get("repositories").get(0))).containsExactlyInAnyOrder("setting", "repository", "readAt", "error");
 
         // A list read within the last minute stays, so a refresh right away asks GitHub nothing new.
-        importEndpoint.getItems(FakePolarion.PROJECT, true);
+        importEndpoint.getItems(FakePolarion.PROJECT, true, null);
         assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
     }
 
