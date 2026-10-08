@@ -24,6 +24,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
@@ -194,7 +195,7 @@ class GithubItemsWidgetRendererTest {
         items.getEntries().add(com.intechcore.polarion.extension.github.service.ImportEntry.builder().number(7).title("Crash")
                 .setting("tool").kind(com.intechcore.polarion.extension.github.service.ItemKind.ISSUE)
                 .status(com.intechcore.polarion.extension.github.service.ImportStatus.NEW).build());
-        when(reader.read("elibrary", false)).thenReturn(items);
+        when(reader.read(eq("elibrary"), eq(false), any())).thenReturn(items);
 
         new GithubItemsWidgetRenderer(context, () -> reader).render(builder);
 

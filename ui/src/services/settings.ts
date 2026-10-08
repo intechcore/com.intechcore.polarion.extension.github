@@ -150,14 +150,22 @@ export default function useSettings() {
   );
 
   /**
-   * The open items of all repository settings of a project, with what the import would do with each.
+   * The open items of the repository settings of a project, with what the import would do with each.
    * `refresh` makes the server read GitHub again instead of the lists of the last five minutes.
+   * `only` names the settings to read, in their order; none reads all of them.
    */
   const loadItems = useCallback(
-    (projectId: string, refresh = false): Promise<ProjectItems> =>
-      sendRequest({ method: 'GET', url: projectPath(projectId, refresh ? '/items?refresh=true' : '/items') }).then(
+    (projectId: string, refresh = false, only: string[] = []): Promise<ProjectItems> => {
+      const query = new URLSearchParams();
+      if (refresh) {
+        query.set('refresh', 'true');
+      }
+      only.forEach((name) => query.append('settings', name));
+      const search = query.toString();
+      return sendRequest({ method: 'GET', url: projectPath(projectId, search ? `/items?${search}` : '/items') }).then(
         (r) => jsonOrThrow<ProjectItems>(r),
-      ),
+      );
+    },
     [sendRequest],
   );
 

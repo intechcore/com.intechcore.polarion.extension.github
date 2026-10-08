@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The widget reads only its repositories from GitHub, and shows them in the order of its settings.
+  The other settings of the project no longer show their errors in it.
+
 ## [0.1.0] - 2026-10-08
 
 ### Added

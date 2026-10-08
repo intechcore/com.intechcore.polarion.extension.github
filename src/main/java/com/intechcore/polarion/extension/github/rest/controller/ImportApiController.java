@@ -12,6 +12,7 @@ import com.intechcore.polarion.extension.github.settings.RepositorySettings;
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.Path;
 
+import java.util.List;
 import java.util.Set;
 
 @Secured
@@ -29,8 +30,8 @@ public class ImportApiController extends ImportInternalController {
     }
 
     @Override
-    public ProjectItems getItems(String projectId, boolean refresh) {
-        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh));
+    public ProjectItems getItems(String projectId, boolean refresh, List<String> settings) {
+        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh, settings));
     }
 
     @Override

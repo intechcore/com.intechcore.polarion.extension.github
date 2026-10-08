@@ -297,7 +297,7 @@ Report page of a project, with its filters.
 
 | Setting | What it does |
 |---|---|
-| Repositories | The repository settings of the project to show, picked from a list. Until one is picked, the widget asks for them and reads nothing from GitHub. |
+| Repositories | The repository settings of the project to show, picked from a list. The widget reads only these from GitHub and shows them in this order. Until one is picked, the widget asks for them and reads nothing from GitHub. |
 | Kinds, States | The filters the table opens with. The reader can change them. Empty shows all. |
 | Columns | The columns of the widget, in this order. Empty shows the columns each reader chose on the topic. |
 | Hide filters | Shows the table only, without the toolbar and the filters. |

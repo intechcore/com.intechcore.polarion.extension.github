@@ -164,6 +164,17 @@
               "default": false,
               "type": "boolean"
             }
+          },
+          {
+            "description": "The settings to read, in the order to show them. None reads all settings of the project.",
+            "in": "query",
+            "name": "settings",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           }
         ],
         "responses": {

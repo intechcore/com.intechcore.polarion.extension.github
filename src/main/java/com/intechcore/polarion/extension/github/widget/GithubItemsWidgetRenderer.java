@@ -115,7 +115,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
         if (projectId == null) {
             return "<p>The GitHub items belong to a project.</p>";
         }
-        return new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false));
+        return new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false, repositories));
     }
 
     @NotNull String appUrl() {
