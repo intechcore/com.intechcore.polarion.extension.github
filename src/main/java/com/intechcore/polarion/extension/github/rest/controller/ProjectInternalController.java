@@ -18,6 +18,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -96,7 +97,19 @@ public class ProjectInternalController {
             return true;
         }
         FieldType type = FieldType.recognize(field.getType());
-        return !field.isMulti() && type != FieldType.UNKNOWN && type != FieldType.LIST;
+        if (field.isMulti() || type == FieldType.LIST) {
+            // Of the fields with several values, generic sets the enumerations from "a,b".
+            return field.getOptions() != null;
+        }
+        return type != FieldType.UNKNOWN;
+    }
+
+    /** The options of an enumeration field, by name, or null for any other field. */
+    private static @Nullable List<ProjectField.FieldOption> options(FieldMetadata field) {
+        return field.getOptions() == null ? null : field.getOptions().stream()
+                .map(option -> new ProjectField.FieldOption(option.getKey(), option.getName() == null ? option.getKey() : option.getName(), option.getIconUrl()))
+                .sorted(Comparator.comparing(ProjectField.FieldOption::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     @Operation(summary = "Returns the fields of a work item type of a project")
@@ -116,7 +129,8 @@ public class ProjectInternalController {
         return fields.values().stream()
                 .filter(ProjectInternalController::takesAValue)
                 .map(field -> new ProjectField(field.getId(), field.getLabel(), field.isCustom(),
-                        field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType())))
+                        field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType()),
+                        field.isMulti() || FieldType.recognize(field.getType()) == FieldType.LIST, options(field)))
                 .sorted(Comparator.comparing(ProjectField::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }

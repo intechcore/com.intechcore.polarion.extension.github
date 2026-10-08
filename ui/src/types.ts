@@ -61,11 +61,22 @@ export interface ProjectOption {
 }
 
 /** A work item field of a project (rest.model.ProjectField). */
+/** An option of an enumeration field (rest.model.ProjectField.FieldOption). */
+export interface FieldOption {
+  id: string;
+  name: string;
+  iconUrl: string | null;
+}
+
 export interface ProjectField {
   id: string;
   name: string;
   custom: boolean;
   urlKey: boolean;
+  /** Whether the field takes several values, separated by commas. */
+  multi?: boolean;
+  /** The options of an enumeration field, or null for any other field. */
+  options?: FieldOption[] | null;
 }
 
 export type ItemKind = 'ISSUE' | 'DISCUSSION' | 'PULL_REQUEST' | 'ADVISORY';
