@@ -58,7 +58,9 @@ GitHub Actions runs four workflows, the same as in the timesheet repository.
 - `bump-version.yml`: dispatched by hand with `patch`, `minor` or `major`. It sets the release
   version, cuts the `CHANGELOG.md` section, commits, tags `v<version>` and pushes with `PAT_TOKEN`.
 - `release.yml`: runs on a `v*` tag. It publishes to Maven Central under
-  `com.intechcore.polarion.extensions`, attests the files, creates the GitHub release in one call,
+  `com.intechcore.polarion.extensions`, deploying with Maven 3.9.16 (under Maven 3.10,
+  central-publishing-maven-plugin 0.11.0 bundles `maven-metadata-local.xml` and Central rejects the
+  bundle), attests the files, creates the GitHub release in one call,
   and returns `main` to the next `-SNAPSHOT`.
 
 The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS_URL`,
