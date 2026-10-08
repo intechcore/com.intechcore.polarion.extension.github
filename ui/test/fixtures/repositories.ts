@@ -52,6 +52,29 @@ export const FIELDS = [
   { id: 'severity', name: 'Severity', custom: false, urlKey: false },
   // A built-in field: Polarion names it by its ID.
   { id: 'priority', name: 'priority', custom: false, urlKey: false },
+  // An enumeration, and one that takes several options.
+  {
+    id: 'budget',
+    name: 'Budget Projekt/Programm',
+    custom: true,
+    urlKey: false,
+    multi: false,
+    options: [
+      { id: 'internal', name: 'Internal/all', iconUrl: null },
+      { id: 'external', name: 'External/all', iconUrl: null },
+    ],
+  },
+  {
+    id: 'categories',
+    name: 'Categories',
+    custom: false,
+    urlKey: false,
+    multi: true,
+    options: [
+      { id: 'plugin', name: 'External/Plugin', iconUrl: null },
+      { id: 'core', name: 'Core', iconUrl: null },
+    ],
+  },
 ];
 
 export const USERS = [

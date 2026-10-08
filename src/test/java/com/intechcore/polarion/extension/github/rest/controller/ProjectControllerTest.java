@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.rest.controller;
 
 import ch.sbb.polarion.extension.generic.fields.FieldType;
 import ch.sbb.polarion.extension.generic.fields.model.FieldMetadata;
+import ch.sbb.polarion.extension.generic.fields.model.Option;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ProjectField;
 import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
@@ -76,11 +77,18 @@ class ProjectControllerTest {
         readOnly.setReadOnly(true);
         FieldMetadata multi = field("tags", "Tags", true, FieldType.STRING);
         multi.setMulti(true);
+        // Enumerations come with their options; generic sets one with several values from "a,b".
+        FieldMetadata severity = field("severity", "severity", false, FieldType.ENUM);
+        severity.setOptions(new java.util.LinkedHashSet<>(List.of(new Option("major", "Major", "/icons/major.gif"), new Option("blocker", null, null))));
+        FieldMetadata categories = field("categories", "Categories", false, FieldType.LIST);
+        categories.setMulti(true);
+        categories.setOptions(Set.of(new Option("plugin", "External/Plugin", null)));
         // What the settings cannot fill: structures, lists, and the fields the import fills itself.
         when(polarionService.getGeneralFields("WorkItem", contextId, "task")).thenReturn(Set.of(
-                field("severity", "severity", false, FieldType.ENUM),
+                severity,
                 field("assignee", "assignee", false, FieldType.LIST),
-                field("categories", "categories", false, FieldType.LIST),
+                categories,
+                field("links", "links", false, FieldType.LIST),
                 field("approvals", "approvals", false, FieldType.UNKNOWN),
                 field("title", "title", false, FieldType.STRING),
                 field("description", "description", false, FieldType.TEXT),
@@ -92,10 +100,12 @@ class ProjectControllerTest {
                 .thenReturn(Set.of(field("githubUrl", "GitHub URL of a task", true, FieldType.STRING), field("estimate", "Estimate", true, FieldType.FLOAT)));
 
         assertThat(new ProjectInternalController(polarionService).getFields("elibrary", "task")).containsExactly(
-                new ProjectField("assignee", "assignee", false, false),
-                new ProjectField("estimate", "Estimate", true, false),
-                new ProjectField("githubUrl", "GitHub URL of a task", true, true),
-                new ProjectField("severity", "severity", false, false));
+                new ProjectField("assignee", "assignee", false, false, true, null),
+                new ProjectField("categories", "Categories", false, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null))),
+                new ProjectField("estimate", "Estimate", true, false, false, null),
+                new ProjectField("githubUrl", "GitHub URL of a task", true, true, false, null),
+                new ProjectField("severity", "severity", false, false, false, List.of(
+                        new ProjectField.FieldOption("blocker", "blocker", null), new ProjectField.FieldOption("major", "Major", "/icons/major.gif"))));
     }
 
     @Test

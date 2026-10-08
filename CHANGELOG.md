@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The field values offer all fields that take a value, enumerations with several values included.
+  An enumeration field shows its options in a dropdown.
+
 ## [0.1.0] - 2026-10-08
 
 ### Added

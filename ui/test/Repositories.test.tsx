@@ -282,6 +282,40 @@ describe('Repositories page', () => {
     });
   });
 
+  it('chooses the value of an enumeration from its options, and several for a field that takes several', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/content/,
+        json: {
+          ...CONTENT,
+          issues: { ...CONTENT.issues, fields: { budget: 'internal', categories: 'core' }, rules: [] },
+        },
+      },
+    ]);
+    await vi.waitFor(() => expect(dropdown('Value 1 of issues')).not.toBeNull());
+    // A saved value shows by the name of its option.
+    expect(dropdown('Value 1 of issues').value).toBe('Internal/all');
+    const categories = document.querySelector<HTMLElement>('div.sd-trigger[aria-label="Value 2 of issues"]')!;
+    expect(categories.textContent).toContain('Core');
+
+    await pick(dropdown('Value 1 of issues'), 'External/all');
+    mousedown(categories);
+    // A closed dropdown keeps its options in the page, hidden: only the open one shows its own.
+    const plugin = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('.sd-portal .option')).find(
+        (o) => o.textContent?.trim() === 'External/Plugin' && o.getClientRects().length > 0,
+      );
+    await vi.waitFor(() => expect(plugin()).toBeDefined());
+    mousedown(plugin()!);
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    button('Save').click();
+
+    await vi.waitFor(() => expect(savedBody()).toBeDefined());
+    // The options keep the order of the list, whatever the order of the clicks.
+    expect(savedBody().issues.fields).toEqual({ budget: 'external', categories: 'plugin,core' });
+  });
+
   it('shows a field named by its ID once', async () => {
     await mount();
 
