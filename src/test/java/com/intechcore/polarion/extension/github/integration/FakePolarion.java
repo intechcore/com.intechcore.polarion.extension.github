@@ -102,10 +102,9 @@ final class FakePolarion {
             when(epic.getId()).thenReturn(id);
             return epic;
         });
-        when(polarionService.getFieldValue(any(IWorkItem.class), anyString(), any(Class.class))).thenAnswer(invocation -> {
+        when(polarionService.getFieldValue(any(IWorkItem.class), anyString())).thenAnswer(invocation -> {
             WorkItem state = read.get(invocation.<IWorkItem>getArgument(0));
-            Object value = state == null ? null : state.fields.get(invocation.<String>getArgument(1));
-            return value == null ? null : value.toString();
+            return state == null ? null : state.fields.get(invocation.<String>getArgument(1));
         });
         doAnswer(invocation -> {
             states.get(invocation.<IWorkItem>getArgument(0)).fields.put(invocation.getArgument(1), invocation.getArgument(2));

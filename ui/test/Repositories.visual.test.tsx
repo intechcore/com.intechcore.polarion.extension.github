@@ -55,6 +55,38 @@ describe.skipIf(!__PIXEL_REFERENCES__)('Repositories page visual', () => {
     await captureApp('repositories-loaded');
   });
 
+  it('field values of every kind', async () => {
+    open([
+      {
+        method: 'GET',
+        match: /\/settings\/repositories\/names\/[^/]+\/content/,
+        json: {
+          ...CONTENT,
+          issues: {
+            ...CONTENT.issues,
+            fields: {
+              budget: 'internal',
+              categories: 'plugin,core',
+              assignee: 'bob',
+              approved: 'true',
+              estimate: '1.5',
+              dueDate: '2026-10-09',
+              start: '2026-10-09T14:30:00',
+              remaining: '1d 2h',
+              notes: '<b>Imported</b>',
+            },
+            rules: [],
+          },
+        },
+      },
+    ]);
+
+    await vi.waitFor(() => expect(triggers()).toContain('Budget Projekt/Programm (budget)'));
+    await vi.waitFor(() => expect(document.querySelectorAll('.field-row')).toHaveLength(9));
+    await vi.waitFor(() => expect(triggers()).toContain('Internal/all'));
+    await captureApp('repositories-field-kinds');
+  });
+
   it('a setting with the discussions turned off', async () => {
     open();
 

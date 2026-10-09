@@ -97,13 +97,19 @@ class ProjectControllerTest {
         severity.setOptions(new java.util.LinkedHashSet<>(List.of(new Option("major", "Major", "/icons/major.gif"), new Option("blocker", null, null))));
         FieldMetadata categories = field("categories", "Categories", false, FieldType.LIST);
         categories.setMulti(true);
-        categories.setOptions(Set.of(new Option("plugin", "External/Plugin", null)));
+        categories.setOptions(Set.of(new Option("plugin", "External/Plugin", null), new Option("docs", "Docs", null)));
+        // A field of all types brings the options of all types: the options of the work item type replace them.
+        when(polarionService.getOptionsForEnum(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(null);
+        when(polarionService.getOptionsForEnum(categories.getType(), contextId, "task")).thenReturn(Set.of(new Option("plugin", "External/Plugin", null)));
         // What the settings cannot fill: structures, lists, and the fields the import fills itself.
         when(polarionService.getGeneralFields("WorkItem", contextId, "task")).thenReturn(Set.of(
                 severity,
                 field("assignee", "assignee", false, FieldType.LIST),
                 categories,
                 field("links", "links", false, FieldType.LIST),
+                field("author", "author", false, FieldType.USER),
+                field("dueDate", "dueDate", false, FieldType.DATE_ONLY),
                 field("approvals", "approvals", false, FieldType.UNKNOWN),
                 field("title", "title", false, FieldType.STRING),
                 field("description", "description", false, FieldType.TEXT),
@@ -112,16 +118,19 @@ class ProjectControllerTest {
         when(polarionService.getCustomFields("WorkItem", contextId, null))
                 .thenReturn(Set.of(field("githubUrl", "GitHub URL", true, FieldType.STRING), multi));
         when(polarionService.getCustomFields("WorkItem", contextId, "task"))
-                .thenReturn(Set.of(field("githubUrl", "GitHub URL of a task", true, FieldType.STRING), field("estimate", "Estimate", true, FieldType.FLOAT)));
+                .thenReturn(Set.of(field("githubUrl", "GitHub URL of a task", true, FieldType.STRING), field("estimate", "Estimate", true, FieldType.FLOAT),
+                        field("approved", "Approved", true, FieldType.BOOLEAN)));
 
         assertThat(new ProjectInternalController(polarionService).getFields("elibrary", "task")).containsExactly(
+                new ProjectField("approved", "Approved", true, false, false, null, "boolean"),
                 new ProjectField("assignee", "assignee", false, false, true, List.of(
-                        new ProjectField.FieldOption("alice", "alice", null), new ProjectField.FieldOption("bob", "Bob Builder", null))),
-                new ProjectField("categories", "Categories", false, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null))),
-                new ProjectField("estimate", "Estimate", true, false, false, null),
-                new ProjectField("githubUrl", "GitHub URL of a task", true, true, false, null),
+                        new ProjectField.FieldOption("alice", "alice", null), new ProjectField.FieldOption("bob", "Bob Builder", null)), "enum"),
+                new ProjectField("categories", "Categories", false, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null)), "enum"),
+                new ProjectField("dueDate", "dueDate", false, false, false, null, "date"),
+                new ProjectField("estimate", "Estimate", true, false, false, null, "float"),
+                new ProjectField("githubUrl", "GitHub URL of a task", true, true, false, null, "string"),
                 new ProjectField("severity", "severity", false, false, false, List.of(
-                        new ProjectField.FieldOption("blocker", "blocker", null), new ProjectField.FieldOption("major", "Major", "/icons/major.gif"))));
+                        new ProjectField.FieldOption("blocker", "blocker", null), new ProjectField.FieldOption("major", "Major", "/icons/major.gif")), "enum"));
     }
 
     @Test

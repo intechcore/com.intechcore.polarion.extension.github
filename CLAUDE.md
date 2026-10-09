@@ -173,6 +173,9 @@ Webapp contexts must be declared in `src/main/resources/plugin.xml` - adding a
   `com.polarion.alm.tracker` lists the indexed work item fields, and `hyperlinks` is not one of
   them. The import finds its work items with an `SQL:(...)` query on `STRUCT_WORKITEM_HYPERLINKS`
   or `CF_WORKITEM`. Every value in that SQL passes `sqlLiteral`, which allows no quote.
+- **Generic reads a field back in another form than it writes it.** An option comes back by its
+  name, a date and time without the `T`. `service/FieldValues` compares the raw value of a work
+  item with the string of a setting, read as the type of that value.
 - **Mockito: re-stubbing with `when(...)` runs the old answer once.** Use `doAnswer(...).when(...)`
   to replace an answer that has a side effect.
 
