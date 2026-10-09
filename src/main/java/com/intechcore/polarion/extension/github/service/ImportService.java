@@ -9,6 +9,7 @@ import com.intechcore.polarion.extension.github.settings.ItemRule;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
 import com.polarion.alm.shared.api.transaction.TransactionalExecutor;
+import com.polarion.alm.tracker.model.ICategory;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
 import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
@@ -24,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,6 +42,8 @@ import java.util.regex.Pattern;
  */
 public class ImportService {
 
+    /** The built-in field of the categories of a work item: references, which generic does not set. */
+    static final String CATEGORIES = "categories";
     static final String GITHUB_URL = "https://github.com/";
     static final String HYPERLINK_ROLE = "ref_ext";
 
@@ -361,6 +365,32 @@ public class ImportService {
         return differences;
     }
 
+    /** Sets a field value of the settings. Generic sets every field but the categories, a list of references. */
+    private void setField(ITrackerProject project, IWorkItem workItem, String fieldId, @Nullable String value) {
+        if (!CATEGORIES.equals(fieldId)) {
+            polarionService.setFieldValue(workItem, fieldId, value);
+            return;
+        }
+        List<ICategory> wanted = Arrays.stream(Objects.toString(value, "").split(",")).map(String::trim).filter(part -> !part.isEmpty())
+                .map(part -> category(project, part)).distinct().toList();
+        List<ICategory> current = categories(workItem.getCategories());
+        current.stream().filter(category -> !wanted.contains(category)).forEach(workItem::removeCategory);
+        wanted.stream().filter(category -> !current.contains(category)).forEach(workItem::addCategory);
+    }
+
+    /** A category of the project by its ID or its name, as the settings page and a person name it. */
+    private static ICategory category(ITrackerProject project, String part) {
+        return categories(project.getCategories()).stream()
+                .filter(category -> part.equals(category.getId()) || part.equalsIgnoreCase(category.getName()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("The project has no category '%s'".formatted(part)));
+    }
+
+    /** The categories of a list Polarion gives without a type. */
+    private static List<ICategory> categories(@Nullable Collection<?> list) {
+        return list == null ? List.of() : list.stream().filter(ICategory.class::isInstance).map(ICategory.class::cast).toList();
+    }
+
     /** Whether a field of the work item holds the value of the settings, compared as its type (FieldValues). */
     private boolean holds(IWorkItem workItem, String fieldId, @Nullable String value) {
         try {
@@ -385,7 +415,7 @@ public class ImportService {
                 case DESCRIPTION -> workItem.setDescription(Text.html(expected.description()));
                 case TYPE -> workItem.setType(outcome.type());
                 case EPIC_LINK -> workItem.addLinkedItem(target.epic(), outcome.epicRole(), null, false);
-                default -> polarionService.setFieldValue(workItem, difference, outcome.fields().get(difference));
+                default -> setField(target.project(), workItem, difference, outcome.fields().get(difference));
             }
         }
         workItem.save();
@@ -439,7 +469,7 @@ public class ImportService {
         if (itemSettings.getDescriptionTemplate() != null && !itemSettings.getDescriptionTemplate().isBlank()) {
             workItem.setDescription(Text.html(renderDescription(itemSettings.getDescriptionTemplate(), item, values)));
         }
-        outcome.fields().forEach((fieldId, value) -> polarionService.setFieldValue(workItem, fieldId, value));
+        outcome.fields().forEach((fieldId, value) -> setField(target.project(), workItem, fieldId, value));
         if (itemSettings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD) {
             polarionService.setFieldValue(workItem, itemSettings.getDuplicateKeyField(), item.htmlUrl());
         } else {

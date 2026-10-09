@@ -53,6 +53,17 @@ class FieldValuesTest {
     }
 
     @Test
+    void comparesTheCategoriesByIdOrName() {
+        com.polarion.alm.tracker.model.ICategory plugin = mock(com.polarion.alm.tracker.model.ICategory.class);
+        when(plugin.getId()).thenReturn("plugin");
+        when(plugin.getName()).thenReturn("External/Plugin");
+
+        assertThat(FieldValues.same("plugin", List.of(plugin))).isTrue();
+        assertThat(FieldValues.same("external/plugin", List.of(plugin))).isTrue();
+        assertThat(FieldValues.same("core", List.of(plugin))).isFalse();
+    }
+
+    @Test
     void takesAnEmptyValueForNoValue() {
         assertThat(FieldValues.same(null, null)).isTrue();
         assertThat(FieldValues.same(" ", List.of())).isTrue();

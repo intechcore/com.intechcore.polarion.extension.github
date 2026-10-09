@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows
   as outdated when it holds the value of the settings. The values compare as their type.
 - An enumeration of all work item types offers only the options of the selected type.
 - The field values no longer offer the built-in references to one user, which generic cannot set.
+- The field values offer the categories of a work item, from the categories of the project.
 - The widget reads only its repositories from GitHub, and shows them in the order of its settings.
   The other settings of the project no longer show their errors in it.
 

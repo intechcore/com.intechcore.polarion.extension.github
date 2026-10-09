@@ -87,6 +87,15 @@ class ProjectControllerTest {
         com.polarion.platform.persistence.model.IPObjectList members = mock(com.polarion.platform.persistence.model.IPObjectList.class);
         when(members.stream()).thenAnswer(invocation -> java.util.stream.Stream.of(bob, gone, alice));
         when(projectService.getProjectUsers(project)).thenReturn(members);
+        com.polarion.alm.tracker.model.ICategory plugin = mock(com.polarion.alm.tracker.model.ICategory.class);
+        when(plugin.getId()).thenReturn("plugin");
+        when(plugin.getName()).thenReturn("External/Plugin");
+        com.polarion.alm.tracker.model.ICategory core = mock(com.polarion.alm.tracker.model.ICategory.class);
+        when(core.getId()).thenReturn("core");
+        when(core.getName()).thenReturn("Core");
+        com.polarion.platform.persistence.model.IPObjectList categories = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(categories.iterator()).thenAnswer(invocation -> List.of(plugin, core).iterator());
+        when(project.getCategories()).thenReturn(categories);
 
         FieldMetadata readOnly = field("created", "created", false, FieldType.STRING);
         readOnly.setReadOnly(true);
@@ -95,18 +104,20 @@ class ProjectControllerTest {
         // Enumerations come with their options; generic sets one with several values from "a,b".
         FieldMetadata severity = field("severity", "severity", false, FieldType.ENUM);
         severity.setOptions(new java.util.LinkedHashSet<>(List.of(new Option("major", "Major", "/icons/major.gif"), new Option("blocker", null, null))));
-        FieldMetadata categories = field("categories", "Categories", false, FieldType.LIST);
-        categories.setMulti(true);
-        categories.setOptions(Set.of(new Option("plugin", "External/Plugin", null), new Option("docs", "Docs", null)));
+        FieldMetadata platforms = field("platforms", "Platforms", true, FieldType.LIST);
+        platforms.setMulti(true);
+        platforms.setOptions(Set.of(new Option("plugin", "External/Plugin", null), new Option("docs", "Docs", null)));
         // A field of all types brings the options of all types: the options of the work item type replace them.
         when(polarionService.getOptionsForEnum(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(null);
-        when(polarionService.getOptionsForEnum(categories.getType(), contextId, "task")).thenReturn(Set.of(new Option("plugin", "External/Plugin", null)));
+        when(polarionService.getOptionsForEnum(platforms.getType(), contextId, "task")).thenReturn(Set.of(new Option("plugin", "External/Plugin", null)));
         // What the settings cannot fill: structures, lists, and the fields the import fills itself.
         when(polarionService.getGeneralFields("WorkItem", contextId, "task")).thenReturn(Set.of(
                 severity,
                 field("assignee", "assignee", false, FieldType.LIST),
-                categories,
+                platforms,
+                // The categories are references to the categories of the project.
+                field("categories", "categories", false, FieldType.LIST),
                 field("links", "links", false, FieldType.LIST),
                 field("author", "author", false, FieldType.USER),
                 field("dueDate", "dueDate", false, FieldType.DATE_ONLY),
@@ -125,10 +136,12 @@ class ProjectControllerTest {
                 new ProjectField("approved", "Approved", true, false, false, null, "boolean"),
                 new ProjectField("assignee", "assignee", false, false, true, List.of(
                         new ProjectField.FieldOption("alice", "alice", null), new ProjectField.FieldOption("bob", "Bob Builder", null)), "enum"),
-                new ProjectField("categories", "Categories", false, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null)), "enum"),
+                new ProjectField("categories", "categories", false, false, true, List.of(
+                        new ProjectField.FieldOption("core", "Core", null), new ProjectField.FieldOption("plugin", "External/Plugin", null)), "enum"),
                 new ProjectField("dueDate", "dueDate", false, false, false, null, "date"),
                 new ProjectField("estimate", "Estimate", true, false, false, null, "float"),
                 new ProjectField("githubUrl", "GitHub URL of a task", true, true, false, null, "string"),
+                new ProjectField("platforms", "Platforms", true, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null)), "enum"),
                 new ProjectField("severity", "severity", false, false, false, List.of(
                         new ProjectField.FieldOption("blocker", "blocker", null), new ProjectField.FieldOption("major", "Major", "/icons/major.gif")), "enum"));
     }

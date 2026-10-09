@@ -298,6 +298,37 @@ class ImportServiceTest {
         assertThat(created).hasSize(1);
     }
 
+    /** The categories are references to the categories of the project, which generic does not set. */
+    @Test
+    void setsTheCategoriesOfTheProjectByIdOrName() {
+        com.polarion.alm.tracker.model.ICategory plugin = category("plugin", "External/Plugin");
+        com.polarion.alm.tracker.model.ICategory core = category("core", "Core");
+        com.polarion.platform.persistence.model.IPObjectList categories = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(categories.stream()).thenAnswer(invocation -> java.util.stream.Stream.of(plugin, core));
+        when(project.getCategories()).thenReturn(categories);
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(item(7, "Crash on start", ISSUE_7), item(8, "Typo", ISSUE_8)));
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("categories", "plugin, Core"));
+
+        service.importRepository(PROJECT, settings, false, List.of(ISSUE_7));
+
+        IWorkItem workItem = created.get(0);
+        verify(workItem).addCategory(plugin);
+        verify(workItem).addCategory(core);
+        verify(polarionService, never()).setFieldValue(any(IWorkItem.class), org.mockito.ArgumentMatchers.eq("categories"), any());
+
+        settings.getIssues().setFields(Map.of("categories", "docs"));
+        assertThat(service.importRepository(PROJECT, settings, false, List.of(ISSUE_8)).getEntries().get(0).getMessage())
+                .contains("The project has no category 'docs'");
+    }
+
+    private static com.polarion.alm.tracker.model.ICategory category(String id, String name) {
+        com.polarion.alm.tracker.model.ICategory category = mock(com.polarion.alm.tracker.model.ICategory.class);
+        when(category.getId()).thenReturn(id);
+        when(category.getName()).thenReturn(name);
+        return category;
+    }
+
     @Test
     void importsDiscussionsWithTheirOwnSettings() {
         String discussion = "https://github.com/acme/tool/discussions/30";

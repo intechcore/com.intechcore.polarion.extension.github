@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.service;
 
 import ch.sbb.polarion.extension.generic.util.EnumUtils;
 import com.polarion.alm.projects.model.IUser;
+import com.polarion.alm.tracker.model.ICategory;
 import com.polarion.core.util.types.Currency;
 import com.polarion.core.util.types.DateOnly;
 import com.polarion.core.util.types.Text;
@@ -46,6 +47,7 @@ final class FieldValues {
                 case Collection<?> values -> sameValues(text, values);
                 case IEnumOption option -> names(option).anyMatch(text::equalsIgnoreCase);
                 case IUser user -> names(user).anyMatch(text::equals);
+                case ICategory category -> text.equals(category.getId()) || text.equalsIgnoreCase(category.getName());
                 case Text richText -> text.equals(Objects.toString(richText.getContent(), "").trim());
                 case Boolean flag -> flag == Boolean.parseBoolean(text);
                 case Number number -> new BigDecimal(text).compareTo(new BigDecimal(number.toString())) == 0;

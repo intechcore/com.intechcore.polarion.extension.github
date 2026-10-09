@@ -423,7 +423,9 @@ describe('Repositories page', () => {
         },
       },
     ]);
-    await vi.waitFor(() => expect(byLabel('Value 6 of issues')).not.toBeNull());
+    // Until the fields arrive, every value is a text input: wait for the controls of their kinds.
+    await vi.waitFor(() => expect(dropdown('Value 1 of issues')).not.toBeNull());
+    await vi.waitFor(() => expect(byLabel('Value 6 of issues')?.tagName).toBe('TEXTAREA'));
     const value = (n: number) => byLabel<HTMLInputElement>(`Value ${n} of issues`);
 
     expect(dropdown('Value 1 of issues').value).toBe('true');
