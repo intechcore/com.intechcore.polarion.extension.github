@@ -75,6 +75,18 @@ export const FIELDS = [
       { id: 'core', name: 'Core', iconUrl: null },
     ],
   },
+  // The assignee offers the users of the project.
+  {
+    id: 'assignee',
+    name: 'assignee',
+    custom: false,
+    urlKey: false,
+    multi: true,
+    options: [
+      { id: 'alice', name: 'Alice', iconUrl: null },
+      { id: 'bob', name: 'Bob Builder', iconUrl: null },
+    ],
+  },
 ];
 
 export const USERS = [

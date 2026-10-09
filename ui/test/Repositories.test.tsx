@@ -344,7 +344,7 @@ describe('Repositories page', () => {
         match: /\/content/,
         json: {
           ...CONTENT,
-          issues: { ...CONTENT.issues, fields: { budget: 'internal', categories: 'core' }, rules: [] },
+          issues: { ...CONTENT.issues, fields: { budget: 'internal', categories: 'core', assignee: 'bob' }, rules: [] },
         },
       },
     ]);
@@ -353,6 +353,10 @@ describe('Repositories page', () => {
     expect(dropdown('Value 1 of issues').value).toBe('Internal/all');
     const categories = document.querySelector<HTMLElement>('div.sd-trigger[aria-label="Value 2 of issues"]')!;
     expect(categories.textContent).toContain('Core');
+    // The assignee chooses from the users of the project.
+    expect(document.querySelector('div.sd-trigger[aria-label="Value 3 of issues"]')!.textContent).toContain(
+      'Bob Builder',
+    );
 
     await pick(dropdown('Value 1 of issues'), 'External/all');
     mousedown(categories);
@@ -368,7 +372,7 @@ describe('Repositories page', () => {
 
     await vi.waitFor(() => expect(savedBody()).toBeDefined());
     // The options keep the order of the list, whatever the order of the clicks.
-    expect(savedBody().issues.fields).toEqual({ budget: 'external', categories: 'plugin,core' });
+    expect(savedBody().issues.fields).toEqual({ budget: 'external', categories: 'plugin,core', assignee: 'bob' });
   });
 
   it('gives every control of a field value the control height of 23 pixels, level with each other', async () => {

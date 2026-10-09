@@ -36,6 +36,7 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 6. To link every created work item to an epic, enter the ID of the epic and select the link role.
 7. Add field values that every created work item gets.
    An enumeration field offers its options in a dropdown. A field with several values takes several options.
+   The assignee offers the enabled users of the project.
 8. Add rules for the items that need another work item type, see below.
 9. Select `Save`.
 

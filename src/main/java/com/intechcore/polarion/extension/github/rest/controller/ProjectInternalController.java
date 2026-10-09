@@ -37,7 +37,7 @@ import java.util.Set;
 public class ProjectInternalController {
 
     private static final Set<String> FILLED_BY_THE_IMPORT = Set.of("title", "description", "type");
-    // A list of users, which generic sets from one user ID.
+    // A list of users, which generic sets from user IDs separated by commas.
     private static final String ASSIGNEE = "assignee";
 
     protected final PolarionService polarionService;
@@ -104,6 +104,15 @@ public class ProjectInternalController {
         return type != FieldType.UNKNOWN;
     }
 
+    /** The enabled users of the project, the assignees generic accepts, by name. */
+    private List<ProjectField.FieldOption> assignees(ITrackerProject project) {
+        return polarionService.getProjectService().getProjectUsers(project).stream()
+                .filter(user -> !user.isDisabled())
+                .map(user -> new ProjectField.FieldOption(user.getId(), user.getName() == null ? user.getId() : user.getName(), null))
+                .sorted(Comparator.comparing(ProjectField.FieldOption::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
     /** The options of an enumeration field, by name, or null for any other field. */
     private static @Nullable List<ProjectField.FieldOption> options(FieldMetadata field) {
         return field.getOptions() == null ? null : field.getOptions().stream()
@@ -130,7 +139,8 @@ public class ProjectInternalController {
                 .filter(ProjectInternalController::takesAValue)
                 .map(field -> new ProjectField(field.getId(), field.getLabel(), field.isCustom(),
                         field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType()),
-                        field.isMulti() || FieldType.recognize(field.getType()) == FieldType.LIST, options(field)))
+                        field.isMulti() || FieldType.recognize(field.getType()) == FieldType.LIST,
+                        ASSIGNEE.equals(field.getId()) ? assignees(project) : options(field)))
                 .sorted(Comparator.comparing(ProjectField::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
