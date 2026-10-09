@@ -20,7 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.UUID;
@@ -50,6 +52,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     private final List<String> columns;
     private final boolean hideFilters;
     private final boolean allowCreate;
+    private final boolean showTime;
     private final boolean printed;
     private final Supplier<ProjectItemsReader> reader;
 
@@ -73,6 +76,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
         columns = values(context.parameter(GithubItemsWidget.PARAMETER_COLUMNS));
         hideFilters = isTrue(context.parameter(GithubItemsWidget.PARAMETER_HIDE_FILTERS));
         allowCreate = isTrue(context.parameter(GithubItemsWidget.PARAMETER_ALLOW_CREATE));
+        showTime = isTrue(context.parameter(GithubItemsWidget.PARAMETER_SHOW_TIME));
     }
 
     // A widget saved before a parameter existed has none of it.
@@ -115,7 +119,9 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
         if (projectId == null) {
             return "<p>The GitHub items belong to a project.</p>";
         }
-        return new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false, repositories));
+        long started = System.nanoTime();
+        String table = new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false, repositories));
+        return showTime ? table + generatedIn(Duration.ofNanos(System.nanoTime() - started)) : table;
     }
 
     @NotNull String appUrl() {
@@ -129,7 +135,15 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
                 + list("states", states)
                 + list("columns", columns)
                 + (hideFilters ? "&hideFilters=true" : "")
-                + (allowCreate ? "&allowCreate=true" : "");
+                + (allowCreate ? "&allowCreate=true" : "")
+                + (showTime ? "&showTime=true" : "");
+    }
+
+    /** The line below a printed table: how long the server took to read the items and write the table. */
+    static @NotNull String generatedIn(@NotNull Duration duration) {
+        long millis = duration.toMillis();
+        String took = millis < 1000 ? millis + " ms" : String.format(Locale.ROOT, "%.1f s", millis / 1000.0);
+        return "<p style=\"font-size:8pt;color:#6b6b6b;margin:4px 0 0;\">Generated in " + took + "</p>";
     }
 
     private static String list(String name, List<String> values) {

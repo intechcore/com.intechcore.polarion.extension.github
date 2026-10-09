@@ -38,11 +38,12 @@ class GithubItemsWidgetTest {
 
         for (String key : new String[]{GithubItemsWidget.PARAMETER_REPOSITORIES, GithubItemsWidget.PARAMETER_KINDS,
                 GithubItemsWidget.PARAMETER_STATES, GithubItemsWidget.PARAMETER_COLUMNS,
-                GithubItemsWidget.PARAMETER_HIDE_FILTERS, GithubItemsWidget.PARAMETER_ALLOW_CREATE}) {
+                GithubItemsWidget.PARAMETER_HIDE_FILTERS, GithubItemsWidget.PARAMETER_ALLOW_CREATE, GithubItemsWidget.PARAMETER_SHOW_TIME}) {
             assertThat(parameters.get(key)).as(key).isNotNull();
         }
         // A new widget is a report: creating work items stays off until the author turns it on.
         verify(factory.bool("Allow creating work items")).value(false);
+        verify(factory.bool("Show the generation time")).value(false);
         // The repositories are a multi-select of the settings of the project of the page.
         verify(factory.enumeration("Repositories", RepositoriesEnumFactory.ENUM_ID)).allowMultipleValues(true);
         verify(factory.customEnum("Kinds").allowMultipleValues(true).allowNoValue(true)).addEnumItem("PULL_REQUEST", "Pull request");
