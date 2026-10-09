@@ -83,6 +83,16 @@ describe.skipIf(!__PIXEL_REFERENCES__)('Repositories page visual', () => {
     await captureApp('repositories-add-new');
   });
 
+  it('the name of a copy being entered', async () => {
+    open();
+    await loaded();
+
+    appButton('Copy').click();
+
+    await vi.waitFor(() => expect(document.querySelector('.repository-form.dimmed')).not.toBeNull());
+    await captureApp('repositories-copy');
+  });
+
   it('a project without a setting', async () => {
     open([{ method: 'GET', match: /\/settings\/repositories\/names\?/, json: [] }]);
 
