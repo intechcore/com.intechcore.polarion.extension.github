@@ -72,7 +72,22 @@ class ProjectControllerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void listsTheFieldsThatTakeAValueAndMarksTheOnesThatCanKeepAUrl() {
+        // The assignee offers the enabled users of the project.
+        com.polarion.alm.projects.IProjectService projectService = mock(com.polarion.alm.projects.IProjectService.class);
+        when(polarionService.getProjectService()).thenReturn(projectService);
+        com.polarion.alm.projects.model.IUser bob = mock(com.polarion.alm.projects.model.IUser.class);
+        when(bob.getId()).thenReturn("bob");
+        when(bob.getName()).thenReturn("Bob Builder");
+        com.polarion.alm.projects.model.IUser alice = mock(com.polarion.alm.projects.model.IUser.class);
+        when(alice.getId()).thenReturn("alice");
+        com.polarion.alm.projects.model.IUser gone = mock(com.polarion.alm.projects.model.IUser.class);
+        when(gone.isDisabled()).thenReturn(true);
+        com.polarion.platform.persistence.model.IPObjectList members = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(members.stream()).thenAnswer(invocation -> java.util.stream.Stream.of(bob, gone, alice));
+        when(projectService.getProjectUsers(project)).thenReturn(members);
+
         FieldMetadata readOnly = field("created", "created", false, FieldType.STRING);
         readOnly.setReadOnly(true);
         FieldMetadata multi = field("tags", "Tags", true, FieldType.STRING);
@@ -100,7 +115,8 @@ class ProjectControllerTest {
                 .thenReturn(Set.of(field("githubUrl", "GitHub URL of a task", true, FieldType.STRING), field("estimate", "Estimate", true, FieldType.FLOAT)));
 
         assertThat(new ProjectInternalController(polarionService).getFields("elibrary", "task")).containsExactly(
-                new ProjectField("assignee", "assignee", false, false, true, null),
+                new ProjectField("assignee", "assignee", false, false, true, List.of(
+                        new ProjectField.FieldOption("alice", "alice", null), new ProjectField.FieldOption("bob", "Bob Builder", null))),
                 new ProjectField("categories", "Categories", false, false, true, List.of(new ProjectField.FieldOption("plugin", "External/Plugin", null))),
                 new ProjectField("estimate", "Estimate", true, false, false, null),
                 new ProjectField("githubUrl", "GitHub URL of a task", true, true, false, null),
