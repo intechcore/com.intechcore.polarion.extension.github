@@ -36,6 +36,7 @@ body {
 
 .field-row {
   display: flex;
+  align-items: flex-start;
   gap: 6px;
   margin-bottom: 6px;
 }
@@ -69,9 +70,10 @@ body {
   align-items: center;
 }
 
-/* Clear filters stands in the row of the filters, so it takes their height of 23px, not the 28px of
-   a button. */
-.item-filters .sbb-btn {
+/* Clear filters stands in the row of the filters, and Remove in the row of a field value, so they take
+   the control height of 23px, not the 28px of a button. */
+.item-filters .sbb-btn,
+.field-row .sbb-btn {
   height: var(--sbb-control-height);
   line-height: calc(var(--sbb-control-height) - 2px);
 }
@@ -94,7 +96,8 @@ body {
 /* Every control has RSP's control height of 23px, as on the other pages and extensions. The
    multi-select adds 4px of padding above and below; without it, its min-height of 23px holds, and a
    chip still fits in one row. */
-.item-filter .searchable-dropdown > .sd-trigger-multi {
+.item-filter .searchable-dropdown > .sd-trigger-multi,
+.field-row .searchable-dropdown > .sd-trigger-multi {
   padding-top: 0;
   padding-bottom: 0;
 }

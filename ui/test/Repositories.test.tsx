@@ -371,6 +371,28 @@ describe('Repositories page', () => {
     expect(savedBody().issues.fields).toEqual({ budget: 'external', categories: 'plugin,core' });
   });
 
+  it('gives every control of a field value the control height of 23 pixels, level with each other', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/content/,
+        json: { ...CONTENT, issues: { ...CONTENT.issues, fields: { categories: '', budget: 'internal' }, rules: [] } },
+      },
+    ]);
+    await vi.waitFor(() =>
+      expect(document.querySelector('div.sd-trigger[aria-label="Value 1 of issues"]')).not.toBeNull(),
+    );
+
+    for (const row of Array.from(document.querySelectorAll('.field-row')).slice(0, 2)) {
+      const boxes = Array.from(row.querySelectorAll<HTMLElement>('.sd-trigger, .sbb-btn')).map((element) =>
+        element.getBoundingClientRect(),
+      );
+      expect(boxes).toHaveLength(3);
+      expect(boxes.map((box) => box.height)).toEqual([23, 23, 23]);
+      expect(new Set(boxes.map((box) => box.top)).size).toBe(1);
+    }
+  });
+
   it('shows a field named by its ID once', async () => {
     await mount();
 
