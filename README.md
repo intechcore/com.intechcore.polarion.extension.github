@@ -39,6 +39,9 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 8. Add rules for the items that need another work item type, see below.
 9. Select `Save`.
 
+To start from another setting, select it, select `Copy` and enter a name. The copy takes the saved
+setting, the repository included, and opens. Change what differs and save.
+
 The templates take the placeholders `{{ SHORT_NAME }}`, `{{ REPOSITORY }}`, `{{ NUMBER }}`, `{{ TITLE }}`,
 `{{ AUTHOR }}`, `{{ URL }}`, `{{ LABELS }}`, `{{ TYPE }}`, `{{ CATEGORY }}` and `{{ CHECKS }}`, the failed checks
 of a pull request. The description also takes `{{ BODY }}`.

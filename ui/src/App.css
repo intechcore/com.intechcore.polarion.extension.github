@@ -370,3 +370,12 @@ body {
   align-items: center;
   gap: 6px;
 }
+
+/* The Copy row below RSP's ConfigurationsPane. */
+.copy-setting {
+  margin-top: 8px;
+}
+
+.copy-setting .notifications {
+  flex-basis: 100%;
+}

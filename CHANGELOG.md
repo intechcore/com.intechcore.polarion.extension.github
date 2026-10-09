@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - The field values offer all fields that take a value, enumerations with several values included.
   An enumeration field shows its options in a dropdown.
+- `Copy` on the Repositories page copies the saved setting under a new name, to edit the copy.
 
 ### Fixed
 - The widget reads only its repositories from GitHub, and shows them in the order of its settings.

@@ -69,6 +69,61 @@ afterEach(() => {
 });
 
 describe('Repositories page', () => {
+  it('copies the saved setting under a new name and opens the copy', async () => {
+    await mount();
+    await userEvent.fill(input('short-name'), 'Edited, not saved');
+
+    button('Copy').click();
+    await vi.waitFor(() => expect(input('copy-name').value).toBe('tool copy'));
+    // The form waits, dimmed, until the copy is made or cancelled.
+    expect(document.querySelector('.repository-form.dimmed')).not.toBeNull();
+    await userEvent.fill(input('copy-name'), 'tool two');
+    button('Copy').click();
+
+    await vi.waitFor(() => expect(toastText()).toContain('Copied tool as tool two.'));
+    // The copy takes the saved setting, not the edits on the form.
+    expect(savedBody()).toEqual(CONTENT);
+    const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')!;
+    expect(String(put[0])).toContain('/settings/repositories/names/tool%20two/content');
+    expect(input('copy-name')).toBeNull();
+    expect(document.querySelector('.repository-form.dimmed')).toBeNull();
+  });
+
+  it('refuses a copy under a name that is taken or not allowed, and cancels it', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/settings\/repositories\/names\?/,
+        json: [
+          { name: 'tool', scope: SCOPE },
+          { name: 'docs', scope: SCOPE },
+        ],
+      },
+    ]);
+
+    button('Copy').click();
+    await vi.waitFor(() => expect(input('copy-name')).not.toBeNull());
+    await userEvent.fill(input('copy-name'), 'docs');
+    button('Copy').click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.copy-setting .alert-error')?.textContent).toBe(
+        'A repository with this name already exists',
+      ),
+    );
+    await userEvent.fill(input('copy-name'), 'tool/2');
+    button('Copy').click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.copy-setting .alert-error')?.textContent).toBe(
+        'Only alphanumeric characters, hyphens and spaces are allowed',
+      ),
+    );
+    expect(savedBody()).toBeUndefined();
+
+    button('Cancel').click();
+    await vi.waitFor(() => expect(input('copy-name')).toBeNull());
+    expect(document.querySelector('.repository-form.dimmed')).toBeNull();
+  });
+
   it('shows the saved setting', async () => {
     await mount();
 

@@ -9,6 +9,7 @@ import {
   getScope,
 } from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
+import CopySetting from '../components/CopySetting';
 import ErrorNotice from '../components/ErrorNotice';
 import type { FieldRow } from '../components/FieldValues';
 import ItemSettingsForm, { type ItemForm } from '../components/ItemSettingsForm';
@@ -135,6 +136,7 @@ export default function Repositories() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [showRevisions, setShowRevisions] = useState(false);
   const [revisionsToken, setRevisionsToken] = useState(0);
 
@@ -212,6 +214,17 @@ export default function Repositories() {
     }
   };
 
+  // The copy takes the saved setting, not the edits on the form, and opens it.
+  const handleCopy = async (name: string, newName: string) => {
+    const names = await settings.loadConfigurationNames(scope);
+    if (names.some((setting) => setting.scope === scope && setting.name === newName)) {
+      throw new Error('A repository with this name already exists');
+    }
+    await settings.saveContent(newName, scope, await settings.loadContent(name, scope));
+    await paneRef.current?.reloadNames(newName);
+    toast.success(`Copied ${name} as ${newName}.`);
+  };
+
   const handleCancel = async (name: string) => {
     try {
       applySettings(await settings.loadContent(name, scope));
@@ -251,9 +264,10 @@ export default function Repositories() {
         onSelectedChange={handleSelectedChange}
         onEditingNameChange={setEditingName}
       />
+      {selected && !editingName && <CopySetting name={selected} onCopy={handleCopy} onEditingChange={setCopying} />}
 
       {selected && (
-        <div className={editingName ? 'repository-form dimmed' : 'repository-form'}>
+        <div className={editingName || copying ? 'repository-form dimmed' : 'repository-form'}>
           <h2>Repository</h2>
           <table className="settings-table">
             <tbody>
