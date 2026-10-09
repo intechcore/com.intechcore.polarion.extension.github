@@ -393,6 +393,17 @@ describe('Repositories page', () => {
     }
   });
 
+  it('gives the recipients the control height and the repository dropdown twice the width of RSP', async () => {
+    await mount();
+
+    expect(
+      document.querySelector<HTMLElement>('div.sd-trigger[aria-label="Recipients"]')!.getBoundingClientRect().height,
+    ).toBe(23);
+    expect(
+      document.querySelector<HTMLElement>('.configurations-pane .searchable-dropdown')!.getBoundingClientRect().width,
+    ).toBe(260);
+  });
+
   it('shows a field named by its ID once', async () => {
     await mount();
 

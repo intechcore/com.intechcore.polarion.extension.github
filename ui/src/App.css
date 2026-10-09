@@ -97,7 +97,8 @@ body {
    multi-select adds 4px of padding above and below; without it, its min-height of 23px holds, and a
    chip still fits in one row. */
 .item-filter .searchable-dropdown > .sd-trigger-multi,
-.field-row .searchable-dropdown > .sd-trigger-multi {
+.field-row .searchable-dropdown > .sd-trigger-multi,
+.settings-table .searchable-dropdown > .sd-trigger-multi {
   padding-top: 0;
   padding-bottom: 0;
 }
@@ -372,6 +373,11 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* The repository settings carry long names: twice the 130px RSP gives the dropdown. */
+.configurations-pane .config-row .searchable-dropdown {
+  width: 260px;
 }
 
 /* The Copy row below RSP's ConfigurationsPane. */
