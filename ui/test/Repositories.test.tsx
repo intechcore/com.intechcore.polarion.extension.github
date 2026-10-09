@@ -408,6 +408,50 @@ describe('Repositories page', () => {
     ).toBe(260);
   });
 
+  it('gives every kind of field the control of its kind, in the form generic reads', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: /\/content/,
+        json: {
+          ...CONTENT,
+          issues: {
+            ...CONTENT.issues,
+            fields: { approved: 'true', estimate: '1.5', dueDate: '2026-10-09', start: '', remaining: '1d', notes: '' },
+            rules: [],
+          },
+        },
+      },
+    ]);
+    await vi.waitFor(() => expect(byLabel('Value 6 of issues')).not.toBeNull());
+    const value = (n: number) => byLabel<HTMLInputElement>(`Value ${n} of issues`);
+
+    expect(dropdown('Value 1 of issues').value).toBe('true');
+    expect([value(2).type, value(2).value]).toEqual(['number', '1.5']);
+    expect([value(3).type, value(3).value]).toEqual(['date', '2026-10-09']);
+    expect(value(4).type).toBe('datetime-local');
+    expect([value(5).type, value(5).placeholder]).toEqual(['text', 'For example 1d 2h']);
+    expect([value(6).tagName, value(6).placeholder]).toEqual(['TEXTAREA', 'HTML']);
+    // Every value control takes the width of the column, whatever its kind.
+    expect(new Set([2, 3, 4, 5, 6].map((n) => value(n).getBoundingClientRect().width))).toEqual(new Set([240]));
+
+    await pick(dropdown('Value 1 of issues'), 'false');
+    // The browser leaves out the seconds when they are zero; generic needs them.
+    await userEvent.fill(value(4), '2026-10-09T14:30');
+    await userEvent.fill(value(6), '<b>Imported</b>');
+    button('Save').click();
+
+    await vi.waitFor(() => expect(savedBody()).toBeDefined());
+    expect(savedBody().issues.fields).toEqual({
+      approved: 'false',
+      estimate: '1.5',
+      dueDate: '2026-10-09',
+      start: '2026-10-09T14:30:00',
+      remaining: '1d',
+      notes: '<b>Imported</b>',
+    });
+  });
+
   it('shows a field named by its ID once', async () => {
     await mount();
 

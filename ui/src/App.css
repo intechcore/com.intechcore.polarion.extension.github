@@ -42,8 +42,26 @@ body {
 }
 
 .field-row .searchable-dropdown,
-.field-row input[type='text'] {
+.field-row input,
+.field-row input[type='text'],
+.field-row textarea {
   width: 240px;
+  box-sizing: border-box;
+}
+
+/* RSP styles the text and number inputs. The date and time inputs of a field value look the same. */
+.field-row input[type='date'],
+.field-row input[type='time'],
+.field-row input[type='datetime-local'] {
+  height: var(--sbb-control-height);
+  border: 1px solid var(--sbb-control-border);
+  border-radius: var(--sbb-control-radius);
+  background-color: var(--sbb-control-bg);
+  font-family: var(--sbb-control-font-family);
+  font-size: var(--sbb-control-font-size);
+  font-weight: var(--sbb-control-font-weight);
+  color: var(--sbb-control-text);
+  padding: 0 6px;
 }
 
 .item-settings-enabled {

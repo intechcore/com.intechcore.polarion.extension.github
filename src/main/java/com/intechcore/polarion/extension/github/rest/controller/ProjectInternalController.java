@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.rest.controller;
 
 import ch.sbb.polarion.extension.generic.fields.FieldType;
 import ch.sbb.polarion.extension.generic.fields.model.FieldMetadata;
+import ch.sbb.polarion.extension.generic.fields.model.Option;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ProjectField;
 import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
@@ -97,6 +98,10 @@ public class ProjectInternalController {
             return true;
         }
         FieldType type = FieldType.recognize(field.getType());
+        if (type == FieldType.USER) {
+            // Generic cannot set a reference to one user from a string. Custom user fields are enumerations.
+            return false;
+        }
         if (field.isMulti() || type == FieldType.LIST) {
             // Of the fields with several values, generic sets the enumerations from "a,b".
             return field.getOptions() != null;
@@ -113,12 +118,37 @@ public class ProjectInternalController {
                 .toList();
     }
 
-    /** The options of an enumeration field, by name, or null for any other field. */
-    private static @Nullable List<ProjectField.FieldOption> options(FieldMetadata field) {
-        return field.getOptions() == null ? null : field.getOptions().stream()
+    /**
+     * The options of an enumeration field for the work item type, by name, or null for any other field.
+     * A custom field of all types comes with the options of all types, so they are read again.
+     */
+    private @Nullable List<ProjectField.FieldOption> options(FieldMetadata field, IContextId contextId, String workItemType) {
+        if (field.getOptions() == null) {
+            return null;
+        }
+        Set<Option> options = polarionService.getOptionsForEnum(field.getType(), contextId, workItemType);
+        return (options == null ? field.getOptions() : options).stream()
                 .map(option -> new ProjectField.FieldOption(option.getKey(), option.getName() == null ? option.getKey() : option.getName(), option.getIconUrl()))
                 .sorted(Comparator.comparing(ProjectField.FieldOption::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+    }
+
+    /** The kind of value of a field, for the control of the settings page. */
+    private static String kind(FieldMetadata field) {
+        return switch (FieldType.recognize(field.getType())) {
+            case TEXT -> "text";
+            case RICH -> "rich";
+            case INTEGER -> "integer";
+            case FLOAT -> "float";
+            case CURRENCY -> "currency";
+            case BOOLEAN -> "boolean";
+            case DATE_ONLY -> "date";
+            case TIME_ONLY -> "time";
+            case DATE -> "dateTime";
+            case DURATION -> "duration";
+            case ENUM, LIST, USER -> "enum";
+            default -> "string";
+        };
     }
 
     @Operation(summary = "Returns the fields of a work item type of a project")
@@ -140,7 +170,7 @@ public class ProjectInternalController {
                 .map(field -> new ProjectField(field.getId(), field.getLabel(), field.isCustom(),
                         field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType()),
                         field.isMulti() || FieldType.recognize(field.getType()) == FieldType.LIST,
-                        ASSIGNEE.equals(field.getId()) ? assignees(project) : options(field)))
+                        ASSIGNEE.equals(field.getId()) ? assignees(project) : options(field, contextId, workItemType), kind(field)))
                 .sorted(Comparator.comparing(ProjectField::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }

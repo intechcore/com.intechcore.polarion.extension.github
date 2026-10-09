@@ -75,6 +75,13 @@ export const FIELDS = [
       { id: 'core', name: 'Core', iconUrl: null },
     ],
   },
+  // Fields without options get the control of their kind.
+  { id: 'approved', name: 'Approved', custom: true, urlKey: false, type: 'boolean' },
+  { id: 'estimate', name: 'Estimate', custom: true, urlKey: false, type: 'float' },
+  { id: 'dueDate', name: 'dueDate', custom: false, urlKey: false, type: 'date' },
+  { id: 'start', name: 'Start', custom: true, urlKey: false, type: 'dateTime' },
+  { id: 'remaining', name: 'Remaining', custom: true, urlKey: false, type: 'duration' },
+  { id: 'notes', name: 'Notes', custom: true, urlKey: false, type: 'rich' },
   // The assignee offers the users of the project.
   {
     id: 'assignee',

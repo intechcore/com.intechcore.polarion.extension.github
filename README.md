@@ -37,6 +37,10 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 7. Add field values that every created work item gets.
    An enumeration field offers its options in a dropdown. A field with several values takes several options.
    The assignee offers the enabled users of the project.
+   Every other field gets the control of its type: true or false, a number, a date, a time, a date
+   and time, a duration such as `1d 2h`, or HTML for a rich text field.
+   Custom fields come as Polarion resolves them: the fields of the project, or the global ones when
+   the project defines none.
 8. Add rules for the items that need another work item type, see below.
 9. Select `Save`.
 

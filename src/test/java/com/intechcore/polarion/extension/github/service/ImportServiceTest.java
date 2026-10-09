@@ -542,17 +542,6 @@ class ImportServiceTest {
         verify(created.get(0)).addHyperlink(url, hyperlinkRole);
     }
 
-    /** A field with several values holds them in an order of its own: the values compare as a set. */
-    @Test
-    void comparesTheValuesOfAFieldAsASet() {
-        assertThat(ImportService.sameValue("plugin,core", "core, plugin")).isTrue();
-        assertThat(ImportService.sameValue("major", "major")).isTrue();
-        assertThat(ImportService.sameValue(null, null)).isTrue();
-        assertThat(ImportService.sameValue("plugin", "plugin,core")).isFalse();
-        assertThat(ImportService.sameValue("major", null)).isFalse();
-        assertThat(ImportService.sameValue(null, "major")).isFalse();
-    }
-
     @Test
     void leavesOutTheItemsOfAnAuthor() {
         RepositorySettingsModel settings = settings();
@@ -655,8 +644,8 @@ class ImportServiceTest {
         found.add(workItem);
         RepositorySettingsModel settings = settings();
         settings.getIssues().setFields(Map.of("severity", "major", "component", "core"));
-        when(polarionService.getFieldValue(workItem, "severity", String.class)).thenReturn("major");
-        when(polarionService.getFieldValue(workItem, "component", String.class)).thenThrow(new IllegalArgumentException("unknown"));
+        when(polarionService.getFieldValue(workItem, "severity")).thenReturn("major");
+        when(polarionService.getFieldValue(workItem, "component")).thenThrow(new IllegalArgumentException("unknown"));
 
         ImportEntry entry = service.importRepository(PROJECT, settings, true, null).getEntries().get(0);
 
@@ -726,7 +715,7 @@ class ImportServiceTest {
         IWorkItem stored = upToDate();
         when(stored.getTitle()).thenReturn("old title");
         found.add(stored);
-        when(polarionService.getFieldValue(stored, "component", String.class)).thenReturn("core");
+        when(polarionService.getFieldValue(stored, "component")).thenReturn("core");
         IWorkItem writable = mock(IWorkItem.class);
         when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
         when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);

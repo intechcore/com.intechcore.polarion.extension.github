@@ -60,7 +60,6 @@ export interface ProjectOption {
   name: string;
 }
 
-/** A work item field of a project (rest.model.ProjectField). */
 /** An option of an enumeration field (rest.model.ProjectField.FieldOption). */
 export interface FieldOption {
   id: string;
@@ -68,6 +67,22 @@ export interface FieldOption {
   iconUrl: string | null;
 }
 
+/** The kind of value of a field, which gets its own control. */
+export type FieldKind =
+  | 'string'
+  | 'text'
+  | 'rich'
+  | 'integer'
+  | 'float'
+  | 'currency'
+  | 'boolean'
+  | 'date'
+  | 'time'
+  | 'dateTime'
+  | 'duration'
+  | 'enum';
+
+/** A work item field of a project (rest.model.ProjectField). */
 export interface ProjectField {
   id: string;
   name: string;
@@ -77,6 +92,8 @@ export interface ProjectField {
   multi?: boolean;
   /** The options of an enumeration field, or null for any other field. */
   options?: FieldOption[] | null;
+  /** The kind of value. A field without one takes text. */
+  type?: FieldKind;
 }
 
 export type ItemKind = 'ISSUE' | 'DISCUSSION' | 'PULL_REQUEST' | 'ADVISORY';

@@ -821,6 +821,24 @@
             },
             "type": "array"
           },
+          "type": {
+            "description": "The kind of value, which the settings page gives its own control",
+            "enum": [
+              "string",
+              "text",
+              "rich",
+              "integer",
+              "float",
+              "currency",
+              "boolean",
+              "date",
+              "time",
+              "dateTime",
+              "duration",
+              "enum"
+            ],
+            "type": "string"
+          },
           "urlKey": {
             "description": "Whether the field can keep the URL of a GitHub item: a custom field of the type String",
             "type": "boolean"

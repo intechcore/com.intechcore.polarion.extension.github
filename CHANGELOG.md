@@ -11,8 +11,14 @@ All notable changes to this project are documented here. The format follows
   An enumeration field shows its options in a dropdown.
 - `Copy` on the Repositories page copies the saved setting under a new name, to edit the copy.
 - The assignee in the field values offers the enabled users of the project in a dropdown.
+- Every field value gets the control of its type: boolean, number, currency, date, time, date and
+  time, duration, text and rich text.
 
 ### Fixed
+- A work item with an enumeration, a date and time or a number in its field values no longer shows
+  as outdated when it holds the value of the settings. The values compare as their type.
+- An enumeration of all work item types offers only the options of the selected type.
+- The field values no longer offer the built-in references to one user, which generic cannot set.
 - The widget reads only its repositories from GitHub, and shows them in the order of its settings.
   The other settings of the project no longer show their errors in it.
 
