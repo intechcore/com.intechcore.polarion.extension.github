@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The widget can say below its table how long the report took.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added
@@ -15,7 +18,6 @@ All notable changes to this project are documented here. The format follows
 - The assignee in the field values offers the enabled users of the project in a dropdown.
 - Every field value gets the control of its type: boolean, number, currency, date, time, date and
   time, duration, text and rich text.
-- The widget can say below its table how long the report took.
 
 ### Fixed
 - A work item with an enumeration, a date and time or a number in its field values no longer shows
