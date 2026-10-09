@@ -328,6 +328,26 @@ describe('GitHub items page', () => {
     posted.mockRestore();
   });
 
+  // The test runs in an iframe of the runner, where the widget runs in an iframe of the report
+  type Offers = { [key: string]: Set<{ title: string; anchor: () => Element | null }> | undefined };
+  const pdfExportOffers = () => [...((window.top as unknown as Offers).__pdfExporterExportTargets ?? [])];
+
+  it('offers itself to the "Export to PDF" button of the report', async () => {
+    await mountWidget('');
+
+    expect(pdfExportOffers().map((offer) => offer.title)).toEqual(['GitHub Items']);
+    expect(pdfExportOffers()[0].anchor()).toBe(window.frameElement);
+  });
+
+  it('offers nothing to export as the topic, which is no widget of a report', async () => {
+    fetchMock = installFetchMock(itemsRoutes());
+    setUrl(`?feature=items&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(document.querySelector('.items-summary')).not.toBeNull());
+
+    expect(pdfExportOffers()).toEqual([]);
+  });
+
   it('reads only the repositories of the widget, in its order', async () => {
     await mountWidget('&settings=docs%2Ctool');
 

@@ -9,7 +9,13 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { PageLayout, SearchableSelect, getProjectIdFromScope, getScope } from '@sbb-polarion/react-sbb-polarion';
+import {
+  PageLayout,
+  SearchableSelect,
+  getProjectIdFromScope,
+  getScope,
+  useOfferForPdfExport,
+} from '@sbb-polarion/react-sbb-polarion';
 import { toast } from 'sonner';
 import ButtonIcon from '../components/ButtonIcon';
 import ErrorNotice from '../components/ErrorNotice';
@@ -44,6 +50,15 @@ function readTime(repositories: RepositoryState[]): string | null {
   const oldest = times.sort()[0];
   // The 24-hour clock, whatever the locale of the browser would pick: 18:48, not 06:48 PM.
   return new Date(oldest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+}
+
+/**
+ * Offers the widget to pdf-exporter's "Export to PDF" button of the report, which may then export it alone, as
+ * the server renders it. Rendered by the widget only: the topic is no widget of a report.
+ */
+function PdfExportOffer() {
+  useOfferForPdfExport('GitHub Items');
+  return null;
 }
 
 /**
@@ -281,6 +296,7 @@ export default function Items() {
 
   return (
     <PageLayout title={title}>
+      {options.widget && <PdfExportOffer />}
       {error && <ErrorNotice>{error}</ErrorNotice>}
       {repositories
         .filter((state) => state.error)

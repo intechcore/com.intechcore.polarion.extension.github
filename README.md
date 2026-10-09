@@ -319,6 +319,9 @@ A PDF export or a print of the page (for example with the PDF Exporter) shows th
 with the settings of the widget: without hidden items, filtered by repositories, kinds and states, in
 the columns of the widget, or in all columns. The server reads it when the document is made.
 
+With PDF Exporter 13.11 or later, the report's own **Export to PDF** button can also export this widget alone: it offers
+**Only GitHub Items**, and the PDF holds the title of the page and this table, as described above.
+
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
