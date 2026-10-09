@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format follows
   time, duration, text and rich text.
 
 ### Fixed
+- After an update, the row of an item shows the work item as it is now: its type, status and
+  assignees, as after a creation.
 - A work item with an enumeration, a date and time or a number in its field values no longer shows
   as outdated when it holds the value of the settings. The values compare as their type.
 - An enumeration of all work item types offers only the options of the selected type.
