@@ -36,7 +36,7 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 6. To link every created work item to an epic, enter the ID of the epic and select the link role.
 7. Add field values that every created work item gets.
    An enumeration field offers its options in a dropdown. A field with several values takes several options.
-   The assignee offers the enabled users of the project.
+   The assignee offers the enabled users of the project, the categories the categories of the project.
    Every other field gets the control of its type: true or false, a number, a date, a time, a date
    and time, a duration such as `1d 2h`, or HTML for a rich text field.
    Custom fields come as Polarion resolves them: the fields of the project, or the global ones when

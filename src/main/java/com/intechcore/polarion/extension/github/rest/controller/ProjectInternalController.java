@@ -7,6 +7,7 @@ import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ProjectField;
 import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
 import com.polarion.alm.projects.model.IUser;
+import com.polarion.alm.tracker.model.ICategory;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.IWorkItem;
 import com.polarion.subterra.base.data.identification.IContextId;
@@ -40,6 +41,8 @@ public class ProjectInternalController {
     private static final Set<String> FILLED_BY_THE_IMPORT = Set.of("title", "description", "type");
     // A list of users, which generic sets from user IDs separated by commas.
     private static final String ASSIGNEE = "assignee";
+    // A list of references to the categories of the project, which the import sets itself.
+    private static final String CATEGORIES = "categories";
 
     protected final PolarionService polarionService;
 
@@ -94,7 +97,7 @@ public class ProjectInternalController {
         if (field.isReadOnly() || FILLED_BY_THE_IMPORT.contains(field.getId())) {
             return false;
         }
-        if (ASSIGNEE.equals(field.getId())) {
+        if (ASSIGNEE.equals(field.getId()) || CATEGORIES.equals(field.getId())) {
             return true;
         }
         FieldType type = FieldType.recognize(field.getType());
@@ -107,6 +110,27 @@ public class ProjectInternalController {
             return field.getOptions() != null;
         }
         return type != FieldType.UNKNOWN;
+    }
+
+    /** The options of a field: users for the assignee, the categories of the project, or those of an enumeration. */
+    private @Nullable List<ProjectField.FieldOption> choices(FieldMetadata field, ITrackerProject project, String workItemType) {
+        return switch (field.getId()) {
+            case ASSIGNEE -> assignees(project);
+            case CATEGORIES -> categories(project);
+            default -> options(field, project.getContextId(), workItemType);
+        };
+    }
+
+    /** The categories of the project, by name. */
+    private static List<ProjectField.FieldOption> categories(ITrackerProject project) {
+        List<ProjectField.FieldOption> categories = new ArrayList<>();
+        for (Object category : project.getCategories()) {
+            if (category instanceof ICategory known) {
+                categories.add(new ProjectField.FieldOption(known.getId(), known.getName() == null ? known.getId() : known.getName(), null));
+            }
+        }
+        categories.sort(Comparator.comparing(ProjectField.FieldOption::name, String.CASE_INSENSITIVE_ORDER));
+        return categories;
     }
 
     /** The enabled users of the project, the assignees generic accepts, by name. */
@@ -170,7 +194,7 @@ public class ProjectInternalController {
                 .map(field -> new ProjectField(field.getId(), field.getLabel(), field.isCustom(),
                         field.isCustom() && !field.isMulti() && FieldType.STRING.getType().equals(field.getType()),
                         field.isMulti() || FieldType.recognize(field.getType()) == FieldType.LIST,
-                        ASSIGNEE.equals(field.getId()) ? assignees(project) : options(field, contextId, workItemType), kind(field)))
+                        choices(field, project, workItemType), kind(field)))
                 .sorted(Comparator.comparing(ProjectField::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
