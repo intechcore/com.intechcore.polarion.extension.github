@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-09
+
 ### Added
 - The field values offer all fields that take a value, enumerations with several values included.
   An enumeration field shows its options in a dropdown.
