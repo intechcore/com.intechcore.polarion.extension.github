@@ -748,6 +748,14 @@ class ImportServiceTest {
         found.add(stored);
         when(polarionService.getFieldValue(stored, "component")).thenReturn("core");
         IWorkItem writable = mock(IWorkItem.class);
+        when(writable.getId()).thenReturn("EL-5");
+        when(writable.getType()).thenReturn(defect);
+        com.polarion.alm.tracker.model.IStatusOpt open = mock(com.polarion.alm.tracker.model.IStatusOpt.class);
+        when(open.getName()).thenReturn("Open");
+        when(writable.getStatus()).thenReturn(open);
+        com.polarion.platform.persistence.model.IPObjectList noAssignees = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(noAssignees.iterator()).thenAnswer(invocation -> java.util.Collections.emptyIterator());
+        when(writable.getAssignees()).thenReturn(noAssignees);
         when(polarionService.getWorkItem(PROJECT, "EL-1")).thenReturn(epic);
         when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
 
@@ -766,6 +774,12 @@ class ImportServiceTest {
         verify(writable).save();
         // An update creates nothing: the new item waits for Create.
         assertThat(created).isEmpty();
+        // The row shows the work item as it is after the save, with the type and status it has now.
+        assertThat(result.getEntries().get(0)).satisfies(entry -> {
+            assertThat(entry.getWorkItemId()).isEqualTo("EL-5");
+            assertThat(entry.getWorkItemType()).isEqualTo("defect");
+            assertThat(entry.getWorkItemStatus()).isEqualTo("Open");
+        });
     }
 
     @Test

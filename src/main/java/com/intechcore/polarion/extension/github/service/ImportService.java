@@ -274,9 +274,9 @@ public class ImportService {
                 entry.setStatus(ImportStatus.FAILED);
                 entry.setMessage("The item has no URL in the repository");
             } else if (existing.containsKey(url)) {
-                Existing workItem = existing.get(url);
                 entry.setStatus(ImportStatus.EXISTS);
-                checkExisting(entry, item, target, workItem, settings, mode);
+                // An update answers with the work item as it is now, as a creation does.
+                Existing workItem = checkExisting(entry, item, target, existing.get(url), settings, mode);
                 entry.setWorkItemId(workItem.id());
                 entry.setWorkItemType(workItem.type());
                 entry.setWorkItemTypeName(workItem.typeName());
@@ -300,31 +300,35 @@ public class ImportService {
     /**
      * Compares a work item with what the settings and GitHub say now, and in an update makes it so.
      * A rule that leaves the item out today does not touch a work item created earlier.
+     *
+     * @return the work item after an update, otherwise the one given
      */
-    private void checkExisting(ImportEntry entry, GithubItem item, Target target, Existing existing,
-                               RepositorySettingsModel settings, Mode mode) {
+    private Existing checkExisting(ImportEntry entry, GithubItem item, Target target, Existing existing,
+                                   RepositorySettingsModel settings, Mode mode) {
         ResolvedRule rule = target.rules().stream().filter(candidate -> matches(candidate.rule(), item)).findFirst().orElse(null);
         if (existing.workItem() == null || (rule != null && rule.outcome() == null)) {
-            return;
+            return existing;
         }
         Outcome outcome = rule == null ? target.fallback() : rule.outcome();
         Expected expected = expected(item, target, settings);
         List<String> differences = differences(existing.workItem(), target, outcome, expected);
         if (differences.isEmpty()) {
-            return;
+            return existing;
         }
         if (mode != Mode.UPDATE) {
             entry.setStatus(ImportStatus.OUTDATED);
             entry.setMessage("differs in " + String.join(", ", differences));
-            return;
+            return existing;
         }
         try {
-            writeTransaction.execute(() -> update(target, outcome, expected, existing.id(), differences));
+            Existing updated = writeTransaction.execute(() -> update(target, outcome, expected, existing.id(), differences));
             entry.setStatus(ImportStatus.UPDATED);
             entry.setMessage("updated " + String.join(", ", differences));
+            return updated == null ? existing : updated;
         } catch (RuntimeException e) {
             entry.setStatus(ImportStatus.FAILED);
             entry.setMessage(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            return existing;
         }
     }
 
@@ -407,7 +411,8 @@ public class ImportService {
                         && link.getLinkRole() != null && role != null && Objects.equals(role.getId(), link.getLinkRole().getId()));
     }
 
-    private Object update(Target target, Outcome outcome, Expected expected, String workItemId, List<String> differences) {
+    /** @return the work item as it is after the save, with what the workflow set, or null when it cannot be read */
+    private @Nullable Existing update(Target target, Outcome outcome, Expected expected, String workItemId, List<String> differences) {
         IWorkItem workItem = polarionService.getWorkItem(target.project().getId(), workItemId);
         for (String difference : differences) {
             switch (difference) {
@@ -419,7 +424,12 @@ public class ImportService {
             }
         }
         workItem.save();
-        return workItemId;
+        try {
+            return Existing.of(workItem);
+        } catch (RuntimeException e) {
+            // The update is saved. The row then keeps what it showed before.
+            return null;
+        }
     }
 
     /**

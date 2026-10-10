@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- After an update, the row of an item shows the work item as it is now: its type, status and
+  assignees, as after a creation.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added
