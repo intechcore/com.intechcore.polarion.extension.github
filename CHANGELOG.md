@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The widget can say below its table how long the report took.
+
 ### Fixed
 - After an update, the row of an item shows the work item as it is now: its type, status and
   assignees, as after a creation.

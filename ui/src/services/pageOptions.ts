@@ -16,6 +16,8 @@ export interface PageOptions {
   hideFilters: boolean;
   /** Selection, Create and Update, and the hide buttons. The topic always allows them. */
   allowCreate: boolean;
+  /** A line below the table says how long reading the items took. */
+  showTime: boolean;
 }
 
 const list = (params: URLSearchParams, name: string): string[] =>
@@ -46,5 +48,6 @@ export function readPageOptions(search: string = window.location.search): PageOp
         : null,
     hideFilters: widget && params.get('hideFilters') === 'true',
     allowCreate: !widget || params.get('allowCreate') === 'true',
+    showTime: widget && params.get('showTime') === 'true',
   };
 }
