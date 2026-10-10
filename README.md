@@ -311,6 +311,7 @@ Report page of a project, with its filters.
 | Columns | The columns of the widget, in this order. Empty shows the columns each reader chose on the topic. |
 | Hide filters | Shows the table only, without the toolbar and the filters. |
 | Allow creating work items | Shows the selection and `Create work items` / `Update work items`. Off by default: the widget is a report. |
+| Show the generation time | A line below the table says how long the report took: on the page, reading the items; in a PDF, reading them and writing the table on the server. Off by default. |
 
 The widget sizes itself to the table. The work items open in Polarion, as from the topic. A page
 outside a project shows that the table needs a project.

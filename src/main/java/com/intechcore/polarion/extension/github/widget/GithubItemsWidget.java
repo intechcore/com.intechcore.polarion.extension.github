@@ -30,6 +30,7 @@ public class GithubItemsWidget extends RichPageWidget {
     public static final String PARAMETER_COLUMNS = "columns";
     public static final String PARAMETER_HIDE_FILTERS = "hideFilters";
     public static final String PARAMETER_ALLOW_CREATE = "allowCreate";
+    public static final String PARAMETER_SHOW_TIME = "showTime";
 
     /** The kinds of items, by the ID the page filters with. */
     static final Map<String, String> KINDS = ordered(
@@ -93,6 +94,8 @@ public class GithubItemsWidget extends RichPageWidget {
         parameters.put(PARAMETER_HIDE_FILTERS, factory.bool("Hide filters").value(false).build());
         // Off, the page is a report: no selection, no Create or Update.
         parameters.put(PARAMETER_ALLOW_CREATE, factory.bool("Allow creating work items").value(false).build());
+        // A line below the table says how long the report took.
+        parameters.put(PARAMETER_SHOW_TIME, factory.bool("Show the generation time").value(false).build());
         return parameters;
     }
 
