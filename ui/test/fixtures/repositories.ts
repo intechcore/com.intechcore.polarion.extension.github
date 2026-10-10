@@ -1,4 +1,4 @@
-import type { Route } from '../mockFetch';
+import { type Route, jsonResponse } from '../mockFetch';
 
 export const SCOPE = 'project/elibrary/';
 
@@ -96,6 +96,34 @@ export const FIELDS = [
   },
 ];
 
+// A type icon the browser can draw without a server: a purple square, as Polarion draws an epic.
+const EPIC_ICON =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' rx='3' fill='%238a4fbf'/%3E%3C/svg%3E";
+
+export const WORK_ITEMS = [
+  { id: 'EL-1', title: 'Library of the year', typeName: 'Epic', typeIcon: EPIC_ICON, status: 'Open' },
+  { id: 'EL-2', title: 'Catalog search', typeName: 'Epic', typeIcon: EPIC_ICON, status: 'Open' },
+  { id: 'EL-12', title: 'Loans', typeName: 'Epic', typeIcon: EPIC_ICON, status: 'Done' },
+];
+
+/** The search of work items: by an exact ID, or by the start of an ID or a word of the title. */
+function findWorkItems(url: string): Response {
+  const params = new URL(url, 'http://localhost').searchParams;
+  const id = params.get('id');
+  const query = (params.get('query') ?? '').toLowerCase();
+  const found = id
+    ? WORK_ITEMS.filter((item) => item.id === id)
+    : WORK_ITEMS.filter(
+        (item) =>
+          item.id.toLowerCase().startsWith(query) ||
+          item.title
+            .toLowerCase()
+            .split(' ')
+            .some((word) => word.startsWith(query)),
+      );
+  return jsonResponse(found);
+}
+
 export const USERS = [
   { id: 'alice', name: 'Alice Admin' },
   { id: 'bob', name: 'Bob Builder' },
@@ -123,5 +151,6 @@ export function repositoriesRoutes(overrides: Route[] = []): Route[] {
     { method: 'GET', match: /\/internal\/users$/, json: USERS },
     { method: 'GET', match: /\/projects\/[^/]+\/workitem-types$/, json: WORKITEM_TYPES },
     { method: 'GET', match: /\/projects\/[^/]+\/link-roles$/, json: LINK_ROLES },
+    { method: 'GET', match: /\/projects\/[^/]+\/workitems\?/, respond: findWorkItems },
   ];
 }

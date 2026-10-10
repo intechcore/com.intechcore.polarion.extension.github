@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - The widget can say below its table how long the report took.
+- The link to a work item finds it by its ID or title, and shows it with the icon of its type and
+  its title.
 
 ### Fixed
 - After an update, the row of an item shows the work item as it is now: its type, status and

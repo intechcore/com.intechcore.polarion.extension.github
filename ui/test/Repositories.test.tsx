@@ -130,7 +130,9 @@ describe('Repositories page', () => {
     expect(input('short-name').value).toBe('Tool');
     expect(input('issues-enabled').checked).toBe(true);
     expect(input('issues-title').value).toBe('[GitHub] {{ SHORT_NAME }} : {{ TITLE }}');
-    expect(input('issues-epic').value).toBe('EL-1');
+    // The link shows the work item as Polarion names it: the icon of its type, its ID and its title.
+    await vi.waitFor(() => expect(input('issues-epic').textContent).toBe('EL-1Library of the year'));
+    expect(input('issues-epic').querySelector('img')!.alt).toBe('Epic');
     await vi.waitFor(() => expect(trigger('issues-role').value).toBe('has parent'));
     expect(trigger('issues-key').value).toBe('A hyperlink of the work item');
     expect(document.querySelector<HTMLInputElement>('[aria-label="Value 1 of issues"]')!.value).toBe('major');
@@ -141,11 +143,47 @@ describe('Repositories page', () => {
     expect(fetchMock.mock.calls.filter((c) => /\/workitem-types\/task\/fields/.test(String(c[0])))).toHaveLength(1);
   });
 
+  it('finds the work item of the link by its ID or title, and takes a typed ID the search does not know', async () => {
+    await mount();
+    await vi.waitFor(() => expect(input('issues-epic').textContent).toContain('EL-1'));
+
+    input('issues-epic').click();
+    await vi.waitFor(() => expect(input('issues-epic').tagName).toBe('INPUT'));
+    await userEvent.fill(input('issues-epic'), 'l');
+    // "Library of the year" and "Loans": a word of the title starts with the words of the search.
+    await vi.waitFor(() =>
+      expect(Array.from(document.querySelectorAll('#issues-epic-results li')).map((li) => li.textContent)).toEqual([
+        'EL-1Library of the year',
+        'EL-12Loans',
+      ]),
+    );
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    await vi.waitFor(() => expect(input('issues-epic').textContent).toBe('EL-12Loans'));
+
+    // An ID the search does not find goes in as typed, and says it is not found.
+    input('issues-epic').click();
+    await vi.waitFor(() => expect(input('issues-epic').tagName).toBe('INPUT'));
+    await userEvent.fill(input('issues-epic'), 'OTHER-7');
+    await userEvent.keyboard('{Enter}');
+    await vi.waitFor(() => expect(input('issues-epic').textContent).toBe('OTHER-7not found'));
+
+    // Escape leaves the link as it was.
+    input('issues-epic').click();
+    await vi.waitFor(() => expect(input('issues-epic').tagName).toBe('INPUT'));
+    await userEvent.keyboard('{Escape}');
+    await vi.waitFor(() => expect(input('issues-epic').tagName).toBe('BUTTON'));
+    button('Save').click();
+    await vi.waitFor(() => expect(savedBody()).toBeDefined());
+    expect(savedBody().issues.epicId).toBe('OTHER-7');
+  });
+
   it('saves what the form holds', async () => {
     await mount();
     await userEvent.fill(input('repository'), ' acme/other ');
     await userEvent.fill(input('short-name'), 'Other');
-    await userEvent.fill(input('issues-epic'), '');
+    await vi.waitFor(() => expect(document.querySelector('#issues-epic + .wip-clear')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('#issues-epic + .wip-clear')!.click();
+    await vi.waitFor(() => expect(input('issues-epic').textContent).toBe('An epic, optional'));
 
     button('Save').click();
 
@@ -304,7 +342,11 @@ describe('Repositories page', () => {
       document.getElementById('discussions-description') as HTMLTextAreaElement,
       '<p>{{ BODY }}</p>',
     );
+    input('discussions-epic').click();
     await userEvent.fill(input('discussions-epic'), 'EL-2');
+    await vi.waitFor(() => expect(document.querySelector('#discussions-epic-results li')).not.toBeNull());
+    mousedown(document.querySelector('#discussions-epic-results li')!);
+    await vi.waitFor(() => expect(input('discussions-epic').textContent).toBe('EL-2Catalog search'));
     await pick(trigger('discussions-role'), 'relates to');
 
     // Two rows, the second one stays without a field and is not saved. The first is then removed again.

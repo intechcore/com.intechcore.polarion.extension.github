@@ -414,6 +414,56 @@
         ]
       }
     },
+    "/api/projects/{projectId}/workitems": {
+      "get": {
+        "operationId": "findWorkItems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The start of an ID, or words that start words of the title",
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "An exact ID. It replaces the query.",
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkItemRef"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Finds work items of a project by the start of their ID or the words of their title, or one by its exact ID",
+        "tags": [
+          "Project options"
+        ]
+      }
+    },
     "/api/readme": {
       "get": {
         "operationId": "getDocumentation",
@@ -929,6 +979,30 @@
           },
           "supportEmail": {
             "description": "Support email for the bundle",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WorkItemRef": {
+        "description": "A work item as a picker shows it: its ID, title, and the icon of its type",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "description": "The name of the status of the work item",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "typeIcon": {
+            "description": "The icon of the type, as configured in the project",
+            "type": "string"
+          },
+          "typeName": {
+            "description": "The name of the type of the work item",
             "type": "string"
           }
         },

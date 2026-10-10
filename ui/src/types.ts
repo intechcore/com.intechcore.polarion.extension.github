@@ -60,6 +60,15 @@ export interface ProjectOption {
   name: string;
 }
 
+/** A work item as a picker shows it (rest.model.WorkItemRef). */
+export interface WorkItemRef {
+  id: string;
+  title: string | null;
+  typeName: string | null;
+  typeIcon: string | null;
+  status: string | null;
+}
+
 /** An option of an enumeration field (rest.model.ProjectField.FieldOption). */
 export interface FieldOption {
   id: string;

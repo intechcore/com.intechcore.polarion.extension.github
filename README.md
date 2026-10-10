@@ -33,7 +33,8 @@ Open the administration of a project, then `GitHub` / `Repositories`.
 4. Adjust the title and the description templates when needed.
 5. Select where the work item keeps the GitHub URL: a hyperlink, or a custom field of the type String.
    The import finds its own work items by that URL, so do not change it after the first import.
-6. To link every created work item to an epic, enter the ID of the epic and select the link role.
+6. To link every created work item to an epic, find it by its ID or title and select the link role.
+   The field shows the chosen work item with the icon of its type and its title.
 7. Add field values that every created work item gets.
    An enumeration field offers its options in a dropdown. A field with several values takes several options.
    The assignee offers the enabled users of the project, the categories the categories of the project.

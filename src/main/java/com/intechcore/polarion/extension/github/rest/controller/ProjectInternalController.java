@@ -6,28 +6,38 @@ import ch.sbb.polarion.extension.generic.fields.model.Option;
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import com.intechcore.polarion.extension.github.rest.model.ProjectField;
 import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
+import com.intechcore.polarion.extension.github.rest.model.WorkItemRef;
 import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.model.ICategory;
+import com.polarion.alm.tracker.model.IStatusOpt;
 import com.polarion.alm.tracker.model.ITrackerProject;
+import com.polarion.alm.tracker.model.ITypeOpt;
 import com.polarion.alm.tracker.model.IWorkItem;
+import com.polarion.platform.persistence.IEnumOption;
 import com.polarion.subterra.base.data.identification.IContextId;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * What the settings page offers to choose from: the work item types, link roles and fields of a project.
@@ -39,6 +49,10 @@ import java.util.Set;
 public class ProjectInternalController {
 
     private static final Set<String> FILLED_BY_THE_IMPORT = Set.of("title", "description", "type");
+    // A picker shows the first ones; a person types more to find another.
+    private static final int SEARCH_LIMIT = 20;
+    private static final Pattern PROJECT_ID = Pattern.compile("[A-Za-z0-9_.\\-]+");
+    private static final String LUCENE_SYNTAX = "+-&|!(){}[]^\"~*?:\\/";
     // A list of users, which generic sets from user IDs separated by commas.
     private static final String ASSIGNEE = "assignee";
     // A list of references to the categories of the project, which the import sets itself.
@@ -77,6 +91,67 @@ public class ProjectInternalController {
         }
         users.sort(Comparator.comparing(ProjectOption::name, String.CASE_INSENSITIVE_ORDER));
         return users;
+    }
+
+    @Operation(summary = "Finds work items of a project by the start of their ID or the words of their title, or one by its exact ID")
+    @GET
+    @Path("/projects/{projectId}/workitems")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<WorkItemRef> findWorkItems(@PathParam("projectId") String projectId,
+                                           @Parameter(description = "The start of an ID, or words that start words of the title")
+                                           @QueryParam("query") String query,
+                                           @Parameter(description = "An exact ID. It replaces the query.")
+                                           @QueryParam("id") String id) {
+        String lucene = searchQuery(projectId, query, id);
+        if (lucene == null) {
+            return List.of();
+        }
+        List<WorkItemRef> found = new ArrayList<>();
+        for (Object item : polarionService.getTrackerService().getDataService().searchInstances(IWorkItem.PROTO, lucene, "id", SEARCH_LIMIT)) {
+            if (item instanceof IWorkItem workItem) {
+                ITypeOpt type = workItem.getType();
+                IStatusOpt status = workItem.getStatus();
+                found.add(new WorkItemRef(workItem.getId(), workItem.getTitle(), type == null ? null : type.getName(),
+                        type == null ? null : type.getProperty(IEnumOption.PROPERTY_KEY_ICON_URL), status == null ? null : status.getName()));
+            }
+        }
+        return found;
+    }
+
+    /**
+     * The Lucene query of a search in one project, or null when there is nothing to look for. The words
+     * of a person are escaped, so they never change the query; the project ID must look like one.
+     */
+    static @Nullable String searchQuery(String projectId, @Nullable String query, @Nullable String id) {
+        if (projectId == null || !PROJECT_ID.matcher(projectId).matches()) {
+            throw new IllegalArgumentException("The project ID is not valid");
+        }
+        String inProject = "project.id:" + projectId + " AND ";
+        if (id != null && !id.isBlank()) {
+            return inProject + "id:\"" + id.trim().replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        }
+        String text = query == null ? "" : query.trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        String title = Arrays.stream(text.split("\\s+"))
+                .map(word -> escape(word.toLowerCase(Locale.ROOT)) + "*")
+                .collect(Collectors.joining(" AND "));
+        return inProject + "(id:" + escape(text) + "* OR title:(" + title + "))";
+    }
+
+    /** Escapes the characters Lucene reads as syntax. */
+    private static String escape(String text) {
+        StringBuilder escaped = new StringBuilder();
+        for (char character : text.toCharArray()) {
+            if (LUCENE_SYNTAX.indexOf(character) >= 0) {
+                escaped.append('\\');
+            }
+            if (!Character.isWhitespace(character)) {
+                escaped.append(character);
+            }
+        }
+        return escaped.toString();
     }
 
     @Operation(summary = "Returns the work item link roles of a project")
