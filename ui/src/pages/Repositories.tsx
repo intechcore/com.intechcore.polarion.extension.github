@@ -193,6 +193,11 @@ export default function Repositories() {
     [settings, projectId],
   );
 
+  const findWorkItems = useCallback(
+    (query: string, id?: string) => settings.findWorkItems(projectId, query, id),
+    [settings, projectId],
+  );
+
   // The handlers take the name: the form they belong to exists only while a setting is selected.
   const handleSave = async (name: string) => {
     try {
@@ -304,6 +309,7 @@ export default function Repositories() {
             workItemTypes={workItemTypes}
             linkRoles={linkRoles}
             loadFields={loadFields}
+            findWorkItems={findWorkItems}
           />
 
           <h2>Discussions</h2>
@@ -314,6 +320,7 @@ export default function Repositories() {
             workItemTypes={workItemTypes}
             linkRoles={linkRoles}
             loadFields={loadFields}
+            findWorkItems={findWorkItems}
           />
 
           <h2>Pull requests</h2>
@@ -346,6 +353,7 @@ export default function Repositories() {
             workItemTypes={workItemTypes}
             linkRoles={linkRoles}
             loadFields={loadFields}
+            findWorkItems={findWorkItems}
           />
 
           <h2>Security advisories</h2>
@@ -365,6 +373,7 @@ export default function Repositories() {
             workItemTypes={workItemTypes}
             linkRoles={linkRoles}
             loadFields={loadFields}
+            findWorkItems={findWorkItems}
           />
 
           <h2>Notifications</h2>

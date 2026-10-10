@@ -406,3 +406,108 @@ body {
 .copy-setting .notifications {
   flex-basis: 100%;
 }
+
+/* The link to a work item: the chosen one with the icon of its type and its title, or a search. */
+.work-item-picker {
+  position: relative;
+  width: 420px;
+  max-width: 100%;
+}
+
+.work-item-picker .wip-display,
+.settings-table .work-item-picker input[type='text'] {
+  width: 100%;
+}
+
+.work-item-picker .wip-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: var(--sbb-control-height);
+  border: 1px solid var(--sbb-control-border);
+  border-radius: var(--sbb-control-radius);
+  background-color: var(--sbb-control-bg);
+  font-family: var(--sbb-control-font-family);
+  font-size: var(--sbb-control-font-size);
+  font-weight: var(--sbb-control-font-weight);
+  color: var(--sbb-control-text);
+  padding: 0 24px 0 6px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.work-item-picker .wip-display:hover {
+  box-shadow: var(--sbb-control-shadow-hover);
+}
+
+.wip-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.wip-id {
+  flex: none;
+}
+
+.wip-title {
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wip-placeholder {
+  color: var(--sbb-control-placeholder);
+}
+
+.wip-missing {
+  color: #c60018;
+  font-weight: normal;
+}
+
+.work-item-picker .wip-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: var(--sbb-control-height);
+  width: 22px;
+  border: none;
+  background: none;
+  color: #6b6b6b;
+  cursor: pointer;
+}
+
+.wip-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--sbb-control-bg);
+  border: 1px solid var(--sbb-control-border);
+  box-shadow: var(--sbb-control-shadow-active);
+}
+
+.wip-results li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  font-weight: var(--sbb-control-font-weight);
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.wip-results li.active,
+.wip-results li:hover {
+  background: #e8f2fc;
+}

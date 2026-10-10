@@ -9,6 +9,7 @@ import com.intechcore.polarion.extension.github.rest.model.ProjectOption;
 import com.polarion.alm.tracker.model.ILinkRoleOpt;
 import com.polarion.alm.tracker.model.ITrackerProject;
 import com.polarion.alm.tracker.model.ITypeOpt;
+import com.polarion.alm.tracker.model.IWorkItem;
 import com.polarion.platform.persistence.IEnumeration;
 import com.polarion.subterra.base.data.identification.IContextId;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -159,6 +161,44 @@ class ProjectControllerTest {
         assertThat(controller.getLinkRoles("elibrary")).isEmpty();
         assertThat(controller.getFields("elibrary", "task")).isEmpty();
         verify(polarionService, times(3)).callPrivileged(any(Callable.class));
+    }
+
+    /** The words of a person are escaped: they never change the query, nor reach another project. */
+    @Test
+    void buildsTheQueryOfASearchInOneProject() {
+        assertThat(ProjectInternalController.searchQuery("elibrary", " EL-1 ", null))
+                .isEqualTo("project.id:elibrary AND (id:EL\\-1* OR title:(el\\-1*))");
+        assertThat(ProjectInternalController.searchQuery("elibrary", "User Login", null))
+                .isEqualTo("project.id:elibrary AND (id:UserLogin* OR title:(user* AND login*))");
+        assertThat(ProjectInternalController.searchQuery("elibrary", "a) OR project.id:other", null))
+                .isEqualTo("project.id:elibrary AND (id:a\\)ORproject.id\\:other* OR title:(a\\)* AND or* AND project.id\\:other*))");
+        assertThat(ProjectInternalController.searchQuery("elibrary", "", "EL-1")).isEqualTo("project.id:elibrary AND id:\"EL-1\"");
+        assertThat(ProjectInternalController.searchQuery("elibrary", "x", "EL\"1")).isEqualTo("project.id:elibrary AND id:\"EL\\\"1\"");
+        assertThat(ProjectInternalController.searchQuery("elibrary", "  ", null)).isNull();
+        assertThatThrownBy(() -> ProjectInternalController.searchQuery("a b", "x", null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void findsWorkItemsWithTheIconOfTheirType() {
+        com.polarion.alm.tracker.ITrackerService trackerService = mock(com.polarion.alm.tracker.ITrackerService.class);
+        com.polarion.platform.persistence.IDataService dataService = mock(com.polarion.platform.persistence.IDataService.class);
+        when(polarionService.getTrackerService()).thenReturn(trackerService);
+        when(trackerService.getDataService()).thenReturn(dataService);
+        IWorkItem epic = mock(IWorkItem.class);
+        when(epic.getId()).thenReturn("EL-1");
+        when(epic.getTitle()).thenReturn("Library");
+        ITypeOpt type = mock(ITypeOpt.class);
+        when(type.getName()).thenReturn("Epic");
+        when(type.getProperty(com.polarion.platform.persistence.IEnumOption.PROPERTY_KEY_ICON_URL)).thenReturn("/icons/epic.gif");
+        when(epic.getType()).thenReturn(type);
+        com.polarion.platform.persistence.model.IPObjectList found = mock(com.polarion.platform.persistence.model.IPObjectList.class);
+        when(found.iterator()).thenAnswer(invocation -> List.of(epic).iterator());
+        when(dataService.searchInstances(IWorkItem.PROTO, "project.id:elibrary AND (id:lib* OR title:(lib*))", "id", 20)).thenReturn(found);
+
+        assertThat(new ProjectInternalController(polarionService).findWorkItems("elibrary", "lib", null))
+                .containsExactly(new com.intechcore.polarion.extension.github.rest.model.WorkItemRef("EL-1", "Library", "Epic", "/icons/epic.gif", null));
+        assertThat(new ProjectInternalController(polarionService).findWorkItems("elibrary", " ", null)).isEmpty();
     }
 
     /** The recipients of notifications: the enabled users, by name, and by ID when one has no name. */

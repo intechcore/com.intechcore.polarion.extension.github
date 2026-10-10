@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The link to a work item finds it by its ID or title, and shows it with the icon of its type and
+  its title.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

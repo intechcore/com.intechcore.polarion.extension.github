@@ -7,6 +7,7 @@ import type {
   RepositorySettings,
   Revision,
   SettingName,
+  WorkItemRef,
 } from '../types';
 import useRemote from './useRemote';
 
@@ -132,6 +133,17 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** Finds work items of a project by the start of their ID or the words of their title, or one by its exact ID. */
+  const findWorkItems = useCallback(
+    (projectId: string, query: string, id = ''): Promise<WorkItemRef[]> => {
+      const params = new URLSearchParams(id ? { id } : { query });
+      return sendRequest({ method: 'GET', url: projectPath(projectId, `/workitems?${params.toString()}`) }).then((r) =>
+        jsonOrThrow<WorkItemRef[]>(r),
+      );
+    },
+    [sendRequest],
+  );
+
   const loadLinkRoles = useCallback(
     (projectId: string): Promise<ProjectOption[]> =>
       sendRequest({ method: 'GET', url: projectPath(projectId, '/link-roles') }).then((r) =>
@@ -216,6 +228,7 @@ export default function useSettings() {
       loadRevisions,
       loadWorkItemTypes,
       loadUsers,
+      findWorkItems,
       loadLinkRoles,
       loadFields,
       runImport,
@@ -233,6 +246,7 @@ export default function useSettings() {
       loadRevisions,
       loadWorkItemTypes,
       loadUsers,
+      findWorkItems,
       loadLinkRoles,
       loadFields,
       runImport,

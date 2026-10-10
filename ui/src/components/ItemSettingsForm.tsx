@@ -1,7 +1,8 @@
 import { SearchableSelect } from '@sbb-polarion/react-sbb-polarion';
-import type { DuplicateKey, ProjectField, ProjectOption } from '../types';
+import type { DuplicateKey, ProjectField, ProjectOption, WorkItemRef } from '../types';
 import FieldValues, { type FieldRow, fieldOption, useFields } from './FieldValues';
 import RulesEditor, { type RuleForm } from './RulesEditor';
+import WorkItemPicker from './WorkItemPicker';
 
 /** The form state of one kind of GitHub item: ItemSettings with the field values as an ordered list. */
 export interface ItemForm {
@@ -30,6 +31,8 @@ interface ItemSettingsFormProps {
   workItemTypes: ProjectOption[];
   linkRoles: ProjectOption[];
   loadFields: (workItemType: string) => Promise<ProjectField[]>;
+  /** Finds work items of the project, for the link to a work item. */
+  findWorkItems: (query: string, id?: string) => Promise<WorkItemRef[]>;
 }
 
 /**
@@ -43,6 +46,7 @@ export default function ItemSettingsForm({
   workItemTypes,
   linkRoles,
   loadFields,
+  findWorkItems,
 }: Readonly<ItemSettingsFormProps>) {
   const set = (change: Partial<ItemForm>) => onChange({ ...value, ...change });
   // The kind names the block in the labels; the element IDs take it without spaces.
@@ -143,12 +147,12 @@ export default function ItemSettingsForm({
                 <label htmlFor={`${id}-epic`}>Link to the work item:</label>
               </td>
               <td>
-                <input
+                <WorkItemPicker
                   id={`${id}-epic`}
-                  type="text"
-                  placeholder="The ID of an epic, optional"
+                  placeholder="An epic, optional"
                   value={value.epicId}
-                  onChange={(e) => set({ epicId: e.target.value })}
+                  onChange={(epicId) => set({ epicId })}
+                  find={findWorkItems}
                 />
               </td>
             </tr>

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
+import { userEvent } from 'vitest/browser';
 import App from '../src/App';
 import { appButton, captureApp } from './captureApp';
 import { CONTENT, SCOPE, repositoriesRoutes } from './fixtures/repositories';
@@ -85,6 +86,18 @@ describe.skipIf(!__PIXEL_REFERENCES__)('Repositories page visual', () => {
     await vi.waitFor(() => expect(document.querySelectorAll('.field-row')).toHaveLength(9));
     await vi.waitFor(() => expect(triggers()).toContain('Internal/all'));
     await captureApp('repositories-field-kinds');
+  });
+
+  it('the search of the work item of the link', async () => {
+    open();
+    await loaded();
+    await vi.waitFor(() => expect(document.getElementById('issues-epic')!.textContent).toContain('Library'));
+
+    (document.getElementById('issues-epic') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(document.getElementById('issues-epic')!.tagName).toBe('INPUT'));
+    await userEvent.fill(document.getElementById('issues-epic') as HTMLInputElement, 'EL');
+    await vi.waitFor(() => expect(document.querySelectorAll('#issues-epic-results li')).toHaveLength(3));
+    await captureApp('repositories-work-item-search');
   });
 
   it('a setting with the discussions turned off', async () => {
