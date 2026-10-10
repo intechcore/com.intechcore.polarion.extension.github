@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The widget can say below its table how long the report took.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added

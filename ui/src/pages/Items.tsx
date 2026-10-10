@@ -52,6 +52,11 @@ function readTime(repositories: RepositoryState[]): string | null {
   return new Date(oldest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
+/** A duration as the printed widget writes it: 850 ms, or 1.4 s. */
+function took(millis: number): string {
+  return millis < 1000 ? `${Math.round(millis)} ms` : `${(millis / 1000).toFixed(1)} s`;
+}
+
 /**
  * Offers the widget to pdf-exporter's "Export to PDF" button of the report, which may then export it alone, as
  * the server renders it. Rendered by the widget only: the topic is no widget of a report.
@@ -81,6 +86,7 @@ export default function Items() {
   // A widget that fixes its columns neither reads nor changes the layout the viewer keeps.
   const [layout, setLayout] = useState<ColumnLayout>(() => options.layout ?? loadLayout());
   const [showHidden, setShowHidden] = useState(false);
+  const [generationTime, setGenerationTime] = useState<number | null>(null);
 
   const changeLayout = (next: ColumnLayout) => {
     setLayout(next);
@@ -97,9 +103,11 @@ export default function Items() {
       setError('');
       try {
         // A widget reads only the repositories it names, in their order.
+        const started = performance.now();
         const items = await settings.loadItems(projectId, refresh, options.widget ? options.filters.settings : []);
         setRepositories(items.repositories);
         setEntries(items.entries);
+        setGenerationTime(performance.now() - started);
         setChecked(new Set());
       } catch (e) {
         setError((e as Error).message);
@@ -503,6 +511,9 @@ export default function Items() {
                 ))}
               </tbody>
             </table>
+          )}
+          {options.showTime && generationTime !== null && (
+            <p className="items-generation-time">Generated in {took(generationTime)}</p>
           )}
         </>
       )}

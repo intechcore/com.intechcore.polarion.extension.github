@@ -96,6 +96,12 @@ body {
   line-height: calc(var(--sbb-control-height) - 2px);
 }
 
+.items-generation-time {
+  color: #6b6b6b;
+  font-size: 11px;
+  margin: 4px 0 0;
+}
+
 .items-read-at {
   color: #6b6b6b;
 }

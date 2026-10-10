@@ -13,6 +13,7 @@ describe('page options', () => {
       layout: null,
       hideFilters: false,
       allowCreate: true,
+      showTime: false,
     });
     // Clear filters compares with NO_FILTERS itself.
     expect(readPageOptions('').filters).toBe(NO_FILTERS);
@@ -38,6 +39,9 @@ describe('page options', () => {
 
   it('keeps a widget a report unless it allows creating, and the topic always shows its filters', () => {
     expect(readPageOptions('?widget=true').allowCreate).toBe(false);
+    // Only a widget shows how long the report took.
+    expect(readPageOptions('?widget=true&showTime=true').showTime).toBe(true);
+    expect(readPageOptions('?showTime=true').showTime).toBe(false);
     expect(readPageOptions('?hideFilters=true').hideFilters).toBe(false);
   });
 });

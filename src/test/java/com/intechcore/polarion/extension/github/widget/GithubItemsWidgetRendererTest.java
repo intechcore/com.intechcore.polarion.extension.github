@@ -139,9 +139,10 @@ class GithubItemsWidgetRendererTest {
         choose(GithubItemsWidget.PARAMETER_COLUMNS, "item", "state", "workItem");
         check(GithubItemsWidget.PARAMETER_HIDE_FILTERS);
         check(GithubItemsWidget.PARAMETER_ALLOW_CREATE);
+        check(GithubItemsWidget.PARAMETER_SHOW_TIME);
 
         assertThat(renderedUrl()).endsWith("&scope=project%2Felibrary%2F&settings=tool%2Cpdf-exporter"
-                + "&kinds=ISSUE%2CPULL_REQUEST&states=NEW&columns=item%2Cstate%2CworkItem&hideFilters=true&allowCreate=true");
+                + "&kinds=ISSUE%2CPULL_REQUEST&states=NEW&columns=item%2Cstate%2CworkItem&hideFilters=true&allowCreate=true&showTime=true");
     }
 
     /** A page outside a project gets no scope, and the page of the items says it needs one. */
@@ -203,6 +204,21 @@ class GithubItemsWidgetRendererTest {
         verify(builder).html(html.capture());
         assertThat(html.getValue()).contains("<table").contains("Crash");
         verify(builder, org.mockito.Mockito.never()).tag();
+    }
+
+    /** The printed widget says how long the server took, in milliseconds or seconds. */
+    @Test
+    void writesTheGenerationTimeBelowAPrintedTable() {
+        assertThat(GithubItemsWidgetRenderer.generatedIn(java.time.Duration.ofMillis(850))).contains(">Generated in 850 ms</p>");
+        assertThat(GithubItemsWidgetRenderer.generatedIn(java.time.Duration.ofMillis(1420))).contains(">Generated in 1.4 s</p>");
+
+        when(context.target()).thenReturn(com.polarion.alm.shared.api.utils.html.RichTextRenderTarget.PDF_EXPORT);
+        com.intechcore.polarion.extension.github.service.ProjectItemsReader reader =
+                mock(com.intechcore.polarion.extension.github.service.ProjectItemsReader.class);
+        when(reader.read(eq("elibrary"), eq(false), any())).thenReturn(new com.intechcore.polarion.extension.github.rest.model.ProjectItems());
+        assertThat(new GithubItemsWidgetRenderer(context, () -> reader).printedTable()).doesNotContain("Generated in");
+        check(GithubItemsWidget.PARAMETER_SHOW_TIME);
+        assertThat(new GithubItemsWidgetRenderer(context, () -> reader).printedTable()).containsPattern("Generated in \\d+ ms</p>$");
     }
 
     @Test
