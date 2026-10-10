@@ -348,6 +348,18 @@ describe('GitHub items page', () => {
     expect(pdfExportOffers()).toEqual([]);
   });
 
+  it('says how long the report took when the widget asks for it', async () => {
+    await mountWidget('&showTime=true');
+
+    expect(document.querySelector('.items-generation-time')?.textContent).toMatch(/^Generated in \d+ ms$/);
+  });
+
+  it('leaves out the generation time unless the widget asks for it', async () => {
+    await mountWidget('');
+
+    expect(document.querySelector('.items-generation-time')).toBeNull();
+  });
+
   it('reads only the repositories of the widget, in its order', async () => {
     await mountWidget('&settings=docs%2Ctool');
 
