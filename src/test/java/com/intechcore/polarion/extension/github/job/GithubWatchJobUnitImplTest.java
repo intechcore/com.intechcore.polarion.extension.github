@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -170,6 +171,20 @@ class GithubWatchJobUnitImplTest {
 
         assertThat(status.getType()).isEqualTo(IJobStatus.JobStatusType.STATUS_TYPE_FAILED);
         assertThat(status.getMessage()).contains("No SMTP server");
+    }
+
+    /** A mail that failed is not lost: its items are still new at the next run, which mails them. */
+    @Test
+    void mailsTheItemsOfAFailedMailAtTheNextRun() {
+        names("tool");
+        setting("tool", NotificationSettings.builder().users(List.of("alice")).issues(true).build(), entry(1, ItemKind.ISSUE, ImportStatus.NEW));
+        doThrow(new IllegalStateException("No SMTP server")).doNothing().when(mailer).send(anyList(), anyString(), anyString());
+
+        assertThat(job.runInternal(mock(IProgressMonitor.class)).getType()).isEqualTo(IJobStatus.JobStatusType.STATUS_TYPE_FAILED);
+        IJobStatus status = job.runInternal(mock(IProgressMonitor.class));
+
+        assertThat(status.getType()).isEqualTo(IJobStatus.JobStatusType.STATUS_TYPE_OK);
+        verify(mailer, times(2)).send(eq(List.of("alice@example.com")), anyString(), argThat(html -> html.contains("#1<")));
     }
 
     /** The rate limit ends the run: every further request would fail the same way. */

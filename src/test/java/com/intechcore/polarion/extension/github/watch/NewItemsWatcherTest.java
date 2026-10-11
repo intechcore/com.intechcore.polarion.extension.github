@@ -39,14 +39,35 @@ class NewItemsWatcherTest {
         NewItemsWatcher watcher = new NewItemsWatcher();
         ImportEntry old = item(1, ItemKind.ISSUE, "2026-10-01T09:00:00Z", null);
         ImportEntry fresh = item(2, ItemKind.ISSUE, "2026-10-01T09:00:00Z", null);
-        watcher.news("elibrary/tool", List.of(old), NOW, INTERVAL);
+        // Each check is remembered once its news went out, as the watch job does.
+        watcher.remember("elibrary/tool", List.of(old), List.of());
 
         assertThat(watcher.news("elibrary/tool", List.of(old, fresh), NOW.plus(INTERVAL), INTERVAL)).containsExactly(fresh);
+        watcher.remember("elibrary/tool", List.of(old, fresh), List.of());
         assertThat(watcher.news("elibrary/tool", List.of(old, fresh), NOW.plus(INTERVAL.multipliedBy(2)), INTERVAL)).isEmpty();
         // #2 got a work item and left; when it is back without one, it is new again.
-        watcher.news("elibrary/tool", List.of(old), NOW, INTERVAL);
+        watcher.remember("elibrary/tool", List.of(old), List.of());
         assertThat(watcher.news("elibrary/tool", List.of(old, fresh), NOW, INTERVAL)).containsExactly(fresh);
         // Another repository has its own memory.
         assertThat(watcher.news("elibrary/docs", List.of(old), NOW, INTERVAL)).isEmpty();
+    }
+
+    /** What could not be sent is left out of what the watcher remembers, so it is new again at the next check. */
+    @Test
+    void keepsTheUnsentItemsNew() {
+        ImportEntry old = item(1, ItemKind.ISSUE, "2026-10-07T10:45:00Z", "2026-10-07T10:45:00Z");
+        ImportEntry fresh = item(2, ItemKind.ISSUE, "2026-10-07T11:59:00Z", "2026-10-07T11:59:00Z");
+        NewItemsWatcher watcher = new NewItemsWatcher();
+
+        // The first check: the fresh item is new, and its mail fails.
+        List<ImportEntry> news = watcher.news("elibrary/tool", List.of(old, fresh), NOW, INTERVAL);
+        assertThat(news).containsExactly(fresh);
+        watcher.remember("elibrary/tool", List.of(old, fresh), news);
+
+        // Long after the window of the first check, the item is still new; once sent, it is not.
+        List<ImportEntry> again = watcher.news("elibrary/tool", List.of(old, fresh), NOW.plus(INTERVAL.multipliedBy(3)), INTERVAL);
+        assertThat(again).containsExactly(fresh);
+        watcher.remember("elibrary/tool", List.of(old, fresh), List.of());
+        assertThat(watcher.news("elibrary/tool", List.of(old, fresh), NOW.plus(INTERVAL.multipliedBy(4)), INTERVAL)).isEmpty();
     }
 }

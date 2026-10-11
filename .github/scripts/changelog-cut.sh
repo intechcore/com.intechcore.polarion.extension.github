@@ -34,7 +34,7 @@ awk -v version="$version" -v release_date="$release_date" '
     # A link reference of the Unreleased or a version section. Other link
     # references may stand inside an entry.
     function is_link(line) {
-        return line ~ /^\[(Unreleased|[0-9][^]]*)\]: /
+        return line ~ /^\[(Unreleased|[0-9]+\.[0-9]+\.[0-9]+[^]]*)\]: /
     }
     # Prints the collected Unreleased entries as the new release section.
     function cut(   first, last, i, has_entry) {

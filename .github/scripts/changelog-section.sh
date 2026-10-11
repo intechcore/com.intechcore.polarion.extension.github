@@ -25,7 +25,7 @@ extract() {
         # Lines inside a fenced code block are neither headings nor links.
         {
             heading = !fence && /^## /
-            link = !fence && /^\[(Unreleased|[0-9][^]]*)\]: /
+            link = !fence && /^\[(Unreleased|[0-9]+\.[0-9]+\.[0-9]+[^]]*)\]: /
             if ($0 ~ /^[[:space:]]*(```|~~~)/) fence = !fence
         }
         heading {

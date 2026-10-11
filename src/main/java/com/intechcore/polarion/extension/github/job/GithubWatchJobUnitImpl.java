@@ -128,8 +128,15 @@ public class GithubWatchJobUnitImpl extends AbstractJobUnit implements GithubWat
                     List<ImportEntry> candidates = candidates(importService.importRepository(projectId, settings, true, null).getEntries(),
                             notifications, hidden);
                     List<ImportEntry> news = watcher.news(key, candidates, clock.instant(), interval);
-                    if (!news.isEmpty()) {
-                        mail(projectId, settings, notifications, news);
+                    // The news count as seen only once mailed: a failed mail leaves them new for the next run.
+                    List<ImportEntry> unsent = news;
+                    try {
+                        if (!news.isEmpty()) {
+                            mail(projectId, settings, notifications, news);
+                        }
+                        unsent = List.of();
+                    } finally {
+                        watcher.remember(key, candidates, unsent);
                     }
                 } catch (GithubRateLimitException e) {
                     throw e;

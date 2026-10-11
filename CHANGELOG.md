@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The changelog scripts of the release take only `Unreleased` and a release version for the link
+  of a section. A numbered link such as `[1]:` inside an entry cut the release section and its
+  notes short.
+- The end-to-end tests pass with a dev token in `ui/.env.local`. The token switched the app to
+  `/api`, past every mock of the tests, so all but one failed on a developer machine.
+- A notification mail that fails no longer drops its items. The watch job remembered them as
+  seen before the mail went out, so after an SMTP outage, or with no recipient address, they were
+  never mailed. They now stay new until a mail with them is sent.
+
 ### Added
 - The widget can say below its table how long the report took.
 - The link to a work item finds it by its ID or title, and shows it with the icon of its type and
