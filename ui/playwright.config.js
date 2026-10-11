@@ -17,5 +17,9 @@ export default defineConfig({
     command: 'npm run dev -- --port 5173 --strictPort',
     port: 5173,
     reuseExistingServer: !process.env.CI,
+    // The suites mock the session endpoints (/internal). A dev token from .env.local would switch the
+    // app to /api, past every mock: an empty one here takes precedence. A dev server already running
+    // with a token is reused as it is, so stop it before the tests.
+    env: { VITE_BEARER_TOKEN: '' },
   },
 });
