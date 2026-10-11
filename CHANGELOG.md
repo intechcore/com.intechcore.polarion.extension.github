@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The widget can say below its table how long the report took.
+- The link to a work item finds it by its ID or title, and shows it with the icon of its type and
+  its title.
+
 ### Changed
 - Renovate offers a new TypeScript major on the Dependency Dashboard for approval instead of a pull
   request. TypeScript 7 waits for typescript-eslint, whose peer range ends below 6.1.
@@ -19,13 +24,6 @@ All notable changes to this project are documented here. The format follows
 - A notification mail that fails no longer drops its items. The watch job remembered them as
   seen before the mail went out, so after an SMTP outage, or with no recipient address, they were
   never mailed. They now stay new until a mail with them is sent.
-
-### Added
-- The widget can say below its table how long the report took.
-- The link to a work item finds it by its ID or title, and shows it with the icon of its type and
-  its title.
-
-### Fixed
 - After an update, the row of an item shows the work item as it is now: its type, status and
   assignees, as after a creation.
 
