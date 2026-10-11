@@ -7,6 +7,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The changelog scripts of the release take only `Unreleased` and a release version for the link
+  of a section. A numbered link such as `[1]:` inside an entry cut the release section and its
+  notes short.
 - The end-to-end tests pass with a dev token in `ui/.env.local`. The token switched the app to
   `/api`, past every mock of the tests, so all but one failed on a developer machine.
 - A notification mail that fails no longer drops its items. The watch job remembered them as
