@@ -29,18 +29,32 @@ public class NewItemsWatcher {
      * @param candidates the items that call for a notification now
      * @param now        the time of the check
      * @param interval   how often the job runs: the window of the first check
-     * @return the candidates not seen at the last check
+     * @return the candidates not seen at the last check. Nothing is remembered: {@link #remember} does it, once the
+     *         news went out or failed to.
      */
     public @NotNull List<ImportEntry> news(@NotNull String key, @NotNull List<ImportEntry> candidates, @NotNull Instant now,
                                            @NotNull Duration interval) {
-        Set<String> urls = candidates.stream().map(ImportEntry::getUrl).collect(Collectors.toSet());
-        Set<String> before = known.put(key, urls);
+        Set<String> before = known.get(key);
         if (before == null) {
             Instant since = now.minus(interval);
             return candidates.stream().filter(entry -> appearedAfter(entry, since)).toList();
         }
         // An item that left, for example by getting a work item, and comes back is new again.
         return candidates.stream().filter(entry -> !before.contains(entry.getUrl())).toList();
+    }
+
+    /**
+     * Remembers the candidates of a check as seen, but for the news that could not be sent: they stay new, and the next
+     * check reports them again. A failed mail thus loses no item, also at the first check, whose window the next one
+     * would no longer cover.
+     *
+     * @param key        the repository setting
+     * @param candidates the items that called for a notification at the check
+     * @param unsent     the news whose mail failed, empty when it went out
+     */
+    public void remember(@NotNull String key, @NotNull List<ImportEntry> candidates, @NotNull List<ImportEntry> unsent) {
+        Set<String> left = unsent.stream().map(ImportEntry::getUrl).collect(Collectors.toSet());
+        known.put(key, candidates.stream().map(ImportEntry::getUrl).filter(url -> !left.contains(url)).collect(Collectors.toSet()));
     }
 
     /** An issue or discussion appears when it is opened, a failed pull request when its checks fail, at its last change. */
