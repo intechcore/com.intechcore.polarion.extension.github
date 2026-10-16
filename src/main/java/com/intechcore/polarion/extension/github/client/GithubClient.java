@@ -414,7 +414,7 @@ public class GithubClient {
                     + " It may be wrong, expired or revoked.");
         }
         if (response.statusCode() != 200) {
-            throw new GithubStatusException(url, response.statusCode());
+            throw new GithubStatusException(url, response.statusCode(), reason(response.body()), bearer.own());
         }
         return response;
     }
@@ -441,6 +441,26 @@ public class GithubClient {
     private static boolean isRedirect(HttpResponse<String> response) {
         int status = response.statusCode();
         return status == 301 || status == 302 || status == 307 || status == 308;
+    }
+
+    // GitHub's error answers carry the reason in "message". Text from outside: one line, and not too long.
+    private static final int MAX_REASON_LENGTH = 500;
+
+    private @Nullable String reason(@Nullable String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            String message = objectMapper.readTree(body).path("message").asText("");
+            String line = message.replaceAll("\\p{Cntrl}+", " ").trim();
+            if (line.isEmpty()) {
+                return null;
+            }
+            return line.length() > MAX_REASON_LENGTH ? line.substring(0, MAX_REASON_LENGTH) + "..." : line;
+        } catch (IOException e) {
+            // An answer that is no JSON, as an HTML error page of a proxy, gives no reason.
+            return null;
+        }
     }
 
     private static boolean isRateLimited(HttpResponse<String> response) {

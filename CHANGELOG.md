@@ -24,6 +24,7 @@ All notable changes to this project are documented here. The format follows
   request. TypeScript 7 waits for typescript-eslint, whose peer range ends below 6.1.
 
 ### Fixed
+- An error of GitHub shows the reason GitHub gives, as the token policy of an organization.
 - The changelog scripts of the release take only `Unreleased` and a release version for the link
   of a section. A numbered link such as `[1]:` inside an entry cut the release section and its
   notes short.

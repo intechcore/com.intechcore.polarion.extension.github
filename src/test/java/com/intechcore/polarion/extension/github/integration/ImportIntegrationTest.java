@@ -343,7 +343,7 @@ class ImportIntegrationTest {
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple("tool", "acme/tool", null),
                         org.assertj.core.groups.Tuple.tuple("missing", "acme/missing",
-                                "GitHub answered " + github.url() + "/repos/acme/missing/issues?state=open&per_page=100 with status 404"));
+                                "GitHub answered " + github.url() + "/repos/acme/missing/issues?state=open&per_page=100 with status 404: Not Found"));
         assertThat(items.getRepositories()).filteredOn(state -> "tool".equals(state.getSetting()))
                 .singleElement().extracting(RepositoryState::getReadAt).isNotNull();
         assertThat(items.getEntries()).extracting(ImportEntry::getNumber).containsExactly(7L, 9L, 10L, 30L);
