@@ -71,7 +71,7 @@ asks a person to finish the update.
 
 A failed check is a check run that ended with `failure`, `timed_out`, `action_required` or
 `startup_failure`. A cancelled run does not count. Each pull request of a watched author costs one
-GitHub request for its checks, once per five minutes. A rule on a pull request can compare a label or
+GitHub request for its checks, once per cache time. A rule on a pull request can compare a label or
 the author.
 
 ### Security advisories
@@ -151,6 +151,19 @@ reads the secret for each request, so a renewed token works without a restart. T
 A secret that is missing or empty, and a token GitHub refuses (wrong, expired or revoked), show
 their reason above the list of the GitHub page, per repository. Without the property nothing
 changes: the extension stays anonymous.
+
+## Cache time
+
+The server keeps a list it read from GitHub for 5 minutes. To change that, set the minutes in
+`polarion.properties` and restart Polarion:
+
+```properties
+com.intechcore.polarion.extension.github.cache.minutes=15
+```
+
+- A longer time saves requests of the hourly limit; a new issue shows later.
+- `0` keeps nothing: every page reads GitHub again.
+- A value that is no number of minutes keeps 5.
 
 ## Build
 
@@ -249,7 +262,8 @@ A repository that cannot be read shows its reason above the list, and the others
 
 GitHub allows 60 requests per hour without a token, for the whole Polarion server, and 5000 with one,
 see [GitHub token](#github-token). The server keeps a list it read from GitHub for 5 minutes and
-serves every page and user from it. The page shows when the lists were read.
+serves every page and user from it; the property `cache.minutes` changes the time, see
+[Cache time](#cache-time). The page shows when the lists were read.
 
 - `Refresh` reads the list again: the GitHub items from that cache, the work items from Polarion.
 - `Update from GitHub` reads GitHub again, for every repository of the project. A list read within

@@ -163,7 +163,7 @@ export default function useSettings() {
 
   /**
    * The open items of the repository settings of a project, with what the import would do with each.
-   * `refresh` makes the server read GitHub again instead of the lists of the last five minutes.
+   * `refresh` makes the server read GitHub again instead of the lists it keeps.
    * `only` names the settings to read, in their order; none reads all of them.
    */
   const loadItems = useCallback(

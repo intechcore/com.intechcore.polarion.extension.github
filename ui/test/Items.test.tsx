@@ -411,6 +411,7 @@ describe('GitHub items page', () => {
         json: {
           ...ITEMS,
           repositories: [{ setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T18:48:00Z', error: null }],
+          cacheMinutes: 1,
         },
       },
     ]);
@@ -419,6 +420,8 @@ describe('GitHub items page', () => {
     const local = new Date('2026-10-03T18:48:00Z');
     expect(text).toContain(`Read from GitHub at ${String(local.getHours()).padStart(2, '0')}:48.`);
     expect(text).not.toMatch(/AM|PM/);
+    // The cache time the server is configured with.
+    expect(text).toContain('The server keeps the lists for 1 minute,');
   });
 
   it('gives the search box and the filters the control height of 23 pixels', async () => {

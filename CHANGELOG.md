@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- The property `cache.minutes` sets how long the server keeps a list read from GitHub. `0` keeps
+  none.
 - The widget can say below its table how long the report took.
 - The link to a work item finds it by its ID or title, and shows it with the icon of its type and
   its title.

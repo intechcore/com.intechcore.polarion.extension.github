@@ -371,7 +371,8 @@ class ImportIntegrationTest {
         // The page reads the lists of the cache: the import and the topic together read GitHub once.
         assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
         JsonNode json = new ObjectMapper().valueToTree(items);
-        assertThat(fieldNames(json)).containsExactlyInAnyOrder("repositories", "entries");
+        assertThat(fieldNames(json)).containsExactlyInAnyOrder("repositories", "entries", "cacheMinutes");
+        assertThat(json.get("cacheMinutes").asLong()).isEqualTo(5);
         assertThat(fieldNames(json.get("repositories").get(0))).containsExactlyInAnyOrder("setting", "repository", "readAt", "error");
 
         // A list read within the last minute stays, so a refresh right away asks GitHub nothing new.

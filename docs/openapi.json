@@ -157,7 +157,7 @@
             }
           },
           {
-            "description": "True to read GitHub again instead of the lists of the last five minutes. A list read within the last minute stays.",
+            "description": "True to read GitHub again instead of the lists the server keeps (cache.minutes). A list read within the last minute stays.",
             "in": "query",
             "name": "refresh",
             "schema": {
@@ -837,7 +837,7 @@
             "type": "array"
           },
           "readAt": {
-            "description": "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant. Lists serve from a cache for five minutes.",
+            "description": "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant. Lists serve from a cache for the minutes of cache.minutes.",
             "type": "string"
           },
           "repository": {
@@ -899,6 +899,11 @@
       "ProjectItems": {
         "description": "The open GitHub items of all repository settings of a project",
         "properties": {
+          "cacheMinutes": {
+            "description": "How many minutes the server keeps a list read from GitHub. 0: every read asks GitHub again",
+            "format": "int64",
+            "type": "integer"
+          },
           "entries": {
             "description": "The open issues and discussions, with what the import would do with each",
             "items": {

@@ -150,7 +150,7 @@ export interface ImportResult {
   repository: string;
   dryRun: boolean;
   entries: ImportEntry[];
-  /** ISO-8601. GitHub lists serve from a cache of the server for five minutes. */
+  /** ISO-8601. GitHub lists serve from a cache of the server, for `cacheMinutes` of ProjectItems. */
   readAt: string | null;
 }
 
@@ -166,4 +166,6 @@ export interface RepositoryState {
 export interface ProjectItems {
   repositories: RepositoryState[];
   entries: ImportEntry[];
+  /** How many minutes the server keeps a list read from GitHub. 0: every read asks GitHub again. */
+  cacheMinutes: number;
 }

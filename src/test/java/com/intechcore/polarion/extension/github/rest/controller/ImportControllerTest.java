@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -41,6 +42,7 @@ class ImportControllerTest {
         settings = new RepositorySettingsModel();
         result = new ImportResult("acme/tool", false);
         when(repositorySettings.load(eq("elibrary"), any())).thenReturn(settings);
+        when(importService.cacheTime()).thenReturn(Duration.ofMinutes(5));
     }
 
     @Test
@@ -97,6 +99,7 @@ class ImportControllerTest {
                     new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", false, null);
 
             assertThat(items.getEntries()).extracting(com.intechcore.polarion.extension.github.service.ImportEntry::getNumber).containsExactly(7L);
+            assertThat(items.getCacheMinutes()).isEqualTo(5);
             verify(importService, never()).refresh(any());
 
             new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", true, null);

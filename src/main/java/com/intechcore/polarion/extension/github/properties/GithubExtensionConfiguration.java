@@ -9,6 +9,7 @@ import ch.sbb.polarion.extension.generic.util.Discoverable;
 import com.polarion.core.config.impl.SystemValueReader;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +24,11 @@ public class GithubExtensionConfiguration extends ExtensionConfiguration {
     public static final String TOKEN_SECRET_DESCRIPTION = "Name of the Polarion secret holding a GitHub token."
             + " Empty: GitHub is read without a token, 60 requests per hour for the server.";
     public static final String TOKEN_SECRET_DEFAULT_VALUE = "";
+
+    public static final String CACHE_MINUTES = "cache.minutes";
+    public static final String CACHE_MINUTES_DESCRIPTION = "How many minutes the server keeps a list read from GitHub."
+            + " 0: every page reads GitHub again.";
+    public static final String CACHE_MINUTES_DEFAULT_VALUE = "5";
 
     public static final String MAIL_FROM = "mail.from";
     public static final String MAIL_FROM_DESCRIPTION = "The sender of the notification mails of the watch job."
@@ -63,10 +69,42 @@ public class GithubExtensionConfiguration extends ExtensionConfiguration {
         return TOKEN_SECRET_DEFAULT_VALUE;
     }
 
+    @PropertyMapping(CACHE_MINUTES)
+    public String getCacheMinutes() {
+        return SystemValueReader.getInstance().readString(getPropertyPrefix() + CACHE_MINUTES, CACHE_MINUTES_DEFAULT_VALUE);
+    }
+
+    /** How long the server keeps a list read from GitHub. A value that is no number of minutes keeps the default. */
+    public @NotNull Duration getCacheTime() {
+        String value = getCacheMinutes();
+        try {
+            long minutes = Long.parseLong(value == null ? "" : value.trim());
+            if (minutes >= 0) {
+                return Duration.ofMinutes(minutes);
+            }
+        } catch (NumberFormatException e) {
+            // The default below.
+        }
+        return Duration.ofMinutes(Long.parseLong(CACHE_MINUTES_DEFAULT_VALUE));
+    }
+
+    @SuppressWarnings("unused")
+    @PropertyMappingDescription(CACHE_MINUTES)
+    public String getCacheMinutesDescription() {
+        return CACHE_MINUTES_DESCRIPTION;
+    }
+
+    @SuppressWarnings("unused")
+    @PropertyMappingDefaultValue(CACHE_MINUTES)
+    public String getCacheMinutesDefaultValue() {
+        return CACHE_MINUTES_DEFAULT_VALUE;
+    }
+
     @Override
     public @NotNull List<String> getSupportedProperties() {
         List<String> supportedProperties = new ArrayList<>(super.getSupportedProperties());
         supportedProperties.add(TOKEN_SECRET);
+        supportedProperties.add(CACHE_MINUTES);
         supportedProperties.add(MAIL_FROM);
         return supportedProperties;
     }

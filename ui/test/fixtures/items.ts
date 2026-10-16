@@ -178,6 +178,7 @@ export const ITEMS = {
     },
   ],
   entries: ENTRIES,
+  cacheMinutes: 5,
 };
 
 const created = (entry: ImportEntry, workItemId: string): ImportEntry => ({ ...entry, status: 'CREATED', workItemId });

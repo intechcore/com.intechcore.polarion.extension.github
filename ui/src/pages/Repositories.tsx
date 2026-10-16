@@ -326,7 +326,8 @@ export default function Repositories() {
           <h2>Pull requests</h2>
           <p className="block-hint">
             Lists the open pull requests of the watched authors whose checks failed, for example an update Renovate
-            could not merge. Each such pull request costs one GitHub request per five minutes for its checks.
+            could not merge. Each such pull request costs one GitHub request for its checks each time the server cache
+            expires.
           </p>
           <table className="settings-table">
             <tbody>
