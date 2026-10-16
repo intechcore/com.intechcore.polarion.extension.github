@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { TOKEN_HEADER, readGithubToken } from './githubToken';
 
 const REST_PATH = '/polarion/github/rest';
 
@@ -17,6 +18,10 @@ export default function useRemote() {
     }
     if (import.meta.env.VITE_BEARER_TOKEN) {
       headers['Authorization'] = `Bearer ${import.meta.env.VITE_BEARER_TOKEN}`;
+    }
+    const githubToken = readGithubToken();
+    if (githubToken) {
+      headers[TOKEN_HEADER] = githubToken;
     }
 
     const apiPath = import.meta.env.VITE_BEARER_TOKEN ? '/api' : '/internal';

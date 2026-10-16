@@ -30,8 +30,8 @@ public class ImportApiController extends ImportInternalController {
     }
 
     @Override
-    public ProjectItems getItems(String projectId, boolean refresh, List<String> settings) {
-        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh, settings));
+    public ProjectItems getItems(String projectId, boolean refresh, List<String> settings, String githubToken) {
+        return polarionService.callPrivileged(() -> super.getItems(projectId, refresh, settings, githubToken));
     }
 
     @Override
@@ -40,12 +40,12 @@ public class ImportApiController extends ImportInternalController {
     }
 
     @Override
-    public ImportResult updateRepository(String projectId, String name, ImportRequest request) {
-        return polarionService.callPrivileged(() -> super.updateRepository(projectId, name, request));
+    public ImportResult updateRepository(String projectId, String name, ImportRequest request, String githubToken) {
+        return polarionService.callPrivileged(() -> super.updateRepository(projectId, name, request, githubToken));
     }
 
     @Override
-    public ImportResult importRepository(String projectId, String name, boolean dryRun, ImportRequest request) {
-        return polarionService.callPrivileged(() -> super.importRepository(projectId, name, dryRun, request));
+    public ImportResult importRepository(String projectId, String name, boolean dryRun, ImportRequest request, String githubToken) {
+        return polarionService.callPrivileged(() -> super.importRepository(projectId, name, dryRun, request, githubToken));
     }
 }

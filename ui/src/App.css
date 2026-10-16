@@ -106,6 +106,37 @@ body {
   color: #6b6b6b;
 }
 
+/* The GitHub token of the user: one line, and the editor in its place. */
+.github-token {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.github-token-state,
+.github-token-help {
+  color: #6b6b6b;
+}
+
+.github-token input[type='password'] {
+  width: 320px;
+  height: 23px;
+  box-sizing: border-box;
+}
+
+.github-token-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.github-token-help,
+.github-token .notifications {
+  flex-basis: 100%;
+}
+
 .item-filter {
   display: flex;
   flex-direction: column;

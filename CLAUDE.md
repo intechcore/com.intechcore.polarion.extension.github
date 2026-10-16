@@ -113,7 +113,13 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
 - `GithubNavigationExtender` - the topic GitHub in the navigation of a project, registered in
   `hivemodule.xml`. It opens `?feature=items`, as the administration entry `Issues and Discussions` does.
 - `GithubClient` keeps every list it read for the property `cache.minutes`
-  (`DEFAULT_CACHE_TIME`, 5 minutes); 0 keeps none. The extension shares one
+  (`DEFAULT_CACHE_TIME`, 5 minutes); 0 keeps none. The cache serves every user, so it keeps only
+  lists of public repositories: with a token the client asks `GET /repos/{owner}/{repo}` once per
+  cache time, and a list read with the token of the user that depends on its permission (the
+  advisories) never goes to the cache.
+- `client/RequestToken` - the GitHub token a user keeps in the browser (`ui/src/services/githubToken.ts`).
+  The page sends it in `X-GitHub-Token`; the import controllers run the request inside
+  `RequestToken.with`, which forgets it afterwards. It goes before the token of the server. The extension shares one
   client, `GithubClient.shared()`. Without a token a conditional request with `ETag` costs a request
   as well (checked against GitHub), so only the cache saves the 60 requests per hour.
   `GithubClient.forget` drops the lists of a repository for `?refresh=true` of the items endpoint,

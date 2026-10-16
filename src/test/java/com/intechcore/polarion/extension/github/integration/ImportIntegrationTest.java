@@ -136,7 +136,7 @@ class ImportIntegrationTest {
     void aDryRunListsTheOpenItemsOfBothPagesAndCreatesNothing() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
-        ImportResult result = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null);
+        ImportResult result = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null);
 
         // The pull request and the closed discussion stay out. The rule leaves the "WontFix" issue out.
         assertThat(outcome(result)).containsExactly(
@@ -153,7 +153,7 @@ class ImportIntegrationTest {
     void anImportCreatesTheWorkItemsAndTheNextRunFindsThem() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
-        ImportResult first = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
+        ImportResult first = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null);
 
         assertThat(outcome(first)).containsExactly(
                 "ISSUE 7 CREATED", "ISSUE 9 SKIPPED", "ISSUE 10 CREATED", "DISCUSSION 30 CREATED");
@@ -181,7 +181,7 @@ class ImportIntegrationTest {
         assertThat(discussion.description.getContent()).isEqualTo(
                 "<a href=\"https://github.com/acme/tool/discussions/30\">https://github.com/acme/tool/discussions/30</a>");
 
-        ImportResult second = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
+        ImportResult second = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null);
 
         assertThat(outcome(second)).containsExactly(
                 "ISSUE 7 EXISTS", "ISSUE 9 SKIPPED", "ISSUE 10 EXISTS", "DISCUSSION 30 EXISTS");
@@ -192,8 +192,8 @@ class ImportIntegrationTest {
     @Test
     void aChangedSettingMarksTheWorkItemsOutdatedAndAnUpdateFixesThem() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
-        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7", ISSUES + "10")));
-        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null)))
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7", ISSUES + "10")), null);
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null)))
                 .contains("ISSUE 7 EXISTS", "ISSUE 10 EXISTS");
 
         // The title template and a field value change, as an administrator would change them.
@@ -201,12 +201,12 @@ class ImportIntegrationTest {
                 .replace("\"titleTemplate\": \"[GitHub] {{ SHORT_NAME }} : {{ TITLE }}\"", "\"titleTemplate\": \"{{ SHORT_NAME }} #{{ NUMBER }}: {{ TITLE }}\"")
                 .replace("\"component\": \"core\"", "\"component\": \"ui\""));
 
-        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null);
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null, null);
         ImportEntry outdated = items.getEntries().get(0);
         assertThat(outdated.getStatus()).isEqualTo(ImportStatus.OUTDATED);
         assertThat(outdated.getMessage()).isEqualTo("differs in title, component");
 
-        ImportResult update = importEndpoint.updateRepository(FakePolarion.PROJECT, "tool", new ImportRequest(List.of(ISSUES + "7")));
+        ImportResult update = importEndpoint.updateRepository(FakePolarion.PROJECT, "tool", new ImportRequest(List.of(ISSUES + "7")), null);
 
         assertThat(outcome(update)).containsExactly("ISSUE 7 UPDATED");
         FakePolarion.WorkItem bug = polarion.saved.get(0);
@@ -215,7 +215,7 @@ class ImportIntegrationTest {
         // The URL a work item keeps never changes, and the update creates nothing.
         assertThat(bug.hyperlinks).containsExactly(ISSUES + "7");
         assertThat(polarion.saved).hasSize(2);
-        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null)))
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null)))
                 .contains("ISSUE 7 EXISTS", "ISSUE 10 OUTDATED");
     }
 
@@ -226,8 +226,8 @@ class ImportIntegrationTest {
                  "issues": {"enabled": true, "workItemType": "task", "titleTemplate": "{{ TITLE }}",
                             "duplicateKey": "CUSTOM_FIELD", "duplicateKeyField": "githubUrl"}}""");
 
-        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
-        ImportResult second = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null);
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null);
+        ImportResult second = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null);
 
         assertThat(polarion.saved).extracting(item -> item.fields.get("githubUrl"))
                 .containsExactly(ISSUES + "7", ISSUES + "9", ISSUES + "10");
@@ -240,7 +240,7 @@ class ImportIntegrationTest {
     void theImportPageCreatesOnlyTheSelectedItems() {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
-        ImportResult result = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "10")));
+        ImportResult result = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "10")), null);
 
         assertThat(outcome(result)).containsExactly("ISSUE 10 CREATED");
         assertThat(polarion.saved).extracting(item -> item.title).containsExactly("[GitHub] Tool : Export to CSV");
@@ -264,20 +264,20 @@ class ImportIntegrationTest {
     void createsAWorkItemForTheFailedPullRequestOfRenovateOnce() {
         saveSetting("tool", PULL_REQUESTS);
 
-        ImportResult preview = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null);
+        ImportResult preview = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null);
 
         // 422 passed its checks, and 423 is not by a watched author.
         assertThat(outcome(preview)).containsExactly("PULL_REQUEST 421 NEW");
         assertThat(preview.getEntries().get(0).getFailedChecks()).isEqualTo("build");
 
-        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null);
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null);
 
         FakePolarion.WorkItem fix = polarion.saved.get(0);
         assertThat(fix.title).isEqualTo("[GitHub] Tool : Fix the failed checks of fix(deps): update docx4j.version to v17.3.0");
         assertThat(fix.description.getContent()).isEqualTo(
                 "<a href=\"https://github.com/acme/tool/pull/421\">https://github.com/acme/tool/pull/421</a><p>Failed: build</p>");
         assertThat(fix.hyperlinks).containsExactly("https://github.com/acme/tool/pull/421");
-        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null))).containsExactly("PULL_REQUEST 421 EXISTS");
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null))).containsExactly("PULL_REQUEST 421 EXISTS");
         assertThat(polarion.saved).hasSize(1);
     }
 
@@ -288,13 +288,13 @@ class ImportIntegrationTest {
         assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), true)))
                 .containsExactly(ISSUES + "7");
 
-        List<ImportEntry> entries = importEndpoint.getItems(FakePolarion.PROJECT, false, null).getEntries();
+        List<ImportEntry> entries = importEndpoint.getItems(FakePolarion.PROJECT, false, null, null).getEntries();
         assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getUrl).containsExactly(ISSUES + "7");
         // A hidden item stays importable: hiding changes only the page.
         assertThat(entries).filteredOn(ImportEntry::isHidden).extracting(ImportEntry::getStatus).containsExactly(ImportStatus.NEW);
 
         assertThat(importEndpoint.hideItems(FakePolarion.PROJECT, new HideRequest(List.of(ISSUES + "7"), false))).isEmpty();
-        assertThat(importEndpoint.getItems(FakePolarion.PROJECT, false, null).getEntries()).noneMatch(ImportEntry::isHidden);
+        assertThat(importEndpoint.getItems(FakePolarion.PROJECT, false, null, null).getEntries()).noneMatch(ImportEntry::isHidden);
     }
 
     @Test
@@ -302,7 +302,7 @@ class ImportIntegrationTest {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
         ImportResult result = new ImportApiController(polarion.polarionService, repositorySettings, importService, hiddenItems)
-                .importRepository(FakePolarion.PROJECT, "tool", true, null);
+                .importRepository(FakePolarion.PROJECT, "tool", true, null, null);
 
         assertThat(result.getEntries()).hasSize(4);
     }
@@ -311,7 +311,7 @@ class ImportIntegrationTest {
     void theResultReachesTheImportPageInTheShapeItReads() throws Exception {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
 
-        JsonNode json = new ObjectMapper().valueToTree(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null));
+        JsonNode json = new ObjectMapper().valueToTree(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null));
 
         // The fields of ImportResult and ImportEntry in ui/src/types.ts.
         assertThat(fieldNames(json)).containsExactlyInAnyOrder("repository", "dryRun", "entries", "readAt");
@@ -335,9 +335,9 @@ class ImportIntegrationTest {
     void theTopicShowsTheItemsOfAllSettingsWithTheStateOfTheirWorkItems() throws Exception {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
         saveSetting("missing", ISSUES_AND_DISCUSSIONS.replace("acme/tool", "acme/missing"));
-        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7")));
+        importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7")), null);
 
-        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null);
+        ProjectItems items = importEndpoint.getItems(FakePolarion.PROJECT, false, null, null);
 
         assertThat(items.getRepositories()).extracting(RepositoryState::getSetting, RepositoryState::getRepository, RepositoryState::getError)
                 .containsExactlyInAnyOrder(
@@ -376,7 +376,7 @@ class ImportIntegrationTest {
         assertThat(fieldNames(json.get("repositories").get(0))).containsExactlyInAnyOrder("setting", "repository", "readAt", "error");
 
         // A list read within the last minute stays, so a refresh right away asks GitHub nothing new.
-        importEndpoint.getItems(FakePolarion.PROJECT, true, null);
+        importEndpoint.getItems(FakePolarion.PROJECT, true, null, null);
         assertThat(github.requests()).filteredOn(request -> request.startsWith("/repos/acme/tool/")).hasSize(3);
     }
 
@@ -385,7 +385,7 @@ class ImportIntegrationTest {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
         github.discussionsTurnedOff();
 
-        assertThatThrownBy(() -> importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null))
+        assertThatThrownBy(() -> importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, null, null))
                 .isInstanceOfSatisfying(GithubClientException.class, e -> {
                     Response response = new GithubClientExceptionMapper().toResponse(e);
                     assertThat(response.getStatus()).isEqualTo(502);
@@ -400,7 +400,7 @@ class ImportIntegrationTest {
         saveSetting("tool", ISSUES_AND_DISCUSSIONS);
         github.rateLimitUsedUp();
 
-        assertThatThrownBy(() -> importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null))
+        assertThatThrownBy(() -> importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null))
                 .isInstanceOfSatisfying(GithubClientException.class, e ->
                         assertThat(new GithubClientExceptionMapper().toResponse(e).getStatus()).isEqualTo(429));
     }

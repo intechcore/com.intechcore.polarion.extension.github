@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner';
 import ButtonIcon from '../components/ButtonIcon';
 import ErrorNotice from '../components/ErrorNotice';
+import GithubTokenSetting from '../components/GithubTokenSetting';
 import { ItemCell, LabelsCell, StateCell, StatusCell, WorkItemCell, itemNumber } from '../components/ItemCells';
 import TableSettings from '../components/TableSettings';
 import {
@@ -321,6 +322,8 @@ export default function Items() {
         <p>This project has no repository setting. An administrator creates one on the Repositories page.</p>
       ) : (
         <>
+          {/* A widget reads with the token the viewer keeps, but does not offer to change it. */}
+          {!options.widget && <GithubTokenSetting onChange={() => void load()} />}
           {(!options.hideFilters || options.allowCreate) && (
             <div className="items-toolbar">
               {!options.hideFilters && (

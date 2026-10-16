@@ -80,12 +80,16 @@ const columnBox = (label: string) =>
 beforeEach(() => {
   setUrl(origUrl);
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   setUrl(origUrl);
+  // The token of a test must not reach the requests of the next test file.
+  window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 describe('GitHub items page', () => {
@@ -664,5 +668,87 @@ describe('GitHub items page', () => {
       expect(alerts()).toEqual(['The GitHub items belong to a project. Open this page from a project.']),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('the GitHub token of the user', () => {
+  const TOKEN = 'github_pat_11ABCDEFG_abcdwxyz';
+  // The header the last call to the items endpoint carried.
+  const itemsHeader = () => {
+    const calls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/items'));
+    const init = calls[calls.length - 1][1];
+    return (init?.headers as Record<string, string>)['X-GitHub-Token'];
+  };
+  const tokenInput = () => document.querySelector<HTMLInputElement>('#github-token')!;
+  const state = () => document.querySelector('.github-token-state')?.textContent;
+
+  it('keeps the token for the tab, sends it with every request and removes it again', async () => {
+    await mount();
+    expect(state()).toBe('GitHub is read with the token of the server, or without one.');
+    expect(itemsHeader()).toBeUndefined();
+
+    await userEvent.click(button('Use my GitHub token'));
+    expect(button('Save').disabled).toBe(true);
+    expect(tokenInput().type).toBe('password');
+    await userEvent.fill(tokenInput(), ` ${TOKEN} `);
+    await userEvent.click(button('Save'));
+
+    // The page reads GitHub again, now with the token of the user.
+    await vi.waitFor(() => expect(itemsHeader()).toBe(TOKEN));
+    expect(state()).toBe('GitHub is read with your token …wxyz, kept in this browser.');
+    expect(window.sessionStorage.getItem('github.token')).toBe(TOKEN);
+    expect(window.localStorage.getItem('github.token')).toBeNull();
+
+    await userEvent.click(button('Remove token'));
+    await vi.waitFor(() => expect(itemsHeader()).toBeUndefined());
+    expect(window.sessionStorage.getItem('github.token')).toBeNull();
+    expect(state()).toContain('token of the server');
+  });
+
+  it('remembers the token in this browser on request, and keeps the old one on Cancel', async () => {
+    await mount();
+    await userEvent.click(button('Use my GitHub token'));
+    await userEvent.click(document.querySelector<HTMLInputElement>('.github-token-remember input')!);
+    await userEvent.fill(tokenInput(), 'ghp_short');
+    await userEvent.keyboard('{Enter}');
+
+    await vi.waitFor(() => expect(window.localStorage.getItem('github.token')).toBe('ghp_short'));
+    // A short value shows no characters: they would be most of it.
+    expect(state()).toBe('GitHub is read with your token, kept in this browser.');
+
+    await userEvent.click(button('Change token'));
+    expect(document.querySelector<HTMLInputElement>('.github-token-remember input')!.checked).toBe(true);
+    await userEvent.fill(tokenInput(), 'ghp_other');
+    await userEvent.keyboard('{Escape}');
+    expect(document.querySelector('#github-token')).toBeNull();
+    expect(window.localStorage.getItem('github.token')).toBe('ghp_short');
+  });
+
+  it('says so when the browser keeps nothing for the page', async () => {
+    await mount();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    try {
+      await userEvent.click(button('Use my GitHub token'));
+      await userEvent.fill(tokenInput(), TOKEN);
+      await userEvent.click(button('Save'));
+
+      expect(alerts()).toContain('This browser keeps no data for the page, so it cannot keep the token.');
+      expect(tokenInput()).not.toBeNull();
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it('reads with the token in the widget, which does not offer to change it', async () => {
+    window.localStorage.setItem('github.token', TOKEN);
+    fetchMock = installFetchMock(itemsRoutes());
+    setUrl(`?feature=items&widget=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers().length).toBeGreaterThan(0));
+
+    expect(itemsHeader()).toBe(TOKEN);
+    expect(document.querySelector('.github-token')).toBeNull();
   });
 });

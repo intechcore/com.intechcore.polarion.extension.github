@@ -175,6 +175,14 @@
               },
               "type": "array"
             }
+          },
+          {
+            "description": "A GitHub token of the user for this request, instead of the token of the server",
+            "in": "header",
+            "name": "X-GitHub-Token",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -259,6 +267,14 @@
               "default": false,
               "type": "boolean"
             }
+          },
+          {
+            "description": "A GitHub token of the user for this request, instead of the token of the server",
+            "in": "header",
+            "name": "X-GitHub-Token",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -306,6 +322,14 @@
             "in": "path",
             "name": "name",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A GitHub token of the user for this request, instead of the token of the server",
+            "in": "header",
+            "name": "X-GitHub-Token",
             "schema": {
               "type": "string"
             }
