@@ -58,7 +58,7 @@ public class ImportInternalController {
     @Path("/projects/{projectId}/items")
     @Produces(MediaType.APPLICATION_JSON)
     public ProjectItems getItems(@Parameter(description = "The project") @PathParam("projectId") String projectId,
-                                 @Parameter(description = "True to read GitHub again instead of the lists of the last five minutes."
+                                 @Parameter(description = "True to read GitHub again instead of the lists the server keeps (cache.minutes)."
                                          + " A list read within the last minute stays.")
                                  @QueryParam("refresh") @DefaultValue("false") boolean refresh,
                                  @Parameter(description = "The settings to read, in the order to show them. None reads all settings of the project.")

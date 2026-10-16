@@ -77,6 +77,7 @@ export default function Items() {
   const projectId = getProjectIdFromScope(scope);
 
   const [repositories, setRepositories] = useState<RepositoryState[]>([]);
+  const [cacheMinutes, setCacheMinutes] = useState(5);
   const [entries, setEntries] = useState<ImportEntry[] | null>(null);
   const [options] = useState(() => readPageOptions());
   const [filters, setFilters] = useState<ItemFilters>(options.filters);
@@ -106,6 +107,7 @@ export default function Items() {
         const started = performance.now();
         const items = await settings.loadItems(projectId, refresh, options.widget ? options.filters.settings : []);
         setRepositories(items.repositories);
+        setCacheMinutes(items.cacheMinutes);
         setEntries(items.entries);
         setGenerationTime(performance.now() - started);
         setChecked(new Set());
@@ -337,7 +339,7 @@ export default function Items() {
                     type="button"
                     className="sbb-btn sbb-btn--control"
                     disabled={busy}
-                    title="Reads GitHub again instead of the lists of the last five minutes. Each repository costs requests of the hourly GitHub limit."
+                    title="Reads GitHub again instead of the lists the server keeps. Each repository costs requests of the hourly GitHub limit."
                     onClick={() => void load(true)}
                   >
                     <ButtonIcon icon={faCloudArrowDown} />
@@ -371,8 +373,8 @@ export default function Items() {
               {busy && <span>Working...</span>}
               {!options.hideFilters && time && (
                 <span className="items-read-at">
-                  Read from GitHub at {time}. The server keeps the lists for 5 minutes, and Update from GitHub reads
-                  them again.
+                  Read from GitHub at {time}. The server keeps the lists for {cacheMinutes}{' '}
+                  {cacheMinutes === 1 ? 'minute' : 'minutes'}, and Update from GitHub reads them again.
                 </span>
               )}
             </div>

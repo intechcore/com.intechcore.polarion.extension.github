@@ -16,4 +16,7 @@ public class ProjectItems {
 
     @Schema(description = "The open issues and discussions, with what the import would do with each")
     private final List<ImportEntry> entries = new ArrayList<>();
+
+    @Schema(description = "How many minutes the server keeps a list read from GitHub. 0: every read asks GitHub again")
+    private long cacheMinutes;
 }

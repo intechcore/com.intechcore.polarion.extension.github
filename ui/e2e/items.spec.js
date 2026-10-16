@@ -30,6 +30,7 @@ test('the topic lists the items and creates the work item of the selected one', 
       json({
         repositories: [{ setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T08:00:00Z', error: null }],
         entries: [entry('NEW')],
+        cacheMinutes: 5,
       }),
     ),
   );

@@ -49,4 +49,20 @@ class GithubExtensionConfigurationTest {
         assertThat(configuration.getMailFromDescription()).contains("sender");
         assertThat(configuration.getMailFromDefaultValue()).isEmpty();
     }
+
+    /** A value that is no number of minutes, or a negative one, keeps the default of five minutes. */
+    @Test
+    void readsTheCacheTimeInMinutes() {
+        GithubExtensionConfiguration configuration = new GithubExtensionConfiguration();
+        assertThat(configuration.getSupportedProperties()).contains(GithubExtensionConfiguration.CACHE_MINUTES);
+        assertThat(configuration.getCacheMinutesDescription()).contains("minutes");
+        assertThat(configuration.getCacheMinutesDefaultValue()).isEqualTo("5");
+
+        java.util.Map.of(" 30 ", 30L, "0", 0L, "-1", 5L, "soon", 5L).forEach((value, minutes) -> {
+            when(systemValueReader.readString(endsWith(".cache.minutes"), eq("5"))).thenReturn(value);
+            assertThat(configuration.getCacheTime()).as(value).isEqualTo(java.time.Duration.ofMinutes(minutes));
+        });
+        when(systemValueReader.readString(endsWith(".cache.minutes"), eq("5"))).thenReturn(null);
+        assertThat(configuration.getCacheTime()).isEqualTo(java.time.Duration.ofMinutes(5));
+    }
 }

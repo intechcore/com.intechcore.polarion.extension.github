@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intechcore.polarion.extension.github.properties.GithubExtensionConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,11 +54,12 @@ public class GithubClient {
     };
 
     /**
-     * How long a list read from GitHub serves again. Without a token GitHub allows 60 requests per
-     * hour for the whole server, and a conditional request costs one as well, so only a cache saves
-     * them. With a token the limit is 5000 per hour; the cache keeps the pages fast all the same.
+     * How long a list read from GitHub serves again, unless the property {@code cache.minutes} says
+     * otherwise. Without a token GitHub allows 60 requests per hour for the whole server, and a
+     * conditional request costs one as well, so only a cache saves them. With a token the limit is
+     * 5000 per hour; the cache keeps the pages fast all the same.
      */
-    public static final Duration CACHE_TIME = Duration.ofMinutes(5);
+    public static final Duration DEFAULT_CACHE_TIME = Duration.ofMinutes(5);
 
     /**
      * How old a list must be before {@link #forget} drops it. A second click, or a second user, within
@@ -72,6 +74,7 @@ public class GithubClient {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock;
     private final Supplier<String> token;
+    private final Supplier<Duration> cacheTime;
     private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
     private final Map<String, CachedChecks> checksCache = new ConcurrentHashMap<>();
 
@@ -85,9 +88,12 @@ public class GithubClient {
     // newer run of the same check usually cancelled it.
     private static final Set<String> FAILED_CONCLUSIONS = Set.of("failure", "timed_out", "action_required", "startup_failure");
 
-    /** The client of the server: GitHub, with the token of the configured Polarion secret, if any. */
+    /**
+     * The client of the server: GitHub, with the token of the configured Polarion secret, if any, and
+     * the configured cache time.
+     */
     public GithubClient() {
-        this(DEFAULT_API_URL, Clock.systemUTC(), new GithubToken());
+        this(DEFAULT_API_URL, Clock.systemUTC(), new GithubToken(), () -> GithubExtensionConfiguration.getInstance().getCacheTime());
     }
 
     /** A client without a token. */
@@ -103,8 +109,17 @@ public class GithubClient {
      * @param token supplies the token for each request, or null to read GitHub anonymously
      */
     public GithubClient(@NotNull String apiUrl, @NotNull Clock clock, @NotNull Supplier<String> token) {
+        this(apiUrl, clock, token, () -> DEFAULT_CACHE_TIME);
+    }
+
+    /**
+     * @param token     supplies the token for each request, or null to read GitHub anonymously
+     * @param cacheTime supplies how long a list read from GitHub serves again
+     */
+    public GithubClient(@NotNull String apiUrl, @NotNull Clock clock, @NotNull Supplier<String> token, @NotNull Supplier<Duration> cacheTime) {
         this.clock = clock;
         this.token = token;
+        this.cacheTime = cacheTime;
         this.apiUrl = apiUrl.endsWith("/") ? apiUrl.substring(0, apiUrl.length() - 1) : apiUrl;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
@@ -119,6 +134,11 @@ public class GithubClient {
      */
     public static @NotNull GithubClient shared() {
         return SHARED;
+    }
+
+    /** How long a list read from GitHub serves again. */
+    public @NotNull Duration cacheTime() {
+        return cacheTime.get();
     }
 
     /**
@@ -187,7 +207,8 @@ public class GithubClient {
         }
         String url = repositoryUrl(owner, repository) + "/commits/" + sha + "/check-runs?per_page=" + PAGE_SIZE;
         Instant now = clock.instant();
-        checksCache.values().removeIf(cached -> cached.readAt().plus(CACHE_TIME).isBefore(now));
+        Duration keep = cacheTime();
+        checksCache.values().removeIf(cached -> isExpired(cached.readAt(), now, keep));
         CachedChecks cached = checksCache.get(url);
         if (cached != null) {
             return cached.failed();
@@ -205,8 +226,15 @@ public class GithubClient {
                 .map(CheckRun::name)
                 .distinct()
                 .toList();
-        checksCache.put(url, new CachedChecks(now, failed));
+        if (!keep.isZero()) {
+            checksCache.put(url, new CachedChecks(now, failed));
+        }
         return failed;
+    }
+
+    // A list read exactly the cache time ago still serves, as one read right now does without a cache.
+    private static boolean isExpired(Instant readAt, Instant now, Duration keep) {
+        return keep.isZero() || readAt.plus(keep).isBefore(now);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -247,13 +275,16 @@ public class GithubClient {
     @SuppressWarnings("unchecked")
     private <T> List<T> readAll(String firstPageUrl, TypeReference<List<T>> type) {
         Instant now = clock.instant();
-        cache.values().removeIf(cached -> cached.readAt().plus(CACHE_TIME).isBefore(now));
+        Duration keep = cacheTime();
+        cache.values().removeIf(cached -> isExpired(cached.readAt(), now, keep));
         CachedList cached = cache.get(firstPageUrl);
         if (cached != null) {
             return (List<T>) cached.items();
         }
         List<T> items = readAllPages(firstPageUrl, type);
-        cache.put(firstPageUrl, new CachedList(now, List.copyOf(items)));
+        if (!keep.isZero()) {
+            cache.put(firstPageUrl, new CachedList(now, List.copyOf(items)));
+        }
         return items;
     }
 

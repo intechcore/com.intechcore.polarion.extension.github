@@ -23,6 +23,7 @@ import com.polarion.platform.persistence.IEnumOption;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -191,6 +192,11 @@ public class ImportService {
         settings.validate();
         String[] name = settings.getRepository().split("/");
         githubClient.forget(name[0], name[1]);
+    }
+
+    /** How long the server keeps a list read from GitHub. */
+    public @NotNull Duration cacheTime() {
+        return githubClient.cacheTime();
     }
 
     private static boolean isEnabled(@Nullable ItemSettings settings) {

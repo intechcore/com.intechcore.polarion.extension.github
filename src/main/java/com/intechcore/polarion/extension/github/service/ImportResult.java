@@ -22,7 +22,7 @@ public class ImportResult {
     @Schema(description = "One entry per GitHub item")
     private final List<ImportEntry> entries = new ArrayList<>();
 
-    @Schema(description = "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant. Lists serve from a cache for five minutes.")
+    @Schema(description = "When the oldest list of the repository was read from GitHub, as an ISO-8601 instant. Lists serve from a cache for the minutes of cache.minutes.")
     private String readAt;
 
     public long count(ImportStatus status) {

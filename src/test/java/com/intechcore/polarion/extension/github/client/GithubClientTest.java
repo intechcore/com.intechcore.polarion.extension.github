@@ -129,7 +129,7 @@ class GithubClientTest {
         assertThat(cached.readAt("acme", "tool")).isNull();
 
         assertThat(cached.getOpenIssues("acme", "tool").get(0).assigneeLogins()).containsExactly("alice");
-        now.set(now.get().plus(GithubClient.CACHE_TIME));
+        now.set(now.get().plus(GithubClient.DEFAULT_CACHE_TIME));
         cached.getOpenIssues("acme", "tool");
 
         assertThat(requests).hasSize(1);
@@ -142,6 +142,45 @@ class GithubClientTest {
         assertThat(cached.readAt("acme", "tool")).isEqualTo(Instant.parse("2026-10-03T08:05:01Z"));
         assertThat(cached.readAt("acme", "other")).isNull();
         assertThat(GithubClient.shared()).isSameAs(GithubClient.shared());
+    }
+
+    @Test
+    void keepsTheListsForTheConfiguredTimeAndNotAtAllForZero() {
+        answer("/repos/acme/tool/issues", 200, Map.of(), "[{\"number\": 1, \"state\": \"open\"}]");
+        answer("/repos/acme/tool/commits/" + SHA + "/check-runs", 200, Map.of(), "{\"check_runs\": []}");
+        java.util.concurrent.atomic.AtomicReference<Instant> now = new java.util.concurrent.atomic.AtomicReference<>(Instant.parse("2026-10-03T08:00:00Z"));
+        java.util.concurrent.atomic.AtomicReference<java.time.Duration> keep = new java.util.concurrent.atomic.AtomicReference<>(java.time.Duration.ofMinutes(30));
+        GithubClient configured = new GithubClient(baseUrl, new java.time.Clock() {
+            @Override
+            public java.time.ZoneId getZone() {
+                return java.time.ZoneOffset.UTC;
+            }
+
+            @Override
+            public java.time.Clock withZone(java.time.ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return now.get();
+            }
+        }, () -> null, keep::get);
+
+        configured.getOpenIssues("acme", "tool");
+        now.set(now.get().plus(java.time.Duration.ofMinutes(30)));
+        configured.getOpenIssues("acme", "tool");
+        assertThat(requests).hasSize(1);
+        assertThat(configured.cacheTime()).isEqualTo(java.time.Duration.ofMinutes(30));
+
+        keep.set(java.time.Duration.ZERO);
+        configured.getOpenIssues("acme", "tool");
+        configured.getOpenIssues("acme", "tool");
+        configured.getFailedChecks("acme", "tool", SHA);
+        configured.getFailedChecks("acme", "tool", SHA);
+
+        assertThat(requests).hasSize(5);
+        assertThat(configured.readAt("acme", "tool")).isNull();
     }
 
     @Test

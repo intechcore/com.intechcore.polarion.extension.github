@@ -33,20 +33,21 @@ public class ProjectItemsReader {
     }
 
     /**
-     * @param refresh true to read GitHub again instead of the lists of the last five minutes
+     * @param refresh true to read GitHub again instead of the lists the server keeps
      */
     public @NotNull ProjectItems read(@NotNull String projectId, boolean refresh) {
         return read(projectId, refresh, List.of());
     }
 
     /**
-     * @param refresh  true to read GitHub again instead of the lists of the last five minutes
+     * @param refresh  true to read GitHub again instead of the lists the server keeps
      * @param settings the settings to read, in the order to show them, or none for all
      */
     public @NotNull ProjectItems read(@NotNull String projectId, boolean refresh, @NotNull List<String> settings) {
         String scope = ScopeUtils.getScopeFromProject(projectId);
         Set<String> hidden = hiddenItems.urls(projectId);
         ProjectItems items = new ProjectItems();
+        items.setCacheMinutes(importService.cacheTime().toMinutes());
         for (String name : names(scope, settings)) {
             RepositoryState state = new RepositoryState(name, null, null, null);
             items.getRepositories().add(state);
