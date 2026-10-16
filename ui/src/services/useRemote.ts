@@ -8,37 +8,42 @@ interface RequestParams {
   url: string;
   body?: BodyInit;
   contentType?: string;
+  /** The GitHub token to send instead of the one the browser keeps: the one a user is about to save. */
+  githubToken?: string;
 }
 
 export default function useRemote() {
-  const sendRequest = useCallback(({ method, url, body, contentType }: RequestParams): Promise<Response> => {
-    const headers: Record<string, string> = {};
-    if (contentType) {
-      headers['Content-Type'] = contentType;
-    }
-    if (import.meta.env.VITE_BEARER_TOKEN) {
-      headers['Authorization'] = `Bearer ${import.meta.env.VITE_BEARER_TOKEN}`;
-    }
-    const githubToken = readGithubToken();
-    if (githubToken) {
-      headers[TOKEN_HEADER] = githubToken;
-    }
+  const sendRequest = useCallback(
+    ({ method, url, body, contentType, githubToken: candidate }: RequestParams): Promise<Response> => {
+      const headers: Record<string, string> = {};
+      if (contentType) {
+        headers['Content-Type'] = contentType;
+      }
+      if (import.meta.env.VITE_BEARER_TOKEN) {
+        headers['Authorization'] = `Bearer ${import.meta.env.VITE_BEARER_TOKEN}`;
+      }
+      const githubToken = candidate ?? readGithubToken();
+      if (githubToken) {
+        headers[TOKEN_HEADER] = githubToken;
+      }
 
-    const apiPath = import.meta.env.VITE_BEARER_TOKEN ? '/api' : '/internal';
+      const apiPath = import.meta.env.VITE_BEARER_TOKEN ? '/api' : '/internal';
 
-    return fetch(`${REST_PATH}${apiPath}${url}`, {
-      method,
-      mode: 'cors',
-      cache: 'no-cache',
-      headers,
-      body,
-    }).catch(() => {
-      return new Response(
-        JSON.stringify({ message: 'Network error occurred. Be sure Polarion is started and accessible.' }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } },
-      );
-    });
-  }, []);
+      return fetch(`${REST_PATH}${apiPath}${url}`, {
+        method,
+        mode: 'cors',
+        cache: 'no-cache',
+        headers,
+        body,
+      }).catch(() => {
+        return new Response(
+          JSON.stringify({ message: 'Network error occurred. Be sure Polarion is started and accessible.' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } },
+        );
+      });
+    },
+    [],
+  );
 
   return { sendRequest };
 }

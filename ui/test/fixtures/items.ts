@@ -188,6 +188,8 @@ export function itemsRoutes(overrides: Route[] = []): Route[] {
   return [
     ...overrides,
     { method: 'GET', match: /\/projects\/elibrary\/items(\?[^/]*)?$/, json: ITEMS },
+    // GitHub takes every token: a test that wants a refusal overrides the route.
+    { method: 'GET', match: /\/github-token$/, json: { login: 'octocat', remaining: 4990, limit: 5000 } },
     {
       method: 'POST',
       match: /\/projects\/elibrary\/hidden-items$/,

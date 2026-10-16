@@ -693,16 +693,22 @@ describe('the GitHub token of the user', () => {
     await userEvent.fill(tokenInput(), ` ${TOKEN} `);
     await userEvent.click(button('Save'));
 
-    // The page reads GitHub again, now with the token of the user.
+    // GitHub checked the token first, then the page reads GitHub again, now with the token of the user.
     await vi.waitFor(() => expect(itemsHeader()).toBe(TOKEN));
-    expect(state()).toBe('GitHub is read with your token …wxyz, kept in this browser.');
+    const check = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/github-token'))!;
+    expect((check[1]!.headers as Record<string, string>)['X-GitHub-Token']).toBe(TOKEN);
+    await vi.waitFor(() =>
+      expect(state()).toBe(
+        'Your GitHub token …wxyz (octocat, 4990 of 5000 requests left this hour) is kept in this browser.',
+      ),
+    );
     expect(window.sessionStorage.getItem('github.token')).toBe(TOKEN);
     expect(window.localStorage.getItem('github.token')).toBeNull();
 
     await userEvent.click(button('Remove token'));
     await vi.waitFor(() => expect(itemsHeader()).toBeUndefined());
     expect(window.sessionStorage.getItem('github.token')).toBeNull();
-    expect(state()).toContain('token of the server');
+    await vi.waitFor(() => expect(state()).toContain('token of the server'));
   });
 
   it('remembers the token in this browser on request, and keeps the old one on Cancel', async () => {
@@ -714,7 +720,11 @@ describe('the GitHub token of the user', () => {
 
     await vi.waitFor(() => expect(window.localStorage.getItem('github.token')).toBe('ghp_short'));
     // A short value shows no characters: they would be most of it.
-    expect(state()).toBe('GitHub is read with your token, kept in this browser.');
+    await vi.waitFor(() =>
+      expect(state()).toBe(
+        'Your GitHub token (octocat, 4990 of 5000 requests left this hour) is kept in this browser.',
+      ),
+    );
 
     await userEvent.click(button('Change token'));
     expect(document.querySelector<HTMLInputElement>('.github-token-remember input')!.checked).toBe(true);
@@ -734,11 +744,53 @@ describe('the GitHub token of the user', () => {
       await userEvent.fill(tokenInput(), TOKEN);
       await userEvent.click(button('Save'));
 
-      expect(alerts()).toContain('This browser keeps no data for the page, so it cannot keep the token.');
+      await vi.waitFor(() =>
+        expect(alerts()).toContain('This browser keeps no data for the page, so it cannot keep the token.'),
+      );
       expect(tokenInput()).not.toBeNull();
     } finally {
       setItem.mockRestore();
     }
+  });
+
+  it('keeps no token GitHub refuses', async () => {
+    const refused = {
+      method: 'GET',
+      match: /\/github-token$/,
+      status: 502,
+      json: { message: 'GitHub refused your GitHub token (401 Unauthorized).' },
+    };
+    await mount([refused]);
+    await userEvent.click(button('Use my GitHub token'));
+    await userEvent.fill(tokenInput(), TOKEN);
+    await userEvent.click(button('Save'));
+
+    await vi.waitFor(() => expect(alerts()).toContain('GitHub refused your GitHub token (401 Unauthorized).'));
+    expect(window.sessionStorage.getItem('github.token')).toBeNull();
+    expect(tokenInput()).not.toBeNull();
+  });
+
+  it('says when a token kept earlier stopped working', async () => {
+    window.sessionStorage.setItem('github.token', TOKEN);
+    await mount([
+      {
+        method: 'GET',
+        match: /\/github-token$/,
+        status: 502,
+        json: { message: 'GitHub refused your GitHub token (401 Unauthorized).' },
+      },
+    ]);
+    await vi.waitFor(() =>
+      expect(alerts()).toContain('Your GitHub token: GitHub refused your GitHub token (401 Unauthorized).'),
+    );
+    await vi.waitFor(() => expect(state()).toBe('Your GitHub token …wxyz is kept in this browser.'));
+  });
+
+  it('names an unknown user and leaves out a limit GitHub did not tell', async () => {
+    window.sessionStorage.setItem('github.token', TOKEN);
+    await mount([{ method: 'GET', match: /\/github-token$/, json: { login: null, remaining: null, limit: null } }]);
+
+    await vi.waitFor(() => expect(state()).toBe('Your GitHub token …wxyz (unknown user) is kept in this browser.'));
   });
 
   it('reads with the token in the widget, which does not offer to change it', async () => {

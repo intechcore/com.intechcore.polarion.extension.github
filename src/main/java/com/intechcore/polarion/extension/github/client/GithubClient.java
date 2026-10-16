@@ -267,6 +267,40 @@ public class GithubClient {
     }
 
     /**
+     * Who the token of the user belongs to, and what is left of its hourly limit. Never cached: it is
+     * what tells a user that GitHub takes their token.
+     *
+     * @throws IllegalArgumentException when the request carries no token of the user
+     */
+    public @NotNull GithubTokenInfo checkUserToken() {
+        Bearer bearer = bearer();
+        if (!bearer.own()) {
+            throw new IllegalArgumentException("Send the GitHub token to check in the header " + RequestToken.HEADER);
+        }
+        String url = apiUrl + "/user";
+        HttpResponse<String> response = send(url, bearer);
+        GithubUser user;
+        try {
+            user = objectMapper.readValue(response.body(), GithubUser.class);
+        } catch (IOException e) {
+            throw new GithubClientException("GitHub answered " + url + " with an unreadable body", e);
+        }
+        return new GithubTokenInfo(user.login(), header(response, "x-ratelimit-remaining"), header(response, "x-ratelimit-limit"));
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record GithubUser(String login) {
+    }
+
+    private static @Nullable Integer header(HttpResponse<String> response, String name) {
+        try {
+            return response.headers().firstValue(name).map(Integer::valueOf).orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * The security advisories of a repository in triage, drafted or published. Without a token, or with
      * one that may not see them, GitHub lists the published ones only. What a user sees with their own
      * token depends on their permission, so it never goes to the cache.

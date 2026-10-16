@@ -394,6 +394,27 @@ class GithubClientTest {
     }
 
     @Test
+    void checksTheTokenOfTheUserWithoutTheCache() {
+        answerWithHeaders("/user", 200, Map.of("x-ratelimit-remaining", "4990", "x-ratelimit-limit", "5000"), "{\"login\": \"octocat\", \"id\": 1}");
+
+        GithubTokenInfo first = RequestToken.with("ghp_user", client::checkUserToken);
+        RequestToken.with("ghp_user", client::checkUserToken);
+
+        assertThat(first).isEqualTo(new GithubTokenInfo("octocat", 4990, 5000));
+        assertThat(authorizations).containsExactly("Bearer ghp_user", "Bearer ghp_user");
+        // Only the token of the user is checked, never the one of the server.
+        assertThatThrownBy(() -> withToken("ghp_server").checkUserToken())
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(RequestToken.HEADER);
+    }
+
+    @Test
+    void checksATokenWhoseLimitGithubDoesNotTell() {
+        answerWithHeaders("/user", 200, Map.of("x-ratelimit-remaining", "many"), "{\"login\": \"octocat\"}");
+
+        assertThat(RequestToken.with("ghp_user", client::checkUserToken)).isEqualTo(new GithubTokenInfo("octocat", null, null));
+    }
+
+    @Test
     void saysThatGithubRefusedTheTokenOfTheUser() {
         answerWithHeaders("/repos/acme/tool/issues", 401, Map.of(), "{\"message\": \"Bad credentials\"}");
 

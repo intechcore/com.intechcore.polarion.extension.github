@@ -160,6 +160,9 @@ Each user may also read GitHub with their own token, without an administrator:
 2. Click `Use my GitHub token` and paste the token.
 3. Turn on `Remember in this browser` to keep it after the tab closes.
 
+The page asks GitHub about the token before it keeps it, and shows the GitHub user and the
+requests left this hour. A token GitHub refuses is not kept.
+
 - The token stays in the browser. The page sends it with each request in the header
   `X-GitHub-Token`; the server uses it for that request and stores it nowhere.
 - It goes before the token of the server. Its limit of 5000 requests belongs to the user.

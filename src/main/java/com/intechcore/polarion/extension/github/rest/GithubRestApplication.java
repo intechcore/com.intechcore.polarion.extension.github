@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.rest;
 
 import ch.sbb.polarion.extension.generic.rest.GenericRestApplication;
 import ch.sbb.polarion.extension.generic.settings.NamedSettingsRegistry;
+import com.intechcore.polarion.extension.github.rest.controller.GithubTokenInternalController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
@@ -23,6 +24,7 @@ public class GithubRestApplication extends GenericRestApplication {
     @Override
     protected @NotNull Set<Class<?>> getExtensionControllerClasses() {
         return Set.of(
+                GithubTokenInternalController.class,
                 ImportApiController.class,
                 ImportInternalController.class,
                 ProjectApiController.class,
