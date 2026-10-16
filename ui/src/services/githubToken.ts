@@ -1,6 +1,7 @@
 /**
- * The GitHub token of the user, kept in this browser only. Every REST call sends it in the header
- * `X-GitHub-Token` (useRemote); the server uses it for that request and stores it nowhere.
+ * The GitHub token of the user, kept in this browser. Every REST call sends it in the header
+ * `X-GitHub-Token` (useRemote). The server keeps the last one in memory for the PDF export of the
+ * widget, until the user removes it, GitHub refuses it or Polarion stops.
  *
  * Remembered, it lives in localStorage until the user removes it. Otherwise it lives in sessionStorage
  * and goes with the tab. Storage may be blocked (a private window, cleared site data), so every access

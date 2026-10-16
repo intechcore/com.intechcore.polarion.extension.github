@@ -8,7 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - A user may read GitHub with their own token, kept in the browser and sent with each request.
-  The server stores it nowhere.
+  The button `GitHub token` opens a dialog for it, on the GitHub page and in the widget.
+- The server keeps the token of each user in memory for the PDF export of the widget, until the
+  user removes it, GitHub refuses it or Polarion restarts.
 - The property `cache.minutes` sets how long the server keeps a list read from GitHub. `0` keeps
   none.
 - The widget can say below its table how long the report took.

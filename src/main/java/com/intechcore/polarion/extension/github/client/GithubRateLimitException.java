@@ -24,7 +24,7 @@ public class GithubRateLimitException extends GithubClientException {
     public GithubRateLimitException(Instant resetAt, boolean withToken) {
         super("GitHub rate limit exceeded" + (resetAt == null ? "" : ", it resets at " + resetAt)
                 + (withToken ? "" : ". Without a token GitHub allows 60 requests per hour for the server;"
-                + " a token allows 5000. Enter your own under GitHub token on the GitHub page,"
+                + " a token allows 5000. Enter your own with the button GitHub token,"
                 + " or see the property token.secret on the About page"));
         this.resetAt = resetAt;
     }

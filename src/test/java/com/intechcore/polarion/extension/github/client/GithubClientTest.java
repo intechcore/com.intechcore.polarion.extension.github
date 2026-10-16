@@ -414,13 +414,25 @@ class GithubClientTest {
         assertThat(RequestToken.with("ghp_user", client::checkUserToken)).isEqualTo(new GithubTokenInfo("octocat", null, null));
     }
 
+    /** A refused token goes from the memory of the server as well, for every user who sent it, and only it. */
     @Test
     void saysThatGithubRefusedTheTokenOfTheUser() {
         answerWithHeaders("/repos/acme/tool/issues", 401, Map.of(), "{\"message\": \"Bad credentials\"}");
+        UserTokens alice = new UserTokens(() -> "alice");
+        UserTokens bob = new UserTokens(() -> "bob");
+        alice.remember("ghp_wrong");
+        bob.remember("ghp_good");
 
-        assertThatThrownBy(() -> RequestToken.with("ghp_wrong", () -> withToken("ghp_server").getOpenIssues("acme", "tool")))
-                .isInstanceOf(GithubClientException.class).hasMessageContaining("refused your GitHub token")
-                .hasMessageNotContaining("ghp_wrong");
+        try {
+            assertThatThrownBy(() -> RequestToken.with("ghp_wrong", () -> withToken("ghp_server").getOpenIssues("acme", "tool")))
+                    .isInstanceOf(GithubClientException.class).hasMessageContaining("refused your GitHub token")
+                    .hasMessageContaining("button GitHub token").hasMessageNotContaining("ghp_wrong");
+
+            assertThat(alice.current()).isNull();
+            assertThat(bob.current()).isEqualTo("ghp_good");
+        } finally {
+            bob.forget();
+        }
     }
 
     /** Without a token the rate limit names the way out; with one it does not. */

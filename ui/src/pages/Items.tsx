@@ -322,66 +322,64 @@ export default function Items() {
         <p>This project has no repository setting. An administrator creates one on the Repositories page.</p>
       ) : (
         <>
-          {/* A widget reads with the token the viewer keeps, but does not offer to change it. */}
-          {!options.widget && <GithubTokenSetting onChange={() => void load()} />}
-          {(!options.hideFilters || options.allowCreate) && (
-            <div className="items-toolbar">
-              {!options.hideFilters && (
-                <>
-                  <button
-                    type="button"
-                    className="sbb-btn sbb-btn--control"
-                    disabled={busy}
-                    title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
-                    onClick={() => void load()}
-                  >
-                    <ButtonIcon icon={faRotateRight} />
-                    Refresh
-                  </button>
-                  <button
-                    type="button"
-                    className="sbb-btn sbb-btn--control"
-                    disabled={busy}
-                    title="Reads GitHub again instead of the lists the server keeps. Each repository costs requests of the hourly GitHub limit."
-                    onClick={() => void load(true)}
-                  >
-                    <ButtonIcon icon={faCloudArrowDown} />
-                    Update from GitHub
-                  </button>
-                </>
-              )}
-              {options.allowCreate && (
-                <>
-                  <button
-                    type="button"
-                    className="sbb-btn sbb-btn--control"
-                    disabled={busy || toCreate === 0}
-                    onClick={() => void apply(false)}
-                  >
-                    <ButtonIcon icon={faPlus} />
-                    Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
-                  </button>
-                  <button
-                    type="button"
-                    className="sbb-btn sbb-btn--control"
-                    disabled={busy || toUpdate === 0}
-                    title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
-                    onClick={() => void apply(true)}
-                  >
-                    <ButtonIcon icon={faArrowsRotate} />
-                    Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
-                  </button>
-                </>
-              )}
-              {busy && <span>Working...</span>}
-              {!options.hideFilters && time && (
-                <span className="items-read-at">
-                  Read from GitHub at {time}. The server keeps the lists for {cacheMinutes}{' '}
-                  {cacheMinutes === 1 ? 'minute' : 'minutes'}, and Update from GitHub reads them again.
-                </span>
-              )}
-            </div>
-          )}
+          {/* The token button stands in the toolbar, also in a widget without the other buttons. */}
+          <div className="items-toolbar">
+            {!options.hideFilters && (
+              <>
+                <button
+                  type="button"
+                  className="sbb-btn sbb-btn--control"
+                  disabled={busy}
+                  title="Reads the list again: GitHub items from the cache of the server, work items from Polarion"
+                  onClick={() => void load()}
+                >
+                  <ButtonIcon icon={faRotateRight} />
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  className="sbb-btn sbb-btn--control"
+                  disabled={busy}
+                  title="Reads GitHub again instead of the lists the server keeps. Each repository costs requests of the hourly GitHub limit."
+                  onClick={() => void load(true)}
+                >
+                  <ButtonIcon icon={faCloudArrowDown} />
+                  Update from GitHub
+                </button>
+              </>
+            )}
+            {options.allowCreate && (
+              <>
+                <button
+                  type="button"
+                  className="sbb-btn sbb-btn--control"
+                  disabled={busy || toCreate === 0}
+                  onClick={() => void apply(false)}
+                >
+                  <ButtonIcon icon={faPlus} />
+                  Create work items{toCreate > 0 ? ` (${toCreate})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className="sbb-btn sbb-btn--control"
+                  disabled={busy || toUpdate === 0}
+                  title="Makes the selected outdated work items show what the settings and GitHub say now. The URL they keep stays."
+                  onClick={() => void apply(true)}
+                >
+                  <ButtonIcon icon={faArrowsRotate} />
+                  Update work items{toUpdate > 0 ? ` (${toUpdate})` : ''}
+                </button>
+              </>
+            )}
+            {busy && <span>Working...</span>}
+            {!options.hideFilters && time && (
+              <span className="items-read-at">
+                Read from GitHub at {time}. The server keeps the lists for {cacheMinutes}{' '}
+                {cacheMinutes === 1 ? 'minute' : 'minutes'}, and Update from GitHub reads them again.
+              </span>
+            )}
+            <GithubTokenSetting onChange={() => void load()} />
+          </div>
 
           {!options.hideFilters && (
             <div className="item-filters">

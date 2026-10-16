@@ -119,7 +119,10 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   advisories) never goes to the cache.
 - `client/RequestToken` - the GitHub token a user keeps in the browser (`ui/src/services/githubToken.ts`).
   The page sends it in `X-GitHub-Token`; the import controllers run the request inside
-  `RequestToken.with`, which forgets it afterwards. It goes before the token of the server. The extension shares one
+  `RequestToken.with`. It goes before the token of the server. `client/UserTokens` keeps the last
+  token of each Polarion user in memory for the server-side render of the widget (PDF, print); it
+  forgets it on `DELETE /internal/github-token`, on a 401 from GitHub, and on a restart. The token
+  check (`RequestToken.withoutKeeping`) keeps a token only once GitHub took it. The extension shares one
   client, `GithubClient.shared()`. Without a token a conditional request with `ETag` costs a request
   as well (checked against GitHub), so only the cache saves the 60 requests per hour.
   `GithubClient.forget` drops the lists of a repository for `?refresh=true` of the items endpoint,

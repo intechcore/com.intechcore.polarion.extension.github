@@ -404,8 +404,10 @@ public class GithubClient {
             throw new GithubRateLimitException(resetTime(response), bearer.token() != null);
         }
         if (response.statusCode() == 401 && bearer.own()) {
+            // A refused token is of no use for a later PDF export either.
+            UserTokens.shared().forgetToken(bearer.token());
             throw new GithubClientException("GitHub refused your GitHub token (401 Unauthorized). It may be wrong, expired"
-                    + " or revoked: change or remove it under GitHub token on the GitHub page.");
+                    + " or revoked: change or remove it with the button GitHub token.");
         }
         if (response.statusCode() == 401 && bearer.token() != null) {
             throw new GithubClientException("GitHub refused the token of the Polarion secret (401 Unauthorized)."

@@ -156,17 +156,21 @@ changes: the extension stays anonymous.
 
 Each user may also read GitHub with their own token, without an administrator:
 
-1. Open the GitHub page of the project.
-2. Click `Use my GitHub token` and paste the token.
-3. Turn on `Remember in this browser` to keep it after the tab closes.
+1. Open the GitHub page of the project, or a page with the GitHub Items widget.
+2. Click `GitHub token` at the end of the toolbar.
+3. Paste the token in the dialog.
+4. Turn on `Remember in this browser` to keep it after the tab closes.
 
-The page asks GitHub about the token before it keeps it, and shows the GitHub user and the
-requests left this hour. A token GitHub refuses is not kept.
+The dialog asks GitHub about the token before the page keeps it. The button then shows the end
+of the token, and its tooltip the GitHub user and the requests left this hour. A token GitHub
+refuses is not kept. A print shows no button.
 
 - The token stays in the browser. The page sends it with each request in the header
-  `X-GitHub-Token`; the server uses it for that request and stores it nowhere.
+  `X-GitHub-Token`.
+- The server keeps the last token of each user in memory, for the PDF export of the widget. It
+  forgets the token when the user clicks `Remove token`, when GitHub refuses it, and when Polarion
+  restarts.
 - It goes before the token of the server. Its limit of 5000 requests belongs to the user.
-- The Live Report widget reads with it too. Its PDF export renders on the server, without it.
 - Every script on the Polarion host can read the storage of the browser. Give the token read access
   to public repositories only.
 - The cache serves every user, so it keeps the lists of public repositories only. A private

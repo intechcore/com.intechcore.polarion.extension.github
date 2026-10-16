@@ -94,7 +94,7 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await open();
     await vi.waitFor(() => expect(rows()).toHaveLength(7));
 
-    appButton('Use my GitHub token').click();
+    appButton('GitHub token').click();
 
     await vi.waitFor(() => expect(document.querySelector('#github-token')).not.toBeNull());
     await captureApp('items-token-editing');
