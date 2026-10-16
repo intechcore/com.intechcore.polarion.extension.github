@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
 ### Added
 - A user may read GitHub with their own token, kept in the browser and sent with each request.
   The button `GitHub token` opens a dialog for it, on the GitHub page and in the widget.
