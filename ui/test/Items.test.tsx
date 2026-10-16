@@ -841,5 +841,12 @@ describe('the GitHub token of the user', () => {
     expect(itemsHeader()).toBe(TOKEN);
     expect(document.querySelectorAll('.items-toolbar .sbb-btn')).toHaveLength(1);
     expect(tokenButton().textContent?.trim()).toBe('GitHub token …wxyz');
+
+    // The iframe is as high as the page: the page grows while the dialog is open, so it fits.
+    expect(document.body.style.minHeight).toBe('');
+    await userEvent.click(tokenButton());
+    await vi.waitFor(() => expect(parseInt(document.body.style.minHeight, 10)).toBeGreaterThan(300));
+    await userEvent.click(button('Cancel'));
+    expect(document.body.style.minHeight).toBe('');
   });
 });

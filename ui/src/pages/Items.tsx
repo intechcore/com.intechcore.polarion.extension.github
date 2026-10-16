@@ -378,7 +378,7 @@ export default function Items() {
                 {cacheMinutes === 1 ? 'minute' : 'minutes'}, and Update from GitHub reads them again.
               </span>
             )}
-            <GithubTokenSetting onChange={() => void load()} />
+            <GithubTokenSetting widget={options.widget} onChange={() => void load()} />
           </div>
 
           {!options.hideFilters && (

@@ -18,7 +18,14 @@ const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
 interface Props {
   /** Called after the token changed, so the page reads GitHub with the new one. */
   onChange: () => void;
+  /** True in the iframe of a widget, which takes the height of its page. */
+  widget?: boolean;
 }
+
+// The dialog takes at most 85% of the viewport height (RSP's .rsp-modal), and a widget's viewport is
+// its iframe, as high as the page in it.
+const DIALOG_HEIGHT_SHARE = 0.85;
+const DIALOG_MARGIN = 16;
 
 function describe(token: string, info: GithubTokenInfo | null): string {
   const name = ['Your GitHub token', tokenHint(token)].filter((part) => part).join(' ');
@@ -35,7 +42,7 @@ function describe(token: string, info: GithubTokenInfo | null): string {
  * GitHub allows 5000 requests per hour for the user instead of the limit the server shares. A token is
  * checked with GitHub before it is kept, and again when the page opens. A print shows no button.
  */
-export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
+export default function GithubTokenSetting({ onChange, widget = false }: Readonly<Props>) {
   const { checkGithubToken, forgetGithubToken } = useSettings();
   const [token, setToken] = useState(() => readGithubToken());
   const [info, setInfo] = useState<GithubTokenInfo | null>(null);
@@ -63,8 +70,17 @@ export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
 
   // The dialog focuses its content when it opens; this effect runs after it and moves on to the field.
   useEffect(() => {
-    if (open) input.current?.focus();
-  }, [open]);
+    if (!open) return undefined;
+    input.current?.focus();
+    // In a widget the page grows to the height the dialog needs, and the iframe follows it.
+    const dialog = input.current?.closest('dialog');
+    if (!widget || !dialog) return undefined;
+    const needed = Array.from(dialog.children).reduce((height, part) => height + part.scrollHeight, 0);
+    document.body.style.minHeight = `${Math.ceil(needed / DIALOG_HEIGHT_SHARE) + DIALOG_MARGIN}px`;
+    return () => {
+      document.body.style.minHeight = '';
+    };
+  }, [open, widget]);
 
   const close = () => {
     setOpen(false);
