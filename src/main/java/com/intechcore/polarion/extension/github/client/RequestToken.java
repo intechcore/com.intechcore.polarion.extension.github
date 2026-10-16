@@ -25,6 +25,8 @@ public final class RequestToken {
 
     /**
      * Runs an action with the token of the user. The token stays in memory for the user, not for the thread.
+     * It is kept before GitHub answers: the page sends only a token it checked, and the client forgets a
+     * token as soon as GitHub refuses it.
      *
      * @param token the token from the header, or null or blank for none
      * @throws IllegalArgumentException when the header holds no GitHub token
