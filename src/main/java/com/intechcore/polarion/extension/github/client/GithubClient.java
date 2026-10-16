@@ -29,9 +29,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reads the open issues, discussions and pull requests of a public repository, and the checks of a
- * commit, from the GitHub REST API. With a token GitHub allows 5000 requests per hour, without one 60
- * for the whole server. The token goes only to the configured API host.
+ * Reads the open issues, discussions and pull requests of a repository, and the checks of a commit,
+ * from the GitHub REST API. With a token GitHub allows 5000 requests per hour, without one 60 for the
+ * whole server. The token of the user ({@link RequestToken}) goes before the token of the server. A
+ * token goes only to the configured API host.
+ *
+ * <p>The cache serves every user, so it keeps only what everyone may see: the lists of a public
+ * repository. A private repository is read again on every request.
  */
 public class GithubClient {
 
@@ -77,11 +81,27 @@ public class GithubClient {
     private final Supplier<Duration> cacheTime;
     private final Map<String, CachedList> cache = new ConcurrentHashMap<>();
     private final Map<String, CachedChecks> checksCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedVisibility> visibility = new ConcurrentHashMap<>();
 
     private record CachedList(Instant readAt, List<?> items) {
     }
 
     private record CachedChecks(Instant readAt, List<String> failed) {
+    }
+
+    private record CachedVisibility(Instant readAt, boolean isPrivate) {
+    }
+
+    /** The token of a request, and whether it is the token of the user rather than of the server. */
+    private record Bearer(@Nullable String token, boolean own) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record RepositoryVisibility(@JsonProperty("private") Boolean flag) {
+        /** Only an answer that says "not private" makes a repository public. */
+        boolean isPrivate() {
+            return !Boolean.FALSE.equals(flag);
+        }
     }
 
     // The conclusions of a check run that a person has to look at. A cancelled run is left out: a
@@ -168,7 +188,7 @@ public class GithubClient {
      * The open issues of a repository, without its pull requests.
      */
     public @NotNull List<GithubItem> getOpenIssues(@NotNull String owner, @NotNull String repository) {
-        return readAll(repositoryUrl(owner, repository) + "/issues?state=open&per_page=" + PAGE_SIZE).stream()
+        return readAll(owner, repository, "/issues?state=open&per_page=" + PAGE_SIZE, ITEMS, false).stream()
                 .filter(item -> !item.isPullRequest())
                 .toList();
     }
@@ -179,7 +199,7 @@ public class GithubClient {
     public @NotNull List<GithubItem> getOpenDiscussions(@NotNull String owner, @NotNull String repository) {
         List<GithubItem> discussions;
         try {
-            discussions = readAll(repositoryUrl(owner, repository) + "/discussions?per_page=" + PAGE_SIZE);
+            discussions = readAll(owner, repository, "/discussions?per_page=" + PAGE_SIZE, ITEMS, false);
         } catch (GithubStatusException e) {
             // GitHub answers "410 Gone" for a repository that has its discussions turned off.
             if (e.getStatus() == 410) {
@@ -194,7 +214,7 @@ public class GithubClient {
      * The open pull requests of a repository, with the commit each points to.
      */
     public @NotNull List<GithubItem> getOpenPullRequests(@NotNull String owner, @NotNull String repository) {
-        return readAll(repositoryUrl(owner, repository) + "/pulls?state=open&per_page=" + PAGE_SIZE);
+        return readAll(owner, repository, "/pulls?state=open&per_page=" + PAGE_SIZE, ITEMS, false);
     }
 
     /**
@@ -213,7 +233,8 @@ public class GithubClient {
         if (cached != null) {
             return cached.failed();
         }
-        HttpResponse<String> response = send(url);
+        Bearer bearer = bearer();
+        HttpResponse<String> response = send(url, bearer);
         CheckRuns runs;
         try {
             runs = objectMapper.readValue(response.body(), CheckRuns.class);
@@ -226,7 +247,7 @@ public class GithubClient {
                 .map(CheckRun::name)
                 .distinct()
                 .toList();
-        if (!keep.isZero()) {
+        if (!keep.isZero() && isPublic(owner, repository, bearer, now, keep)) {
             checksCache.put(url, new CachedChecks(now, failed));
         }
         return failed;
@@ -246,11 +267,46 @@ public class GithubClient {
     }
 
     /**
+     * Who the token of the user belongs to, and what is left of its hourly limit. Never cached: it is
+     * what tells a user that GitHub takes their token.
+     *
+     * @throws IllegalArgumentException when the request carries no token of the user
+     */
+    public @NotNull GithubTokenInfo checkUserToken() {
+        Bearer bearer = bearer();
+        if (!bearer.own()) {
+            throw new IllegalArgumentException("Send the GitHub token to check in the header " + RequestToken.HEADER);
+        }
+        String url = apiUrl + "/user";
+        HttpResponse<String> response = send(url, bearer);
+        GithubUser user;
+        try {
+            user = objectMapper.readValue(response.body(), GithubUser.class);
+        } catch (IOException e) {
+            throw new GithubClientException("GitHub answered " + url + " with an unreadable body", e);
+        }
+        return new GithubTokenInfo(user.login(), header(response, "x-ratelimit-remaining"), header(response, "x-ratelimit-limit"));
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record GithubUser(String login) {
+    }
+
+    private static @Nullable Integer header(HttpResponse<String> response, String name) {
+        try {
+            return response.headers().firstValue(name).map(Integer::valueOf).orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * The security advisories of a repository in triage, drafted or published. Without a token, or with
-     * one that may not see them, GitHub lists the published ones only.
+     * one that may not see them, GitHub lists the published ones only. What a user sees with their own
+     * token depends on their permission, so it never goes to the cache.
      */
     public @NotNull List<GithubAdvisory> getSecurityAdvisories(@NotNull String owner, @NotNull String repository) {
-        return readAll(repositoryUrl(owner, repository) + "/security-advisories?per_page=" + PAGE_SIZE, ADVISORIES).stream()
+        return readAll(owner, repository, "/security-advisories?per_page=" + PAGE_SIZE, ADVISORIES, true).stream()
                 .filter(GithubAdvisory::isShown)
                 .toList();
     }
@@ -267,32 +323,63 @@ public class GithubClient {
         return name;
     }
 
-    private List<GithubItem> readAll(String firstPageUrl) {
-        return readAll(firstPageUrl, ITEMS);
-    }
-
+    /**
+     * @param byPermission true for a list whose content depends on the permission of the token: read
+     *                     with the token of the user, it neither comes from the cache nor goes to it
+     */
     // A cache entry belongs to its URL, and a URL always reads the same type.
     @SuppressWarnings("unchecked")
-    private <T> List<T> readAll(String firstPageUrl, TypeReference<List<T>> type) {
+    private <T> List<T> readAll(String owner, String repository, String path, TypeReference<List<T>> type, boolean byPermission) {
+        String firstPageUrl = repositoryUrl(owner, repository) + path;
         Instant now = clock.instant();
         Duration keep = cacheTime();
         cache.values().removeIf(cached -> isExpired(cached.readAt(), now, keep));
-        CachedList cached = cache.get(firstPageUrl);
+        Bearer bearer = bearer();
+        boolean shared = !(byPermission && bearer.own());
+        CachedList cached = shared ? cache.get(firstPageUrl) : null;
         if (cached != null) {
             return (List<T>) cached.items();
         }
-        List<T> items = readAllPages(firstPageUrl, type);
-        if (!keep.isZero()) {
+        List<T> items = readAllPages(firstPageUrl, type, bearer);
+        if (shared && !keep.isZero() && isPublic(owner, repository, bearer, now, keep)) {
             cache.put(firstPageUrl, new CachedList(now, List.copyOf(items)));
         }
         return items;
     }
 
-    private <T> List<T> readAllPages(String firstPageUrl, TypeReference<List<T>> type) {
+    /**
+     * Whether everyone may see the repository. Without a token GitHub shows public repositories only;
+     * with one the client asks GitHub, once per cache time. A repository whose visibility GitHub does
+     * not tell counts as private: its list serves the request, and nothing goes to the cache.
+     */
+    private boolean isPublic(String owner, String repository, Bearer bearer, Instant now, Duration keep) {
+        if (bearer.token() == null) {
+            return true;
+        }
+        String url = repositoryUrl(owner, repository);
+        visibility.values().removeIf(known -> isExpired(known.readAt(), now, keep));
+        CachedVisibility known = visibility.get(url);
+        if (known == null) {
+            try {
+                known = new CachedVisibility(now, objectMapper.readValue(send(url, bearer).body(), RepositoryVisibility.class).isPrivate());
+            } catch (IOException | GithubClientException e) {
+                return false;
+            }
+            visibility.put(url, known);
+        }
+        return !known.isPrivate();
+    }
+
+    private Bearer bearer() {
+        String own = RequestToken.current();
+        return own != null ? new Bearer(own, true) : new Bearer(token.get(), false);
+    }
+
+    private <T> List<T> readAllPages(String firstPageUrl, TypeReference<List<T>> type, Bearer bearer) {
         List<T> items = new ArrayList<>();
         String url = firstPageUrl;
         for (int page = 0; url != null && page < MAX_PAGES; page++) {
-            HttpResponse<String> response = send(url);
+            HttpResponse<String> response = send(url, bearer);
             try {
                 items.addAll(objectMapper.readValue(response.body(), type));
             } catch (IOException e) {
@@ -303,21 +390,24 @@ public class GithubClient {
         return items;
     }
 
-    private HttpResponse<String> send(String url) {
-        String bearer = token.get();
-        HttpResponse<String> response = request(url, bearer);
+    private HttpResponse<String> send(String url, Bearer bearer) {
+        HttpResponse<String> response = request(url, bearer.token());
         // GitHub answers a renamed or moved repository with a redirect to its new address.
         for (int redirects = 0; isRedirect(response) && redirects < MAX_REDIRECTS; redirects++) {
             String location = response.headers().firstValue("location").orElse("");
             if (!location.startsWith(apiUrl + "/")) {
                 throw new GithubClientException("GitHub redirected " + url + " away from " + apiUrl);
             }
-            response = request(location, bearer);
+            response = request(location, bearer.token());
         }
         if (isRateLimited(response)) {
-            throw new GithubRateLimitException(resetTime(response), bearer != null);
+            throw new GithubRateLimitException(resetTime(response), bearer.token() != null);
         }
-        if (response.statusCode() == 401 && bearer != null) {
+        if (response.statusCode() == 401 && bearer.own()) {
+            throw new GithubClientException("GitHub refused your GitHub token (401 Unauthorized). It may be wrong, expired"
+                    + " or revoked: change or remove it under GitHub token on the GitHub page.");
+        }
+        if (response.statusCode() == 401 && bearer.token() != null) {
             throw new GithubClientException("GitHub refused the token of the Polarion secret (401 Unauthorized)."
                     + " It may be wrong, expired or revoked.");
         }

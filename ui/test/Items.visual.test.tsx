@@ -90,6 +90,28 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-pull-request');
   });
 
+  it('the GitHub token of the user being entered', async () => {
+    await open();
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
+
+    appButton('Use my GitHub token').click();
+
+    await vi.waitFor(() => expect(document.querySelector('#github-token')).not.toBeNull());
+    await captureApp('items-token-editing');
+  });
+
+  it('the items read with the GitHub token of the user', async () => {
+    window.sessionStorage.setItem('github.token', 'github_pat_11ABCDEFG_abcdwxyz');
+    try {
+      await open();
+      await vi.waitFor(() => expect(rows()).toHaveLength(7));
+
+      await captureApp('items-token-set');
+    } finally {
+      window.sessionStorage.clear();
+    }
+  });
+
   it('the table in a Live Report widget, without filters', async () => {
     installFetchMock(itemsRoutes());
     window.history.replaceState(

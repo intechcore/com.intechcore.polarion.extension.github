@@ -330,6 +330,99 @@ class GithubClientTest {
                 .hasMessageNotContaining("ghp_wrong");
     }
 
+    @Test
+    void sendsTheTokenOfTheUserBeforeTheTokenOfTheServer() {
+        answerWithHeaders("/repos/acme/tool/issues", 200, Map.of(), "[]");
+        answerWithHeaders("/repos/acme/other/issues", 200, Map.of(), "[]");
+        GithubClient server = new GithubClient(baseUrl, java.time.Clock.systemUTC(), () -> {
+            throw new GithubClientException("The secret of the server is not read for a user token");
+        });
+
+        RequestToken.with("ghp_user", () -> server.getOpenIssues("acme", "tool"));
+        assertThatThrownBy(() -> server.getOpenIssues("acme", "other")).hasMessageContaining("secret of the server");
+
+        assertThat(authorizations).containsExactly("Bearer ghp_user");
+        assertThat(RequestToken.current()).isNull();
+    }
+
+    /** The cache serves every user, so a private repository never goes to it. */
+    @Test
+    void keepsTheListsOfAPublicRepositoryButNotOfAPrivateOne() {
+        answerWithHeaders("/repos/acme/secret", 200, Map.of(), "{\"private\": true}");
+        answerWithHeaders("/repos/acme/secret/issues", 200, Map.of(), "[{\"number\": 1, \"state\": \"open\"}]");
+        answerWithHeaders("/repos/acme/open", 200, Map.of(), "{\"private\": false}");
+        answerWithHeaders("/repos/acme/open/issues", 200, Map.of(), "[{\"number\": 2, \"state\": \"open\"}]");
+        answerWithHeaders("/repos/acme/vague", 200, Map.of(), "{}");
+        answerWithHeaders("/repos/acme/vague/issues", 200, Map.of(), "[]");
+        answerWithHeaders("/repos/acme/secret/commits/" + SHA + "/check-runs", 200, Map.of(), "{\"check_runs\": []}");
+
+        RequestToken.with("ghp_user", () -> {
+            for (int i = 0; i < 2; i++) {
+                assertThat(client.getOpenIssues("acme", "secret")).hasSize(1);
+                assertThat(client.getOpenIssues("acme", "open")).hasSize(1);
+                client.getOpenIssues("acme", "vague");
+                client.getFailedChecks("acme", "secret", SHA);
+            }
+            return null;
+        });
+
+        assertThat(requests).filteredOn(request -> request.startsWith("/repos/acme/secret/issues")).hasSize(2);
+        assertThat(requests).filteredOn(request -> request.startsWith("/repos/acme/secret/commits")).hasSize(2);
+        // An answer without the flag counts as private.
+        assertThat(requests).filteredOn(request -> request.startsWith("/repos/acme/vague/issues")).hasSize(2);
+        assertThat(requests).filteredOn(request -> request.startsWith("/repos/acme/open/issues")).hasSize(1);
+        // The visibility is asked once per cache time.
+        assertThat(requests).filteredOn("/repos/acme/secret"::equals).hasSize(1);
+        assertThat(requests).filteredOn("/repos/acme/open"::equals).hasSize(1);
+        assertThat(client.readAt("acme", "secret")).isNull();
+        assertThat(client.readAt("acme", "open")).isNotNull();
+    }
+
+    /** A user with their own token may see advisories others do not: those are never shared. */
+    @Test
+    void neverSharesTheAdvisoriesReadWithTheTokenOfTheUser() {
+        answerWithHeaders("/repos/acme/tool", 200, Map.of(), "{\"private\": false}");
+        answerWithHeaders("/repos/acme/tool/security-advisories", 200, Map.of(), "[{\"ghsa_id\": \"GHSA-1\", \"state\": \"published\"}]");
+
+        client.getSecurityAdvisories("acme", "tool");
+        RequestToken.with("ghp_user", () -> client.getSecurityAdvisories("acme", "tool"));
+        RequestToken.with("ghp_user", () -> client.getSecurityAdvisories("acme", "tool"));
+        client.getSecurityAdvisories("acme", "tool");
+
+        assertThat(requests).filteredOn(request -> request.startsWith("/repos/acme/tool/security-advisories")).hasSize(3);
+        assertThat(authorizations).containsExactly("null", "Bearer ghp_user", "Bearer ghp_user");
+    }
+
+    @Test
+    void checksTheTokenOfTheUserWithoutTheCache() {
+        answerWithHeaders("/user", 200, Map.of("x-ratelimit-remaining", "4990", "x-ratelimit-limit", "5000"), "{\"login\": \"octocat\", \"id\": 1}");
+
+        GithubTokenInfo first = RequestToken.with("ghp_user", client::checkUserToken);
+        RequestToken.with("ghp_user", client::checkUserToken);
+
+        assertThat(first).isEqualTo(new GithubTokenInfo("octocat", 4990, 5000));
+        assertThat(authorizations).containsExactly("Bearer ghp_user", "Bearer ghp_user");
+        // Only the token of the user is checked, never the one of the server.
+        assertThatThrownBy(() -> withToken("ghp_server").checkUserToken())
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(RequestToken.HEADER);
+    }
+
+    @Test
+    void checksATokenWhoseLimitGithubDoesNotTell() {
+        answerWithHeaders("/user", 200, Map.of("x-ratelimit-remaining", "many"), "{\"login\": \"octocat\"}");
+
+        assertThat(RequestToken.with("ghp_user", client::checkUserToken)).isEqualTo(new GithubTokenInfo("octocat", null, null));
+    }
+
+    @Test
+    void saysThatGithubRefusedTheTokenOfTheUser() {
+        answerWithHeaders("/repos/acme/tool/issues", 401, Map.of(), "{\"message\": \"Bad credentials\"}");
+
+        assertThatThrownBy(() -> RequestToken.with("ghp_wrong", () -> withToken("ghp_server").getOpenIssues("acme", "tool")))
+                .isInstanceOf(GithubClientException.class).hasMessageContaining("refused your GitHub token")
+                .hasMessageNotContaining("ghp_wrong");
+    }
+
     /** Without a token the rate limit names the way out; with one it does not. */
     @Test
     void namesTheTokenWhenTheAnonymousLimitIsUsedUp() {

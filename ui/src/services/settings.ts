@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type {
+  GithubTokenInfo,
   ImportResult,
   ProjectField,
   ProjectItems,
@@ -166,6 +167,15 @@ export default function useSettings() {
    * `refresh` makes the server read GitHub again instead of the lists it keeps.
    * `only` names the settings to read, in their order; none reads all of them.
    */
+  /** Asks GitHub, through the server, who the token belongs to. The server stores the token nowhere. */
+  const checkGithubToken = useCallback(
+    (token: string): Promise<GithubTokenInfo> =>
+      sendRequest({ method: 'GET', url: '/github-token', githubToken: token }).then((r) =>
+        jsonOrThrow<GithubTokenInfo>(r),
+      ),
+    [sendRequest],
+  );
+
   const loadItems = useCallback(
     (projectId: string, refresh = false, only: string[] = []): Promise<ProjectItems> => {
       const query = new URLSearchParams();
@@ -235,6 +245,7 @@ export default function useSettings() {
       loadItems,
       runUpdate,
       hideItems,
+      checkGithubToken,
     }),
     [
       loadConfigurationNames,
@@ -253,6 +264,7 @@ export default function useSettings() {
       loadItems,
       runUpdate,
       hideItems,
+      checkGithubToken,
     ],
   );
 }

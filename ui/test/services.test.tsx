@@ -61,6 +61,27 @@ describe('useRemote', () => {
     expect(fetchMock.mock.calls[1][1]!.headers).toEqual({});
   });
 
+  it('sends the GitHub token the user keeps in this browser', async () => {
+    const fetchMock = installFetchMock([{ method: 'GET', match: /./, json: {} }]);
+    const remote = probe(useRemote);
+    await vi.waitFor(() => expect(remote.current).toBeDefined());
+    try {
+      window.sessionStorage.setItem('github.token', 'ghp_user');
+      await remote.current!.sendRequest({ method: 'GET', url: '/x' });
+      expect(fetchMock.mock.calls[0][1]!.headers).toEqual({ 'X-GitHub-Token': 'ghp_user' });
+
+      // A browser that blocks the storage keeps no token: the request goes without one.
+      const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('blocked', 'SecurityError');
+      });
+      await remote.current!.sendRequest({ method: 'GET', url: '/x' });
+      getItem.mockRestore();
+      expect(fetchMock.mock.calls[1][1]!.headers).toEqual({});
+    } finally {
+      window.sessionStorage.clear();
+    }
+  });
+
   it('answers a network failure as a 503 response rather than rejecting', async () => {
     // Callers branch on response.ok; a rejected promise would surface as an unhandled error instead.
     vi.stubGlobal(

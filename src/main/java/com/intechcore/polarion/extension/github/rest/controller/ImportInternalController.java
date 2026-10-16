@@ -2,6 +2,7 @@ package com.intechcore.polarion.extension.github.rest.controller;
 
 import ch.sbb.polarion.extension.generic.service.PolarionService;
 import ch.sbb.polarion.extension.generic.settings.SettingId;
+import com.intechcore.polarion.extension.github.client.RequestToken;
 import com.intechcore.polarion.extension.github.rest.model.HideRequest;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
 import com.intechcore.polarion.extension.github.rest.model.ProjectItems;
@@ -19,6 +20,7 @@ import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -62,9 +64,11 @@ public class ImportInternalController {
                                          + " A list read within the last minute stays.")
                                  @QueryParam("refresh") @DefaultValue("false") boolean refresh,
                                  @Parameter(description = "The settings to read, in the order to show them. None reads all settings of the project.")
-                                 @QueryParam("settings") List<String> settings) {
-        return new ProjectItemsReader(repositorySettings, importService, hiddenItems)
-                .read(projectId, refresh, settings == null ? List.of() : settings);
+                                 @QueryParam("settings") List<String> settings,
+                                 @Parameter(description = "A GitHub token of the user for this request, instead of the token of the server")
+                                 @HeaderParam(RequestToken.HEADER) String githubToken) {
+        return RequestToken.with(githubToken, () -> new ProjectItemsReader(repositorySettings, importService, hiddenItems)
+                .read(projectId, refresh, settings == null ? List.of() : settings));
     }
 
     @Operation(summary = "Hides GitHub items on the GitHub page of a project, or shows them again. Answers with all URLs the project hides")
@@ -86,12 +90,14 @@ public class ImportInternalController {
     @Produces(MediaType.APPLICATION_JSON)
     public ImportResult updateRepository(@Parameter(description = "The project of the work items") @PathParam("projectId") String projectId,
                                          @Parameter(description = "The name of the repository setting") @PathParam("name") String name,
-                                         ImportRequest request) {
+                                         ImportRequest request,
+                                         @Parameter(description = "A GitHub token of the user for this request, instead of the token of the server")
+                                         @HeaderParam(RequestToken.HEADER) String githubToken) {
         if (request == null || request.getUrls() == null || request.getUrls().isEmpty()) {
             throw new IllegalArgumentException("Name the GitHub URLs whose work items to update");
         }
         RepositorySettingsModel settings = repositorySettings.load(projectId, SettingId.fromName(name));
-        return importService.updateRepository(projectId, settings, request.getUrls());
+        return RequestToken.with(githubToken, () -> importService.updateRepository(projectId, settings, request.getUrls()));
     }
 
     @Operation(summary = "Creates work items from the open issues and discussions of a configured repository")
@@ -102,8 +108,10 @@ public class ImportInternalController {
     public ImportResult importRepository(@Parameter(description = "The project that gets the work items") @PathParam("projectId") String projectId,
                                          @Parameter(description = "The name of the repository setting") @PathParam("name") String name,
                                          @Parameter(description = "True to report only what the import would do") @QueryParam("dryRun") @DefaultValue("false") boolean dryRun,
-                                         @Nullable ImportRequest request) {
+                                         @Nullable ImportRequest request,
+                                         @Parameter(description = "A GitHub token of the user for this request, instead of the token of the server")
+                                         @HeaderParam(RequestToken.HEADER) String githubToken) {
         RepositorySettingsModel settings = repositorySettings.load(projectId, SettingId.fromName(name));
-        return importService.importRepository(projectId, settings, dryRun, request == null ? null : request.getUrls());
+        return RequestToken.with(githubToken, () -> importService.importRepository(projectId, settings, dryRun, request == null ? null : request.getUrls()));
     }
 }

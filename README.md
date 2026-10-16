@@ -152,6 +152,26 @@ A secret that is missing or empty, and a token GitHub refuses (wrong, expired or
 their reason above the list of the GitHub page, per repository. Without the property nothing
 changes: the extension stays anonymous.
 
+### Your own token
+
+Each user may also read GitHub with their own token, without an administrator:
+
+1. Open the GitHub page of the project.
+2. Click `Use my GitHub token` and paste the token.
+3. Turn on `Remember in this browser` to keep it after the tab closes.
+
+The page asks GitHub about the token before it keeps it, and shows the GitHub user and the
+requests left this hour. A token GitHub refuses is not kept.
+
+- The token stays in the browser. The page sends it with each request in the header
+  `X-GitHub-Token`; the server uses it for that request and stores it nowhere.
+- It goes before the token of the server. Its limit of 5000 requests belongs to the user.
+- The Live Report widget reads with it too. Its PDF export renders on the server, without it.
+- Every script on the Polarion host can read the storage of the browser. Give the token read access
+  to public repositories only.
+- The cache serves every user, so it keeps the lists of public repositories only. A private
+  repository, and the security advisories read with an own token, are read again on every request.
+
 ## Cache time
 
 The server keeps a list it read from GitHub for 5 minutes. To change that, set the minutes in

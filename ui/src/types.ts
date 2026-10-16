@@ -169,3 +169,10 @@ export interface ProjectItems {
   /** How many minutes the server keeps a list read from GitHub. 0: every read asks GitHub again. */
   cacheMinutes: number;
 }
+
+/** The GitHub user a token belongs to, and what is left of its hourly limit (client.GithubTokenInfo). */
+export interface GithubTokenInfo {
+  login: string | null;
+  remaining: number | null;
+  limit: number | null;
+}

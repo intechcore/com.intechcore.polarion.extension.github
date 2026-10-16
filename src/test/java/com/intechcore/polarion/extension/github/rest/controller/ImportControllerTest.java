@@ -50,7 +50,7 @@ class ImportControllerTest {
         when(importService.importRepository("elibrary", settings, false, null)).thenReturn(result);
 
         ImportResult answer = new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems)
-                .importRepository("elibrary", "tool", false, null);
+                .importRepository("elibrary", "tool", false, null, null);
 
         assertThat(answer).isSameAs(result);
         ArgumentCaptor<SettingId> id = ArgumentCaptor.forClass(SettingId.class);
@@ -60,13 +60,35 @@ class ImportControllerTest {
         verify(polarionService, never()).callPrivileged(any(Callable.class));
     }
 
+    /** The page sends the token of the user in a header; the service reads GitHub with it, and only then. */
+    @Test
+    void readsGithubWithTheTokenOfTheUserFromTheHeader() {
+        List<String> seen = new java.util.ArrayList<>();
+        when(importService.importRepository("elibrary", settings, true, null)).thenAnswer(invocation -> {
+            seen.add(com.intechcore.polarion.extension.github.client.RequestToken.current());
+            return result;
+        });
+        when(importService.updateRepository(eq("elibrary"), eq(settings), any())).thenAnswer(invocation -> {
+            seen.add(com.intechcore.polarion.extension.github.client.RequestToken.current());
+            return result;
+        });
+        ImportInternalController controller = new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems);
+
+        controller.importRepository("elibrary", "tool", true, null, "ghp_user");
+        controller.updateRepository("elibrary", "tool", new ImportRequest(List.of("https://github.com/acme/tool/issues/7")), "ghp_user");
+        controller.importRepository("elibrary", "tool", true, null, null);
+
+        assertThat(seen).containsExactly("ghp_user", "ghp_user", null);
+        assertThat(com.intechcore.polarion.extension.github.client.RequestToken.current()).isNull();
+    }
+
     @Test
     void passesTheDryRunFlagAndTheRequestedUrls() {
         List<String> urls = List.of("https://github.com/acme/tool/issues/7");
         when(importService.importRepository("elibrary", settings, true, urls)).thenReturn(result);
 
         ImportResult answer = new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems)
-                .importRepository("elibrary", "tool", true, new ImportRequest(urls));
+                .importRepository("elibrary", "tool", true, new ImportRequest(urls), null);
 
         assertThat(answer).isSameAs(result);
     }
@@ -96,13 +118,13 @@ class ImportControllerTest {
             when(importService.importRepository("elibrary", draft, true, null)).thenThrow(new IllegalArgumentException("The repository must be given as owner/name"));
 
             com.intechcore.polarion.extension.github.rest.model.ProjectItems items =
-                    new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", false, null);
+                    new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", false, null, null);
 
             assertThat(items.getEntries()).extracting(com.intechcore.polarion.extension.github.service.ImportEntry::getNumber).containsExactly(7L);
             assertThat(items.getCacheMinutes()).isEqualTo(5);
             verify(importService, never()).refresh(any());
 
-            new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", true, null);
+            new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", true, null, null);
 
             verify(importService).refresh(tool);
             verify(importService).refresh(broken);
@@ -115,7 +137,7 @@ class ImportControllerTest {
             org.mockito.Mockito.clearInvocations(importService);
             com.intechcore.polarion.extension.github.rest.model.ProjectItems chosen =
                     new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems)
-                            .getItems("elibrary", false, List.of("broken", "removed", "tool", "broken"));
+                            .getItems("elibrary", false, List.of("broken", "removed", "tool", "broken"), null);
 
             assertThat(chosen.getRepositories()).extracting(com.intechcore.polarion.extension.github.rest.model.RepositoryState::getSetting)
                     .containsExactly("broken", "tool");
@@ -129,7 +151,7 @@ class ImportControllerTest {
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<Object>) invocation.getArgument(0)).call());
         when(repositorySettings.readNames("project/elibrary/")).thenReturn(List.of());
 
-        assertThat(new ImportApiController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", true, null).getEntries()).isEmpty();
+        assertThat(new ImportApiController(polarionService, repositorySettings, importService, hiddenItems).getItems("elibrary", true, null, null).getEntries()).isEmpty();
         verify(polarionService).callPrivileged(any(Callable.class));
     }
 
@@ -141,9 +163,9 @@ class ImportControllerTest {
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<Object>) invocation.getArgument(0)).call());
 
         assertThat(new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems)
-                .updateRepository("elibrary", "tool", new ImportRequest(urls))).isSameAs(result);
+                .updateRepository("elibrary", "tool", new ImportRequest(urls), null)).isSameAs(result);
         assertThat(new ImportApiController(polarionService, repositorySettings, importService, hiddenItems)
-                .updateRepository("elibrary", "tool", new ImportRequest(urls))).isSameAs(result);
+                .updateRepository("elibrary", "tool", new ImportRequest(urls), null)).isSameAs(result);
     }
 
     @Test
@@ -151,7 +173,7 @@ class ImportControllerTest {
         ImportInternalController controller = new ImportInternalController(polarionService, repositorySettings, importService, hiddenItems);
 
         for (ImportRequest request : new ImportRequest[]{null, new ImportRequest(null), new ImportRequest(List.of())}) {
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.updateRepository("elibrary", "tool", request))
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.updateRepository("elibrary", "tool", request, null))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("GitHub URLs");
         }
@@ -165,7 +187,7 @@ class ImportControllerTest {
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<ImportResult>) invocation.getArgument(0)).call());
 
         ImportResult answer = new ImportApiController(polarionService, repositorySettings, importService, hiddenItems)
-                .importRepository("elibrary", "tool", false, null);
+                .importRepository("elibrary", "tool", false, null, null);
 
         assertThat(answer).isSameAs(result);
         verify(polarionService).callPrivileged(any(Callable.class));

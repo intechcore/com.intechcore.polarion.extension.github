@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- A user may read GitHub with their own token, kept in the browser and sent with each request.
+  The server stores it nowhere.
 - The property `cache.minutes` sets how long the server keeps a list read from GitHub. `0` keeps
   none.
 - The widget can say below its table how long the report took.
@@ -14,6 +16,8 @@ All notable changes to this project are documented here. The format follows
   its title.
 
 ### Changed
+- The cache keeps the lists of public repositories only. A private repository is read again on
+  every request.
 - Renovate offers a new TypeScript major on the Dependency Dashboard for approval instead of a pull
   request. TypeScript 7 waits for typescript-eslint, whose peer range ends below 6.1.
 
