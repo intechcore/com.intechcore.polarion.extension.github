@@ -287,6 +287,11 @@ class GithubClientTest {
         });
     }
 
+    private void reanswer(String path, int status, Map<String, String> headers, String body) {
+        server.removeContext(path);
+        answerWithHeaders(path, status, headers, body);
+    }
+
     private GithubClient withToken(String token) {
         return new GithubClient(baseUrl, java.time.Clock.systemUTC(), () -> token);
     }
@@ -414,13 +419,50 @@ class GithubClientTest {
         assertThat(RequestToken.with("ghp_user", client::checkUserToken)).isEqualTo(new GithubTokenInfo("octocat", null, null));
     }
 
+    /** A refused token goes from the memory of the server as well, for every user who sent it, and only it. */
     @Test
     void saysThatGithubRefusedTheTokenOfTheUser() {
         answerWithHeaders("/repos/acme/tool/issues", 401, Map.of(), "{\"message\": \"Bad credentials\"}");
+        UserTokens alice = new UserTokens(() -> "alice");
+        UserTokens bob = new UserTokens(() -> "bob");
+        alice.remember("ghp_wrong");
+        bob.remember("ghp_good");
 
-        assertThatThrownBy(() -> RequestToken.with("ghp_wrong", () -> withToken("ghp_server").getOpenIssues("acme", "tool")))
-                .isInstanceOf(GithubClientException.class).hasMessageContaining("refused your GitHub token")
-                .hasMessageNotContaining("ghp_wrong");
+        try {
+            assertThatThrownBy(() -> RequestToken.with("ghp_wrong", () -> withToken("ghp_server").getOpenIssues("acme", "tool")))
+                    .isInstanceOf(GithubClientException.class).hasMessageContaining("refused your GitHub token")
+                    .hasMessageContaining("button GitHub token").hasMessageNotContaining("ghp_wrong");
+
+            assertThat(alice.current()).isNull();
+            assertThat(bob.current()).isEqualTo("ghp_good");
+        } finally {
+            bob.forget();
+        }
+    }
+
+    /** GitHub says why it refuses a request, as the token policy of an organization; the message passes it on, on one line. */
+    @Test
+    void passesOnTheReasonGithubGives() {
+        answerWithHeaders("/repos/acme/tool/issues", 403, Map.of("x-ratelimit-remaining", "4000"),
+                "{\"message\": \"The 'acme' organization forbids access via a fine-grained personal access tokens\\nif the token's lifetime is greater than 366 days.\"}");
+
+        assertThatThrownBy(() -> RequestToken.with("ghp_long", () -> client.getOpenIssues("acme", "tool")))
+                .isInstanceOf(GithubStatusException.class)
+                .hasMessageEndingWith("with status 403 for your GitHub token: The 'acme' organization forbids access via a"
+                        + " fine-grained personal access tokens if the token's lifetime is greater than 366 days.")
+                .hasMessageNotContaining("ghp_long");
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool"))
+                .hasMessageEndingWith("with status 403: The 'acme' organization forbids access via a"
+                        + " fine-grained personal access tokens if the token's lifetime is greater than 366 days.");
+
+        reanswer("/repos/acme/tool/issues", 502, Map.of(), "<html>Bad gateway</html>");
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool")).hasMessageEndingWith("with status 502");
+        reanswer("/repos/acme/tool/issues", 500, Map.of(), "{\"message\": \" \"}");
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool")).hasMessageEndingWith("with status 500");
+        reanswer("/repos/acme/tool/issues", 500, Map.of(), "");
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool")).hasMessageEndingWith("with status 500");
+        reanswer("/repos/acme/tool/issues", 500, Map.of(), "{\"message\": \"" + "x".repeat(600) + "\"}");
+        assertThatThrownBy(() -> client.getOpenIssues("acme", "tool")).hasMessageEndingWith(": " + "x".repeat(500) + "...");
     }
 
     /** Without a token the rate limit names the way out; with one it does not. */

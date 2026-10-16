@@ -104,15 +104,34 @@ body {
 
 .items-read-at {
   color: #6b6b6b;
+  /* It wraps in itself, so the token button keeps its place at the end of the row. */
+  flex: 1 1 240px;
 }
 
-/* The GitHub token of the user: one line, and the editor in its place. */
+/* The GitHub token of the user: a button at the end of the toolbar, and its dialog. */
 .github-token {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-left: auto;
+}
+
+.github-token .notifications {
+  flex-basis: 100%;
+}
+
+.github-token-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 420px;
+  max-width: 100%;
+}
+
+.github-token-dialog p {
+  margin: 0;
 }
 
 .github-token-state,
@@ -120,8 +139,7 @@ body {
   color: #6b6b6b;
 }
 
-.github-token input[type='password'] {
-  width: 320px;
+.github-token-dialog input[type='password'] {
   height: 23px;
   box-sizing: border-box;
 }
@@ -132,9 +150,11 @@ body {
   gap: 4px;
 }
 
-.github-token-help,
-.github-token .notifications {
-  flex-basis: 100%;
+/* A printed page has no use for the button. */
+@media print {
+  .github-token {
+    display: none;
+  }
 }
 
 .item-filter {

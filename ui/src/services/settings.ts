@@ -163,11 +163,9 @@ export default function useSettings() {
   );
 
   /**
-   * The open items of the repository settings of a project, with what the import would do with each.
-   * `refresh` makes the server read GitHub again instead of the lists it keeps.
-   * `only` names the settings to read, in their order; none reads all of them.
+   * Asks GitHub, through the server, who the token belongs to. Once GitHub took it, the server keeps it
+   * in memory for the PDF export of the widget.
    */
-  /** Asks GitHub, through the server, who the token belongs to. The server stores the token nowhere. */
   const checkGithubToken = useCallback(
     (token: string): Promise<GithubTokenInfo> =>
       sendRequest({ method: 'GET', url: '/github-token', githubToken: token }).then((r) =>
@@ -176,6 +174,17 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** Makes the server forget the token it keeps in memory for the user. */
+  const forgetGithubToken = useCallback(
+    (): Promise<void> => sendRequest({ method: 'DELETE', url: '/github-token' }).then(okOrThrow),
+    [sendRequest],
+  );
+
+  /**
+   * The open items of the repository settings of a project, with what the import would do with each.
+   * `refresh` makes the server read GitHub again instead of the lists it keeps.
+   * `only` names the settings to read, in their order; none reads all of them.
+   */
   const loadItems = useCallback(
     (projectId: string, refresh = false, only: string[] = []): Promise<ProjectItems> => {
       const query = new URLSearchParams();
@@ -246,6 +255,7 @@ export default function useSettings() {
       runUpdate,
       hideItems,
       checkGithubToken,
+      forgetGithubToken,
     }),
     [
       loadConfigurationNames,
@@ -265,6 +275,7 @@ export default function useSettings() {
       runUpdate,
       hideItems,
       checkGithubToken,
+      forgetGithubToken,
     ],
   );
 }

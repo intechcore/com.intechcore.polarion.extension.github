@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** The token of the user lives for the request that brought it, and no longer. */
+/** The token of the user lives in the thread for the request that brought it, and in memory for the user. */
 class RequestTokenTest {
 
     @Test
@@ -44,5 +44,37 @@ class RequestTokenTest {
                 .hasMessageContaining(RequestToken.HEADER)
                 .hasMessageNotContaining("ghp_a");
         assertThat(RequestToken.current()).isNull();
+    }
+
+    /** The server keeps the last token of each user for the PDF export; a token to check it keeps not yet. */
+    @Test
+    void keepsTheTokenForTheUser() {
+        UserTokens alice = new UserTokens(() -> "alice");
+        try {
+            RequestToken.with(" ghp_first ", alice, RequestToken::current);
+            RequestToken.with(null, alice, RequestToken::current);
+            assertThat(alice.current()).isEqualTo("ghp_first");
+
+            RequestToken.with("ghp_second", alice, RequestToken::current);
+            RequestToken.withoutKeeping("ghp_checked", RequestToken::current);
+            assertThat(alice.current()).isEqualTo("ghp_second");
+            assertThatThrownBy(() -> RequestToken.with("ghp a", alice, RequestToken::current)).isInstanceOf(IllegalArgumentException.class);
+            assertThat(alice.current()).isEqualTo("ghp_second");
+        } finally {
+            alice.forget();
+        }
+        assertThat(alice.current()).isNull();
+    }
+
+    /** Outside a running Polarion there is no user, so nothing is kept. */
+    @Test
+    void keepsNothingWithoutAUser() {
+        UserTokens nobody = new UserTokens(() -> null);
+        nobody.remember("ghp_user");
+        nobody.forget();
+
+        assertThat(nobody.current()).isNull();
+        assertThat(UserTokens.shared().current()).isNull();
+        assertThat(RequestToken.with("ghp_user", RequestToken::current)).isEqualTo("ghp_user");
     }
 }

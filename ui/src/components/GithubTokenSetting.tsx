@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { faKey } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useRef, useState } from 'react';
+import { faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons';
+import { Modal } from '@sbb-polarion/react-sbb-polarion';
 import {
   isGithubTokenRemembered,
   readGithubToken,
@@ -17,7 +18,14 @@ const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
 interface Props {
   /** Called after the token changed, so the page reads GitHub with the new one. */
   onChange: () => void;
+  /** True in the iframe of a widget, which takes the height of its page. */
+  widget?: boolean;
 }
+
+// The dialog takes at most 85% of the viewport height (RSP's .rsp-modal), and a widget's viewport is
+// its iframe, as high as the page in it.
+const DIALOG_HEIGHT_SHARE = 0.85;
+const DIALOG_MARGIN = 16;
 
 function describe(token: string, info: GithubTokenInfo | null): string {
   const name = ['Your GitHub token', tokenHint(token)].filter((part) => part).join(' ');
@@ -30,26 +38,29 @@ function describe(token: string, info: GithubTokenInfo | null): string {
 }
 
 /**
- * The GitHub token of the user, kept in this browser. With it GitHub allows 5000 requests per hour
- * for the user instead of the limit the server shares. A token is checked with GitHub before it is
- * kept, and again when the page opens.
+ * The GitHub token of the user: a button that opens a dialog, as Authorize does in Swagger. With a token
+ * GitHub allows 5000 requests per hour for the user instead of the limit the server shares. A token is
+ * checked with GitHub before it is kept, and again when the page opens. A print shows no button.
  */
-export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
-  const { checkGithubToken } = useSettings();
+export default function GithubTokenSetting({ onChange, widget = false }: Readonly<Props>) {
+  const { checkGithubToken, forgetGithubToken } = useSettings();
   const [token, setToken] = useState(() => readGithubToken());
   const [info, setInfo] = useState<GithubTokenInfo | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const [remember, setRemember] = useState(() => isGithubTokenRemembered());
   const [busy, setBusy] = useState(false);
+  // A failed check when the page opens shows beside the button, a failed save in the dialog.
+  const [checkError, setCheckError] = useState('');
   const [error, setError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!token) return;
     let active = true;
     checkGithubToken(token)
       .then((checked) => active && setInfo(checked))
-      .catch((e: Error) => active && setError(e.message));
+      .catch((e: Error) => active && setCheckError(e.message));
     return () => {
       active = false;
     };
@@ -57,14 +68,29 @@ export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The dialog focuses its content when it opens; this effect runs after it and moves on to the field.
+  useEffect(() => {
+    if (!open) return undefined;
+    input.current?.focus();
+    // In a widget the page grows to the height the dialog needs, and the iframe follows it.
+    const dialog = input.current?.closest('dialog');
+    if (!widget || !dialog) return undefined;
+    const needed = Array.from(dialog.children).reduce((height, part) => height + part.scrollHeight, 0);
+    document.body.style.minHeight = `${Math.ceil(needed / DIALOG_HEIGHT_SHARE) + DIALOG_MARGIN}px`;
+    return () => {
+      document.body.style.minHeight = '';
+    };
+  }, [open, widget]);
+
   const close = () => {
-    setEditing(false);
+    setOpen(false);
     setValue('');
     setError('');
   };
 
   const save = async () => {
     const candidate = value.trim();
+    if (!candidate || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -72,6 +98,7 @@ export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
       saveGithubToken(candidate, remember);
       setToken(candidate);
       setInfo(checked);
+      setCheckError('');
       close();
       onChange();
     } catch (e) {
@@ -81,85 +108,90 @@ export default function GithubTokenSetting({ onChange }: Readonly<Props>) {
     }
   };
 
-  const remove = () => {
+  const remove = async () => {
     removeGithubToken();
     setToken(null);
     setInfo(null);
+    setCheckError('');
     close();
     onChange();
+    try {
+      await forgetGithubToken();
+    } catch (e) {
+      setCheckError(`the server could not forget it: ${(e as Error).message}`);
+    }
   };
 
-  if (!editing) {
-    return (
-      <div className="github-token">
-        <span className="github-token-state">
-          {token ? describe(token, info) : 'GitHub is read with the token of the server, or without one.'}
-        </span>
-        <button
-          type="button"
-          className="sbb-btn sbb-btn--control"
-          title="Your own GitHub token: 5000 requests per hour for you. It stays in this browser."
-          onClick={() => {
-            setError('');
-            setEditing(true);
-          }}
-        >
-          <ButtonIcon icon={faKey} />
-          {token ? 'Change token' : 'Use my GitHub token'}
-        </button>
-        {token && (
-          <button type="button" className="sbb-btn sbb-btn--control" onClick={remove}>
-            <span className="button-image sbb-icon-delete" aria-hidden="true" />
-            Remove token
-          </button>
-        )}
-        {error && <ErrorNotice>Your GitHub token: {error}</ErrorNotice>}
-      </div>
-    );
-  }
+  const hint = token ? tokenHint(token) : '';
   return (
-    <div className="github-token github-token-editing">
-      <label htmlFor="github-token">GitHub token:</label>
-      <input
-        id="github-token"
-        type="password"
-        autoComplete="off"
-        spellCheck={false}
-        value={value}
-        autoFocus
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && value.trim() && !busy) void save();
-          if (e.key === 'Escape') close();
-        }}
-      />
-      <label className="github-token-remember">
-        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-        Remember in this browser
-      </label>
-      <button type="button" className="sbb-btn sbb-btn--control" disabled={busy} onClick={close}>
-        <span className="button-image sbb-icon-cancel" aria-hidden="true" />
-        <span>Cancel</span>
-      </button>
+    <div className="github-token">
       <button
         type="button"
         className="sbb-btn sbb-btn--control"
-        disabled={busy || !value.trim()}
-        onClick={() => void save()}
+        title={
+          token
+            ? describe(token, info)
+            : 'GitHub is read with the token of the server, or without one. Your own token gives you 5000 requests per hour.'
+        }
+        onClick={() => {
+          setError('');
+          setOpen(true);
+        }}
       >
-        <span className="button-image sbb-icon-save" aria-hidden="true" />
-        Save
+        <ButtonIcon icon={token ? faLock : faLockOpen} />
+        {hint ? `GitHub token ${hint}` : 'GitHub token'}
       </button>
-      {busy && <span>Checking the token with GitHub...</span>}
-      <span className="github-token-help">
-        A{' '}
-        <a href={NEW_TOKEN_URL} target="_blank" rel="noopener noreferrer">
-          fine-grained token
-        </a>{' '}
-        with read access to public repositories is enough. GitHub checks it before the page keeps it. The token stays in
-        this browser, and the server uses it for your requests only. Without Remember it goes when the tab closes.
-      </span>
-      {error && <ErrorNotice>{error}</ErrorNotice>}
+      {checkError && <ErrorNotice>Your GitHub token: {checkError}</ErrorNotice>}
+      <Modal
+        open={open}
+        title="GitHub token"
+        okText="Save"
+        okDisabled={busy || !value.trim()}
+        onOk={() => void save()}
+        onCancel={close}
+      >
+        <div className="modal__container github-token-dialog">
+          <p className="github-token-state">
+            {token ? describe(token, info) : 'GitHub is read with the token of the server, or without one.'}
+          </p>
+          {token && (
+            <p>
+              <button type="button" className="sbb-btn sbb-btn--control" onClick={() => void remove()}>
+                <span className="button-image sbb-icon-delete" aria-hidden="true" />
+                Remove token
+              </button>
+            </p>
+          )}
+          <label htmlFor="github-token">{token ? 'New token:' : 'Token:'}</label>
+          <input
+            id="github-token"
+            ref={input}
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void save();
+            }}
+          />
+          <label className="github-token-remember">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            Remember in this browser
+          </label>
+          {busy && <p>Checking the token with GitHub...</p>}
+          <p className="github-token-help">
+            A{' '}
+            <a href={NEW_TOKEN_URL} target="_blank" rel="noopener noreferrer">
+              fine-grained token
+            </a>{' '}
+            with read access to public repositories is enough. GitHub checks it before the page keeps it. Without
+            Remember it goes when the tab closes. The server keeps it in memory for your PDF exports, until you remove
+            it, GitHub refuses it or Polarion restarts.
+          </p>
+          {error && <ErrorNotice>{error}</ErrorNotice>}
+        </div>
+      </Modal>
     </div>
   );
 }

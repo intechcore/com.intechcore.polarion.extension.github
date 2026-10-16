@@ -9,6 +9,8 @@ import com.polarion.alm.shared.api.model.rp.widget.RichPageWidgetCommonContext;
 import com.polarion.alm.shared.api.utils.html.HtmlFragmentBuilder;
 import com.polarion.alm.shared.api.utils.html.HtmlTagBuilder;
 import com.polarion.alm.shared.api.utils.html.RichTextRenderTarget;
+import com.intechcore.polarion.extension.github.client.RequestToken;
+import com.intechcore.polarion.extension.github.client.UserTokens;
 import com.intechcore.polarion.extension.github.service.ImportService;
 import com.intechcore.polarion.extension.github.service.ProjectItemsReader;
 import com.intechcore.polarion.extension.github.settings.HiddenItems;
@@ -55,6 +57,7 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     private final boolean showTime;
     private final boolean printed;
     private final Supplier<ProjectItemsReader> reader;
+    private final UserTokens userTokens;
 
     // The targets that turn the page into a document. A PDF export or a print shows no iframe.
     private static final Set<RichTextRenderTarget> DOCUMENT_TARGETS = Set.of(RichTextRenderTarget.PDF_EXPORT,
@@ -65,8 +68,14 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
     }
 
     GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context, @NotNull Supplier<ProjectItemsReader> reader) {
+        this(context, reader, UserTokens.shared());
+    }
+
+    GithubItemsWidgetRenderer(@NotNull RichPageWidgetCommonContext context, @NotNull Supplier<ProjectItemsReader> reader,
+                              @NotNull UserTokens userTokens) {
         super(context);
         this.reader = reader;
+        this.userTokens = userTokens;
         printed = DOCUMENT_TARGETS.contains(context.target());
         projectId = context.getDisplayedScope().projectId();
         EnumParameter repositoriesParameter = context.parameter(GithubItemsWidget.PARAMETER_REPOSITORIES);
@@ -114,13 +123,18 @@ public class GithubItemsWidgetRenderer extends AbstractWidgetRenderer {
         builder.tag().script().append().javaScript(HEIGHT_SYNC_SCRIPT + "%ngithubSyncIframeHeight('%s');".formatted(iframeId));
     }
 
-    /** The table as the page shows it when it opens, read on the server, for a document without iframes. */
+    /**
+     * The table as the page shows it when it opens, read on the server, for a document without iframes.
+     * No browser sends a token here, so GitHub is read with the token the user sent last.
+     */
     @NotNull String printedTable() {
         if (projectId == null) {
             return "<p>The GitHub items belong to a project.</p>";
         }
+        String id = projectId;
         long started = System.nanoTime();
-        String table = new ItemsTableHtml(projectId, repositories, kinds, states, columns).render(reader.get().read(projectId, false, repositories));
+        String table = new ItemsTableHtml(id, repositories, kinds, states, columns)
+                .render(RequestToken.with(userTokens.current(), () -> reader.get().read(id, false, repositories)));
         return showTime ? table + generatedIn(Duration.ofNanos(System.nanoTime() - started)) : table;
     }
 

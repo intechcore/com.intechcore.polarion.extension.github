@@ -8,7 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - A user may read GitHub with their own token, kept in the browser and sent with each request.
-  The server stores it nowhere.
+  The button `GitHub token` opens a dialog for it, on the GitHub page and in the widget.
+- The server keeps the token of each user in memory for the PDF export of the widget, until the
+  user removes it, GitHub refuses it or Polarion restarts.
 - The property `cache.minutes` sets how long the server keeps a list read from GitHub. `0` keeps
   none.
 - The widget can say below its table how long the report took.
@@ -22,6 +24,7 @@ All notable changes to this project are documented here. The format follows
   request. TypeScript 7 waits for typescript-eslint, whose peer range ends below 6.1.
 
 ### Fixed
+- An error of GitHub shows the reason GitHub gives, as the token policy of an organization.
 - The changelog scripts of the release take only `Unreleased` and a release version for the link
   of a section. A numbered link such as `[1]:` inside an entry cut the release section and its
   notes short.

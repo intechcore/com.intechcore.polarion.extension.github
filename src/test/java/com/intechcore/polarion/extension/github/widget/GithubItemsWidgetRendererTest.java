@@ -196,9 +196,19 @@ class GithubItemsWidgetRendererTest {
         items.getEntries().add(com.intechcore.polarion.extension.github.service.ImportEntry.builder().number(7).title("Crash")
                 .setting("tool").kind(com.intechcore.polarion.extension.github.service.ItemKind.ISSUE)
                 .status(com.intechcore.polarion.extension.github.service.ImportStatus.NEW).build());
-        when(reader.read(eq("elibrary"), eq(false), any())).thenReturn(items);
+        when(reader.read(eq("elibrary"), eq(false), any())).thenAnswer(invocation -> {
+            // No browser sends a token for a PDF: GitHub is read with the token the user sent last.
+            assertThat(com.intechcore.polarion.extension.github.client.RequestToken.current()).isEqualTo("ghp_user");
+            return items;
+        });
+        com.intechcore.polarion.extension.github.client.UserTokens alice = new com.intechcore.polarion.extension.github.client.UserTokens(() -> "alice");
+        alice.remember("ghp_user");
 
-        new GithubItemsWidgetRenderer(context, () -> reader).render(builder);
+        try {
+            new GithubItemsWidgetRenderer(context, () -> reader, alice).render(builder);
+        } finally {
+            alice.forget();
+        }
 
         ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
         verify(builder).html(html.capture());
