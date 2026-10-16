@@ -57,7 +57,11 @@ export function removeGithubToken(): void {
   remove(() => window.localStorage);
 }
 
-/** The last four characters, to tell tokens apart. A short value shows none: they would be most of it. */
+/**
+ * The last four characters behind four dots, to tell tokens apart, as a bank card shows its number. A
+ * short value shows none: they would be most of it. Not an ellipsis: the font of Polarion draws it as
+ * a period and a space.
+ */
 export function tokenHint(token: string): string {
-  return token.length > 16 ? `…${token.slice(-4)}` : '';
+  return token.length > 16 ? `••••${token.slice(-4)}` : '';
 }

@@ -707,10 +707,10 @@ describe('the GitHub token of the user', () => {
     const check = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/github-token'))!;
     expect((check[1]!.headers as Record<string, string>)['X-GitHub-Token']).toBe(TOKEN);
     await vi.waitFor(() => expect(dialog()).toBeNull());
-    expect(tokenButton().textContent?.trim()).toBe('GitHub token …wxyz');
+    expect(tokenButton().textContent?.trim()).toBe('GitHub token ••••wxyz');
     await vi.waitFor(() =>
       expect(tokenButton().title).toBe(
-        'Your GitHub token …wxyz (octocat, 4990 of 5000 requests left this hour) is kept in this browser.',
+        'Your GitHub token ••••wxyz (octocat, 4990 of 5000 requests left this hour) is kept in this browser.',
       ),
     );
     expect(window.sessionStorage.getItem('github.token')).toBe(TOKEN);
@@ -819,7 +819,7 @@ describe('the GitHub token of the user', () => {
     await vi.waitFor(() =>
       expect(alerts()).toContain('Your GitHub token: GitHub refused your GitHub token (401 Unauthorized).'),
     );
-    expect(tokenButton().title).toBe('Your GitHub token …wxyz is kept in this browser.');
+    expect(tokenButton().title).toBe('Your GitHub token ••••wxyz is kept in this browser.');
   });
 
   it('names an unknown user and leaves out a limit GitHub did not tell', async () => {
@@ -827,7 +827,7 @@ describe('the GitHub token of the user', () => {
     await mount([{ method: 'GET', match: /\/github-token$/, json: { login: null, remaining: null, limit: null } }]);
 
     await vi.waitFor(() =>
-      expect(tokenButton().title).toBe('Your GitHub token …wxyz (unknown user) is kept in this browser.'),
+      expect(tokenButton().title).toBe('Your GitHub token ••••wxyz (unknown user) is kept in this browser.'),
     );
   });
 
@@ -840,7 +840,7 @@ describe('the GitHub token of the user', () => {
 
     expect(itemsHeader()).toBe(TOKEN);
     expect(document.querySelectorAll('.items-toolbar .sbb-btn')).toHaveLength(1);
-    expect(tokenButton().textContent?.trim()).toBe('GitHub token …wxyz');
+    expect(tokenButton().textContent?.trim()).toBe('GitHub token ••••wxyz');
 
     // The iframe is as high as the page: the page grows while the dialog is open, so it fits.
     expect(document.body.style.minHeight).toBe('');
