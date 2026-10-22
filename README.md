@@ -110,6 +110,23 @@ type matches nothing.
 
 A work item is not created again when its issue gets another label later.
 
+### Assignees
+
+The import assigns the work item of an issue or a pull request to the Polarion users of its GitHub
+assignees. Map the GitHub logins to Polarion users on the page `GitHub > User Mapping`.
+
+1. Open the page in the global administration. The global mapping serves every project.
+2. Add a row per GitHub login and select its Polarion user. GitHub ignores the case of a login.
+3. To give a project a mapping of its own, open the page in the project and save it there.
+   `Use the global mapping` removes the mapping of the project again.
+
+An issue can have several assignees, and the work item gets all mapped users. An update adds and
+removes them as the assignees change on GitHub. A login without a mapping, or a Polarion user that
+no longer exists, is left out. A user assigned in Polarion by hand stays.
+
+When a repository setting names an `assignee` field value, it applies only to an item without a
+mapped assignee. Otherwise the mapped users replace it and are the only assignees.
+
 ## GitHub token
 
 A token is optional. Without one the extension reads public repositories anonymously, and GitHub

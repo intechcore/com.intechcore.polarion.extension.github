@@ -8,6 +8,8 @@ import type {
   RepositorySettings,
   Revision,
   SettingName,
+  UserLink,
+  UserMappingContent,
   WorkItemRef,
 } from '../types';
 import useRemote from './useRemote';
@@ -44,6 +46,8 @@ async function okOrThrow(response: Response): Promise<void> {
 
 const settingPath = (name: string, scope: string, suffix = ''): string =>
   `/settings/${FEATURE}/names/${encodeURIComponent(name)}${suffix}?scope=${encodeURIComponent(scope)}`;
+
+const mappingPath = (scope: string): string => `/user-mapping?scope=${encodeURIComponent(scope)}`;
 
 const projectPath = (projectId: string, suffix: string): string =>
   `/projects/${encodeURIComponent(projectId)}${suffix}`;
@@ -236,6 +240,31 @@ export default function useSettings() {
     [sendRequest],
   );
 
+  /** The user mapping a scope uses: its own, or the global one. */
+  const loadUserMapping = useCallback(
+    (scope: string): Promise<UserMappingContent> =>
+      sendRequest({ method: 'GET', url: mappingPath(scope) }).then((r) => jsonOrThrow<UserMappingContent>(r)),
+    [sendRequest],
+  );
+
+  const saveUserMapping = useCallback(
+    (scope: string, users: UserLink[]): Promise<UserMappingContent> =>
+      sendRequest({
+        method: 'PUT',
+        url: mappingPath(scope),
+        contentType: 'application/json',
+        body: JSON.stringify({ users }),
+      }).then((r) => jsonOrThrow<UserMappingContent>(r)),
+    [sendRequest],
+  );
+
+  /** Removes the mapping of a project, which then uses the global one. */
+  const resetUserMapping = useCallback(
+    (scope: string): Promise<UserMappingContent> =>
+      sendRequest({ method: 'DELETE', url: mappingPath(scope) }).then((r) => jsonOrThrow<UserMappingContent>(r)),
+    [sendRequest],
+  );
+
   return useMemo(
     () => ({
       loadConfigurationNames,
@@ -256,6 +285,9 @@ export default function useSettings() {
       hideItems,
       checkGithubToken,
       forgetGithubToken,
+      loadUserMapping,
+      saveUserMapping,
+      resetUserMapping,
     }),
     [
       loadConfigurationNames,
@@ -276,6 +308,9 @@ export default function useSettings() {
       hideItems,
       checkGithubToken,
       forgetGithubToken,
+      loadUserMapping,
+      saveUserMapping,
+      resetUserMapping,
     ],
   );
 }

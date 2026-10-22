@@ -568,3 +568,30 @@ body {
 .wip-results li:hover {
   background: #e8f2fc;
 }
+
+.user-mapping {
+  margin-bottom: 6px;
+  border-collapse: collapse;
+}
+
+.user-mapping th {
+  padding: 3px 8px 3px 0;
+  text-align: left;
+}
+
+.user-mapping td {
+  padding: 3px 8px 3px 0;
+  vertical-align: middle;
+}
+
+.user-mapping input[type='text'],
+.user-mapping .searchable-dropdown {
+  width: 320px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.user-mapping-empty {
+  color: #6b6b6b;
+  font-style: italic;
+}
