@@ -12,6 +12,7 @@ import com.intechcore.polarion.extension.github.client.GithubClient;
 import com.intechcore.polarion.extension.github.client.GithubClientException;
 import com.intechcore.polarion.extension.github.rest.controller.ImportApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
+import com.intechcore.polarion.extension.github.rest.controller.UserMappingInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.rest.model.HideRequest;
 import com.intechcore.polarion.extension.github.rest.model.ImportRequest;
@@ -24,6 +25,9 @@ import com.intechcore.polarion.extension.github.service.ImportStatus;
 import com.intechcore.polarion.extension.github.service.WriteTransaction;
 import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
+import com.intechcore.polarion.extension.github.settings.UserLink;
+import com.intechcore.polarion.extension.github.settings.UserMapping;
+import com.intechcore.polarion.extension.github.settings.UserMappingModel;
 import com.polarion.subterra.base.location.Location;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.AfterEach;
@@ -60,6 +64,7 @@ class ImportIntegrationTest {
     private MockedStatic<ScopeUtils> scopeUtils;
     private RepositorySettings repositorySettings;
     private HiddenItems hiddenItems;
+    private UserMapping userMapping;
     private NamedSettingsInternalController settingsEndpoint;
     private ImportInternalController importEndpoint;
     private ImportService importService;
@@ -76,6 +81,7 @@ class ImportIntegrationTest {
 
         repositorySettings = new RepositorySettings(new InMemorySettingsService());
         hiddenItems = new HiddenItems(new InMemorySettingsService());
+        userMapping = new UserMapping(new InMemorySettingsService());
         NamedSettingsRegistry.INSTANCE.getAll().removeIf(settings -> RepositorySettings.FEATURE_NAME.equals(settings.getFeatureName()));
         NamedSettingsRegistry.INSTANCE.register(List.of(repositorySettings));
         settingsEndpoint = new NamedSettingsInternalController(polarion.polarionService);
@@ -85,7 +91,7 @@ class ImportIntegrationTest {
             public <T> T execute(Supplier<T> action) {
                 return action.get();
             }
-        });
+        }, userMapping);
         importEndpoint = new ImportInternalController(polarion.polarionService, repositorySettings, importService, hiddenItems);
     }
 
@@ -217,6 +223,39 @@ class ImportIntegrationTest {
         assertThat(polarion.saved).hasSize(2);
         assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null)))
                 .contains("ISSUE 7 EXISTS", "ISSUE 10 OUTDATED");
+    }
+
+    @Test
+    void theMappedGithubAssigneesBecomeTheAssigneesAndFollowGithub() {
+        polarion.user("aj", "Alice Jones");
+        polarion.user("bk", "Bob King");
+        UserMappingInternalController mappingEndpoint = new UserMappingInternalController(userMapping);
+        // The global mapping serves every project. bob has no Polarion user in it, carol a gone one.
+        mappingEndpoint.saveUserMapping("", new UserMappingModel(List.of(new UserLink("Alice", "aj"), new UserLink("carol", "gone"))));
+        saveSetting("tool", ISSUES_AND_DISCUSSIONS);
+        assertThat(mappingEndpoint.getUserMapping(SCOPE).inherited()).isTrue();
+
+        ImportResult created = importEndpoint.importRepository(FakePolarion.PROJECT, "tool", false, new ImportRequest(List.of(ISSUES + "7", ISSUES + "10")), null);
+
+        // Issue 7 is assigned to alice and bob. Issue 10 to nobody, so the workflow assigns Rob.
+        assertThat(created.getEntries()).extracting(ImportEntry::getWorkItemAssignees)
+                .containsExactly(List.of("Alice Jones"), List.of("Rob Project"));
+
+        // The project keeps its own mapping, which replaces the global one: bob counts now, alice not.
+        assertThat(mappingEndpoint.saveUserMapping(SCOPE, new UserMappingModel(List.of(new UserLink("bob", "bk")))).inherited()).isFalse();
+        assertThat(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null).getEntries().get(0).getMessage())
+                .isEqualTo("differs in assignee");
+
+        ImportResult update = importEndpoint.updateRepository(FakePolarion.PROJECT, "tool", new ImportRequest(List.of(ISSUES + "7", ISSUES + "10")), null);
+
+        // alice is no mapped user any more, so she stays. Rob was never mapped, so he stays too.
+        assertThat(update.getEntries()).extracting(ImportEntry::getWorkItemAssignees)
+                .containsExactly(List.of("Alice Jones", "Bob King"), List.of("Rob Project"));
+        assertThat(outcome(update)).containsExactly("ISSUE 7 UPDATED", "ISSUE 10 EXISTS");
+
+        // Back on the global mapping, bob is no mapped user and alice is on the issue: nothing differs.
+        assertThat(mappingEndpoint.resetUserMapping(SCOPE).inherited()).isTrue();
+        assertThat(outcome(importEndpoint.importRepository(FakePolarion.PROJECT, "tool", true, null, null))).contains("ISSUE 7 EXISTS");
     }
 
     @Test

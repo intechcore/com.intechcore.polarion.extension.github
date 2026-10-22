@@ -176,3 +176,16 @@ export interface GithubTokenInfo {
   remaining: number | null;
   limit: number | null;
 }
+
+/** A GitHub login and the Polarion user it stands for (settings.UserLink). */
+export interface UserLink {
+  githubLogin: string;
+  polarionUser: string;
+}
+
+/** The user mapping a scope uses (rest.model.UserMappingContent). */
+export interface UserMappingContent {
+  users: UserLink[];
+  /** True when a project uses the global mapping. */
+  inherited: boolean;
+}

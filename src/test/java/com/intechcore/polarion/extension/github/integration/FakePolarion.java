@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.github.integration;
 
 import ch.sbb.polarion.extension.generic.service.PolarionService;
+import com.polarion.alm.projects.IProjectService;
 import com.polarion.alm.tracker.ITrackerService;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
 import com.polarion.alm.projects.model.IUser;
@@ -49,6 +50,7 @@ final class FakePolarion {
         final List<String> hyperlinks = new ArrayList<>();
         final Map<String, Object> fields = new LinkedHashMap<>();
         final List<String> links = new ArrayList<>();
+        final List<IUser> assignees = new ArrayList<>();
         int saves;
     }
 
@@ -68,6 +70,9 @@ final class FakePolarion {
     private final Map<IWorkItem, WorkItem> states = new LinkedHashMap<>();
     // The work items a search returned, to answer reads of their fields.
     private final Map<IWorkItem, WorkItem> read = new LinkedHashMap<>();
+    // The users Polarion knows, by ID. The workflow assigns a new work item to Rob when it has nobody.
+    private final Map<String, IUser> users = new LinkedHashMap<>();
+    private final IUser rob = user("rp", "Rob Project");
 
     FakePolarion(Set<String> workItemTypes, Set<String> linkRoles) {
         ITrackerService trackerService = mock(ITrackerService.class);
@@ -76,6 +81,14 @@ final class FakePolarion {
         when(polarionService.getTrackerProject(PROJECT)).thenReturn(project);
         when(polarionService.callPrivileged(any(Callable.class))).thenAnswer(invocation -> ((Callable<?>) invocation.getArgument(0)).call());
         when(project.getId()).thenReturn(PROJECT);
+        IProjectService projectService = mock(IProjectService.class);
+        when(polarionService.getProjectService()).thenReturn(projectService);
+        when(projectService.getUser(anyString())).thenAnswer(invocation -> users.computeIfAbsent(invocation.getArgument(0), id -> {
+            IUser unknown = mock(IUser.class);
+            when(unknown.getId()).thenReturn(id);
+            when(unknown.isUnresolvable()).thenReturn(true);
+            return unknown;
+        }));
 
         IEnumeration types = mock(IEnumeration.class);
         when(project.getWorkItemTypeEnum()).thenReturn(types);
@@ -112,6 +125,21 @@ final class FakePolarion {
         }).when(polarionService).setFieldValue(any(IWorkItem.class), anyString(), any());
     }
 
+    /** A user Polarion knows. */
+    IUser user(String id, String name) {
+        IUser user = mock(IUser.class);
+        when(user.getId()).thenReturn(id);
+        when(user.getName()).thenReturn(name);
+        users.put(id, user);
+        return user;
+    }
+
+    private static IPObjectList assignees(WorkItem state) {
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> new ArrayList<Object>(state.assignees).iterator());
+        return assignees;
+    }
+
     private static <T extends com.polarion.platform.persistence.IEnumOption> T option(Class<T> type, String id, Set<String> known) {
         T option = mock(type);
         when(option.getId()).thenReturn(id);
@@ -136,19 +164,20 @@ final class FakePolarion {
                 state.links.add(invocation.<ILinkRoleOpt>getArgument(1).getId() + ":" + invocation.<IWorkItem>getArgument(0).getId()));
         when(workItem.getTitle()).thenAnswer(invocation -> state.title);
         when(workItem.getId()).thenAnswer(invocation -> state.id);
-        // What the workflow of the type sets on save: the initial status and an assignee.
+        // What the workflow of the type sets on save: the initial status, and an assignee when there is none.
         IStatusOpt status = mock(IStatusOpt.class);
         when(status.getName()).thenReturn("Open");
         when(workItem.getStatus()).thenReturn(status);
-        IUser assignee = mock(IUser.class);
-        when(assignee.getName()).thenReturn("Rob Project");
-        IPObjectList assignees = mock(IPObjectList.class);
-        when(assignees.iterator()).thenAnswer(invocation -> List.of(assignee).iterator());
-        when(workItem.getAssignees()).thenReturn(assignees);
+        when(workItem.getAssignees()).thenAnswer(invocation -> assignees(state));
+        when(workItem.addAssignee(any())).thenAnswer(invocation -> state.assignees.add(invocation.getArgument(0)));
+        when(workItem.removeAssignee(any())).thenAnswer(invocation -> state.assignees.remove(invocation.<IUser>getArgument(0)));
         doAnswer(invocation -> {
             if (state.id == null) {
                 state.id = "EL-" + (100 + saved.size());
                 saved.add(state);
+                if (state.assignees.isEmpty()) {
+                    state.assignees.add(rob);
+                }
             }
             state.saves++;
             return null;
@@ -210,7 +239,7 @@ final class FakePolarion {
         }
         when(workItem.getHyperlinks()).thenReturn(hyperlinks);
         when(workItem.getCustomField(anyString())).thenAnswer(invocation -> state.fields.get(invocation.<String>getArgument(0)));
-        // What Polarion holds of a work item after the import: its type, a status and an assignee.
+        // What Polarion holds of a work item after the import: its type, a status and its assignees.
         ITypeOpt type = mock(ITypeOpt.class);
         when(type.getId()).thenReturn(state.type);
         when(type.getName()).thenReturn(state.type.substring(0, 1).toUpperCase() + state.type.substring(1));
@@ -219,11 +248,7 @@ final class FakePolarion {
         IStatusOpt status = mock(IStatusOpt.class);
         when(status.getName()).thenReturn("Open");
         when(workItem.getStatus()).thenReturn(status);
-        IUser assignee = mock(IUser.class);
-        when(assignee.getName()).thenReturn("Rob Project");
-        IPObjectList assignees = mock(IPObjectList.class);
-        when(assignees.iterator()).thenAnswer(invocation -> List.of(assignee).iterator());
-        when(workItem.getAssignees()).thenReturn(assignees);
+        when(workItem.getAssignees()).thenAnswer(invocation -> assignees(state));
         return workItem;
     }
 }

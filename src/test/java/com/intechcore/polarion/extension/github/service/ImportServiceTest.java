@@ -9,6 +9,9 @@ import com.intechcore.polarion.extension.github.settings.ItemRule;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
 import com.intechcore.polarion.extension.github.settings.RuleMatch;
+import com.intechcore.polarion.extension.github.settings.UserMapping;
+import com.polarion.alm.projects.IProjectService;
+import com.polarion.alm.projects.model.IUser;
 import com.polarion.alm.tracker.ITrackerService;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
 import com.polarion.alm.tracker.model.IHyperlinkStruct;
@@ -58,6 +61,7 @@ class ImportServiceTest {
     private final List<Object> found = new ArrayList<>();
     private int transactions;
     private ImportService service;
+    private final UserMapping userMapping = mock(UserMapping.class);
 
     @BeforeEach
     void setUp() {
@@ -102,7 +106,7 @@ class ImportServiceTest {
                 transactions++;
                 return action.get();
             }
-        });
+        }, userMapping);
     }
 
     private static GithubItem item(long number, String title, String url) {
@@ -1007,5 +1011,184 @@ class ImportServiceTest {
         service.importRepository(PROJECT, settings, false, null);
 
         verify(created.get(0)).setTitle("Crash by []");
+    }
+
+    /** Maps alice and Bob to Polarion users, and carl to one Polarion no longer knows. */
+    private Map<String, IUser> mapUsers() {
+        IProjectService projectService = mock(IProjectService.class);
+        when(polarionService.getProjectService()).thenReturn(projectService);
+        Map<String, IUser> users = new java.util.HashMap<>();
+        for (String id : List.of("aj", "bk", "cm", "rp")) {
+            IUser user = mock(IUser.class);
+            when(user.getId()).thenReturn(id);
+            when(projectService.getUser(id)).thenReturn(user);
+            users.put(id, user);
+        }
+        IUser ghost = mock(IUser.class);
+        when(ghost.isUnresolvable()).thenReturn(true);
+        when(projectService.getUser("ghost")).thenReturn(ghost);
+        when(userMapping.users(PROJECT)).thenReturn(Map.of("alice", "aj", "bob", "bk", "carl", "cm", "dave", "ghost"));
+        return users;
+    }
+
+    private static void assigned(IWorkItem workItem, IUser... users) {
+        IPObjectList assignees = mock(IPObjectList.class);
+        when(assignees.iterator()).thenAnswer(invocation -> List.of((Object[]) users).iterator());
+        when(workItem.getAssignees()).thenReturn(assignees);
+    }
+
+    private static GithubItem assignedTo(String... logins) {
+        return new GithubItem(7, "Crash on start", "Body of 7", "open", ISSUE_7, null, null, new GithubItem.User("alice"), List.of(), null, null, null,
+                java.util.Arrays.stream(logins).map(GithubItem.User::new).toList(), null, null);
+    }
+
+    @Test
+    void assignsTheMappedUsersOfTheGithubAssignees() {
+        Map<String, IUser> users = mapUsers();
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("assignee", "rp", "severity", "major"));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("ALICE", "bob", "dave", "eve", "alice")));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        IWorkItem workItem = created.get(0);
+        verify(workItem).addAssignee(users.get("aj"));
+        verify(workItem).addAssignee(users.get("bk"));
+        verify(workItem, times(2)).addAssignee(any());
+        // The mapped assignees replace the assignee of the settings, the other fields stay.
+        verify(polarionService, never()).setFieldValue(workItem, "assignee", "rp");
+        verify(polarionService).setFieldValue(workItem, "severity", "major");
+    }
+
+    @Test
+    void keepsTheAssigneeOfTheSettingsWithoutAMappedAssignee() {
+        mapUsers();
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("assignee", "rp"));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("eve")));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(polarionService).setFieldValue(created.get(0), "assignee", "rp");
+        verify(created.get(0), never()).addAssignee(any());
+    }
+
+    @Test
+    void assignsNobodyWithoutAMapping() {
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("alice")));
+
+        service.importRepository(PROJECT, settings(), false, null);
+
+        verify(created.get(0), never()).addAssignee(any());
+        verify(polarionService, never()).getProjectService();
+    }
+
+    @Test
+    void readsNoMappingForDiscussions() {
+        mapUsers();
+        RepositorySettingsModel settings = settings();
+        settings.setIssues(new ItemSettings());
+        settings.setDiscussions(ItemSettings.builder().enabled(true).workItemType("task").build());
+        when(githubClient.getOpenDiscussions("acme", "tool")).thenReturn(List.of(assignedTo("alice")));
+
+        service.importRepository(PROJECT, settings, false, null);
+
+        verify(created.get(0), never()).addAssignee(any());
+        verify(userMapping, never()).users(anyString());
+    }
+
+    @Test
+    void replacesTheMappedAssigneesAndKeepsTheOthers() {
+        Map<String, IUser> users = mapUsers();
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("alice", "bob")));
+        IWorkItem stored = upToDate();
+        assigned(stored, users.get("aj"), users.get("cm"), users.get("rp"));
+        found.add(stored);
+        IWorkItem writable = mock(IWorkItem.class);
+        assigned(writable, users.get("aj"), users.get("cm"), users.get("rp"));
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        assertThat(service.importRepository(PROJECT, settings(), true, null).getEntries().get(0).getMessage()).isEqualTo("differs in assignee");
+        ImportEntry entry = service.updateRepository(PROJECT, settings(), List.of(ISSUE_7)).getEntries().get(0);
+
+        assertThat(entry.getStatus()).isEqualTo(ImportStatus.UPDATED);
+        assertThat(entry.getMessage()).isEqualTo("updated assignee");
+        // carl left the issue on GitHub, bob came. The user assigned in Polarion by hand stays.
+        verify(writable).removeAssignee(users.get("cm"));
+        verify(writable).addAssignee(users.get("bk"));
+        verify(writable, times(1)).removeAssignee(any());
+        verify(writable, times(1)).addAssignee(any());
+        verify(writable).save();
+    }
+
+    @Test
+    void takesAwayTheMappedAssigneesRemovedOnGithub() {
+        Map<String, IUser> users = mapUsers();
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo()));
+        IWorkItem stored = upToDate();
+        assigned(stored, users.get("aj"), users.get("bk"), users.get("rp"));
+        found.add(stored);
+        IWorkItem writable = mock(IWorkItem.class);
+        assigned(writable, users.get("aj"), users.get("bk"), users.get("rp"));
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        service.updateRepository(PROJECT, settings(), List.of(ISSUE_7));
+
+        verify(writable).removeAssignee(users.get("aj"));
+        verify(writable).removeAssignee(users.get("bk"));
+        verify(writable, never()).removeAssignee(users.get("rp"));
+        verify(writable, never()).addAssignee(any());
+    }
+
+    @Test
+    void makesTheMappedAssigneesTheOnlyOnesWhenTheSettingsNameAnAssignee() {
+        Map<String, IUser> users = mapUsers();
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("assignee", "rp"));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("alice")));
+        IWorkItem stored = upToDate();
+        assigned(stored, users.get("aj"), users.get("rp"));
+        found.add(stored);
+        IWorkItem writable = mock(IWorkItem.class);
+        assigned(writable, users.get("aj"), users.get("rp"));
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        ImportEntry entry = service.updateRepository(PROJECT, settings, List.of(ISSUE_7)).getEntries().get(0);
+
+        assertThat(entry.getMessage()).isEqualTo("updated assignee");
+        verify(writable).removeAssignee(users.get("rp"));
+        verify(writable, never()).addAssignee(any());
+        verify(polarionService, never()).setFieldValue(any(IWorkItem.class), anyString(), any());
+    }
+
+    @Test
+    void setsTheAssigneeOfTheSettingsAgainWhenGithubHasNoMappedAssignee() {
+        Map<String, IUser> users = mapUsers();
+        RepositorySettingsModel settings = settings();
+        settings.getIssues().setFields(Map.of("assignee", "rp"));
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo()));
+        IWorkItem stored = upToDate();
+        assigned(stored, users.get("aj"));
+        found.add(stored);
+        when(polarionService.getFieldValue(stored, "assignee")).thenReturn(List.of(users.get("aj")));
+        IWorkItem writable = mock(IWorkItem.class);
+        when(polarionService.getWorkItem(PROJECT, "EL-5")).thenReturn(writable);
+
+        ImportEntry entry = service.updateRepository(PROJECT, settings, List.of(ISSUE_7)).getEntries().get(0);
+
+        assertThat(entry.getMessage()).isEqualTo("updated assignee");
+        verify(polarionService).setFieldValue(writable, "assignee", "rp");
+        verify(writable, never()).removeAssignee(any());
+    }
+
+    @Test
+    void reportsAWorkItemWithTheMappedAssigneesAsExisting() {
+        Map<String, IUser> users = mapUsers();
+        when(githubClient.getOpenIssues("acme", "tool")).thenReturn(List.of(assignedTo("bob", "alice")));
+        IWorkItem stored = upToDate();
+        assigned(stored, users.get("aj"), users.get("bk"), users.get("rp"));
+        found.add(stored);
+
+        assertThat(service.importRepository(PROJECT, settings(), true, null).getEntries().get(0).getStatus()).isEqualTo(ImportStatus.EXISTS);
     }
 }

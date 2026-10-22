@@ -98,6 +98,12 @@ The Polarion artifacts come from the Intechcore Nexus through the secrets `NEXUS
   items of the given URLs. `ImportService` compares an existing work item with what the settings and
   GitHub say now (title, description, type, the configured field values, the epic link) and reports
   `OUTDATED` with the differences; an update changes those and nothing else, never the URL key.
+- `settings/UserMapping` - the Polarion users of GitHub logins, one setting with a fixed file under the
+  feature `user-mapping`, global or per project. A project's own mapping replaces the global one. It
+  has its own endpoints (`/user-mapping?scope=`), because generic saves a named setting of a project
+  under a new file. `ImportService` assigns the work item of an issue or pull request to the users of
+  its mapped assignees: it adds and removes only mapped users, unless the settings name an
+  `assignee`, which the mapped assignees then replace.
 - `settings/HiddenItems` - the URLs a project hides on its GitHub page, one setting per project under
   the feature `hidden-items`, apart from the repository settings. `POST /projects/{projectId}/hidden-items`
   changes it; `GET .../items` marks each entry with `hidden`.

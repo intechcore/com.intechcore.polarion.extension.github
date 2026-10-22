@@ -31,6 +31,15 @@
                   projectGroupScope="false"
                   repositoryScope="false"/>
 
+        <extender id="user-mapping"
+                  name="User Mapping"
+                  parentNodeId="github"
+                  iconUrl="/polarion/github-app/ui/images/menu/16x16/users.svg"
+                  pageUrl="/polarion/github-app/ui/app/index.html?feature=user-mapping&amp;embedded=true&amp;scope=$scope$"
+                  projectScope="true"
+                  projectGroupScope="false"
+                  repositoryScope="true"/>
+
         <extender id="restapi"
                   name="REST API"
                   parentNodeId="github"

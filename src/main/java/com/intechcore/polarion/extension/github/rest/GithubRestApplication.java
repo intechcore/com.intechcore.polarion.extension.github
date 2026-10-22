@@ -7,6 +7,8 @@ import com.intechcore.polarion.extension.github.rest.controller.ImportApiControl
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
+import com.intechcore.polarion.extension.github.rest.controller.UserMappingApiController;
+import com.intechcore.polarion.extension.github.rest.controller.UserMappingInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
@@ -28,7 +30,9 @@ public class GithubRestApplication extends GenericRestApplication {
                 ImportApiController.class,
                 ImportInternalController.class,
                 ProjectApiController.class,
-                ProjectInternalController.class
+                ProjectInternalController.class,
+                UserMappingApiController.class,
+                UserMappingInternalController.class
         );
     }
 
