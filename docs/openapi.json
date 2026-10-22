@@ -530,6 +530,107 @@
         ]
       }
     },
+    "/api/user-mapping": {
+      "delete": {
+        "operationId": "resetUserMapping",
+        "parameters": [
+          {
+            "description": "The scope of a project: project/{projectId}/",
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMappingContent"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Removes the user mapping of a project, which then uses the global one",
+        "tags": [
+          "User mapping"
+        ]
+      },
+      "get": {
+        "operationId": "getUserMapping",
+        "parameters": [
+          {
+            "description": "Empty for the global mapping, or the scope of a project: project/{projectId}/",
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMappingContent"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Returns the user mapping a scope uses: its own, or the global one",
+        "tags": [
+          "User mapping"
+        ]
+      },
+      "put": {
+        "operationId": "saveUserMapping",
+        "parameters": [
+          {
+            "description": "Empty for the global mapping, or the scope of a project: project/{projectId}/",
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserMappingModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMappingContent"
+                }
+              }
+            },
+            "description": "default response"
+          }
+        },
+        "summary": "Saves the user mapping of a scope",
+        "tags": [
+          "User mapping"
+        ]
+      }
+    },
     "/api/users": {
       "get": {
         "operationId": "getUsers",
@@ -975,6 +1076,56 @@
           "setting": {
             "description": "The name of the repository setting",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserLink": {
+        "description": "A GitHub login and the Polarion user it stands for",
+        "properties": {
+          "githubLogin": {
+            "description": "The GitHub login",
+            "example": "octocat",
+            "type": "string"
+          },
+          "polarionUser": {
+            "description": "The ID of the Polarion user",
+            "example": "jdoe",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserMappingContent": {
+        "description": "The user mapping a scope uses",
+        "properties": {
+          "inherited": {
+            "description": "True when a project uses the global mapping",
+            "type": "boolean"
+          },
+          "users": {
+            "description": "The GitHub logins and their Polarion users",
+            "items": {
+              "$ref": "#/components/schemas/UserLink"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "UserMappingModel": {
+        "description": "The Polarion users that GitHub logins stand for",
+        "properties": {
+          "bundleTimestamp": {
+            "description": "The bundle timestamp of the setting",
+            "type": "string"
+          },
+          "users": {
+            "description": "One entry per GitHub login",
+            "items": {
+              "$ref": "#/components/schemas/UserLink"
+            },
+            "type": "array"
           }
         },
         "type": "object"

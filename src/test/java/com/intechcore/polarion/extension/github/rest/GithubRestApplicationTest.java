@@ -6,6 +6,8 @@ import com.intechcore.polarion.extension.github.rest.controller.ImportApiControl
 import com.intechcore.polarion.extension.github.rest.controller.ImportInternalController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectApiController;
 import com.intechcore.polarion.extension.github.rest.controller.ProjectInternalController;
+import com.intechcore.polarion.extension.github.rest.controller.UserMappingApiController;
+import com.intechcore.polarion.extension.github.rest.controller.UserMappingInternalController;
 import com.intechcore.polarion.extension.github.rest.exception.GithubClientExceptionMapper;
 import com.intechcore.polarion.extension.github.settings.HiddenItems;
 import com.intechcore.polarion.extension.github.settings.RepositorySettings;
@@ -36,6 +38,8 @@ class GithubRestApplicationTest {
                     ImportApiController.class,
                     ProjectInternalController.class,
                     ProjectApiController.class,
+                    UserMappingInternalController.class,
+                    UserMappingApiController.class,
                     GithubClientExceptionMapper.class);
             assertThat(settings.constructed()).hasSize(1);
             assertThat(NamedSettingsRegistry.INSTANCE.getByFeatureName(RepositorySettings.FEATURE_NAME))

@@ -8,6 +8,7 @@ import com.intechcore.polarion.extension.github.settings.DuplicateKey;
 import com.intechcore.polarion.extension.github.settings.ItemRule;
 import com.intechcore.polarion.extension.github.settings.ItemSettings;
 import com.intechcore.polarion.extension.github.settings.RepositorySettingsModel;
+import com.intechcore.polarion.extension.github.settings.UserMapping;
 import com.polarion.alm.shared.api.transaction.TransactionalExecutor;
 import com.polarion.alm.tracker.model.ICategory;
 import com.polarion.alm.tracker.model.IHyperlinkRoleOpt;
@@ -29,10 +30,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -53,6 +57,8 @@ public class ImportService {
     private static final String DESCRIPTION = "description";
     private static final String TYPE = "type";
     private static final String EPIC_LINK = "epic link";
+    // The field of the assignees, which the user mapping fills from GitHub.
+    static final String ASSIGNEE = "assignee";
     // The name of the placeholder {{ TITLE }}, which happens to read like the part above.
     private static final String TITLE_PLACEHOLDER = "title";
     private static final String BODY_PLACEHOLDER = "body";
@@ -71,6 +77,7 @@ public class ImportService {
     private final PolarionService polarionService;
     private final GithubClient githubClient;
     private final WriteTransaction writeTransaction;
+    private final UserMapping userMapping;
 
     public ImportService() {
         this(new PolarionService(), GithubClient.shared(), new WriteTransaction() {
@@ -78,13 +85,15 @@ public class ImportService {
             public <T> T execute(Supplier<T> action) {
                 return TransactionalExecutor.executeInWriteTransaction(transaction -> action.get());
             }
-        });
+        }, new UserMapping());
     }
 
-    public ImportService(@NotNull PolarionService polarionService, @NotNull GithubClient githubClient, @NotNull WriteTransaction writeTransaction) {
+    public ImportService(@NotNull PolarionService polarionService, @NotNull GithubClient githubClient, @NotNull WriteTransaction writeTransaction,
+                         @NotNull UserMapping userMapping) {
         this.polarionService = polarionService;
         this.githubClient = githubClient;
         this.writeTransaction = writeTransaction;
+        this.userMapping = userMapping;
     }
 
     /**
@@ -126,13 +135,14 @@ public class ImportService {
 
         // Everything that can fail as a whole happens before the first work item: a wrong setting or
         // a GitHub failure then leaves the project untouched, and no outcome is lost.
-        Target issueTarget = isEnabled(settings.getIssues()) ? resolveTarget(project, settings.getIssues()) : null;
-        Target discussionTarget = isEnabled(settings.getDiscussions()) ? resolveTarget(project, settings.getDiscussions()) : null;
+        Map<String, IUser> users = isEnabled(settings.getIssues()) || isEnabled(settings.getPullRequests()) ? users(projectId) : Map.of();
+        Target issueTarget = isEnabled(settings.getIssues()) ? resolveTarget(project, settings.getIssues(), users) : null;
+        Target discussionTarget = isEnabled(settings.getDiscussions()) ? resolveTarget(project, settings.getDiscussions(), Map.of()) : null;
         List<GithubItem> issues = issueTarget == null ? List.of() : githubClient.getOpenIssues(name[0], name[1]);
         List<GithubItem> discussions = discussionTarget == null ? List.of() : githubClient.getOpenDiscussions(name[0], name[1]);
-        Target pullRequestTarget = isEnabled(settings.getPullRequests()) ? resolveTarget(project, settings.getPullRequests()) : null;
+        Target pullRequestTarget = isEnabled(settings.getPullRequests()) ? resolveTarget(project, settings.getPullRequests(), users) : null;
         List<GithubItem> pullRequests = pullRequestTarget == null ? List.of() : failedPullRequests(name, settings, pullRequestTarget, onlyUrls);
-        Target advisoryTarget = isEnabled(settings.getAdvisories()) ? resolveTarget(project, settings.getAdvisories()) : null;
+        Target advisoryTarget = isEnabled(settings.getAdvisories()) ? resolveTarget(project, settings.getAdvisories(), Map.of()) : null;
         List<GithubItem> advisories = advisoryTarget == null ? List.of() : advisories(name, advisoryTarget);
 
         if (issueTarget != null) {
@@ -204,10 +214,25 @@ public class ImportService {
     }
 
     /**
+     * The Polarion users of the mapped GitHub logins, by the login in lower case. A user Polarion does
+     * not know is left out, so a stale entry never fails the import.
+     */
+    private Map<String, IUser> users(String projectId) {
+        Map<String, IUser> users = new HashMap<>();
+        userMapping.users(projectId).forEach((login, userId) -> {
+            IUser user = polarionService.getProjectService().getUser(userId);
+            if (user != null && !user.isUnresolvable()) {
+                users.put(login, user);
+            }
+        });
+        return users;
+    }
+
+    /**
      * Looks up everything the settings name in the project, so a wrong type, epic or role fails the
      * import once and not for every item.
      */
-    private Target resolveTarget(ITrackerProject project, ItemSettings settings) {
+    private Target resolveTarget(ITrackerProject project, ItemSettings settings, Map<String, IUser> users) {
         boolean linked = settings.getEpicId() != null && !settings.getEpicId().isBlank();
         IWorkItem epic = linked ? polarionService.getWorkItem(project.getId(), settings.getEpicId()) : null;
         Map<String, String> fields = settings.getFields() == null ? Map.of() : settings.getFields();
@@ -227,7 +252,7 @@ public class ImportService {
                 rules.add(new ResolvedRule(rule, outcome));
             }
         }
-        return new Target(project, settings, epic, fallback, rules, new HashMap<>(), new HashMap<>());
+        return new Target(project, settings, epic, fallback, rules, new HashMap<>(), new HashMap<>(), users);
     }
 
     private static Outcome resolveOutcome(ITrackerProject project, ItemSettings settings, String typeId,
@@ -316,7 +341,7 @@ public class ImportService {
             return existing;
         }
         Outcome outcome = rule == null ? target.fallback() : rule.outcome();
-        Expected expected = expected(item, target, settings);
+        Expected expected = expected(item, target, outcome, settings);
         List<String> differences = differences(existing.workItem(), target, outcome, expected);
         if (differences.isEmpty()) {
             return existing;
@@ -338,16 +363,103 @@ public class ImportService {
         }
     }
 
-    /** The title and description a work item of the item should have now. A null description is not managed. */
-    private record Expected(String title, @Nullable String description) {
+    /**
+     * The title, description and assignees a work item of the item should have now. A null description
+     * is not managed, nor are null assignees.
+     */
+    private record Expected(String title, @Nullable String description, @Nullable Assignees assignees) {
     }
 
-    private static Expected expected(GithubItem item, Target target, RepositorySettingsModel settings) {
+    /** The field values to set: without the assignee when the assignees come from GitHub. */
+    private static Map<String, String> fields(Outcome outcome, @Nullable Assignees assignees) {
+        if (assignees == null || !outcome.fields().containsKey(ASSIGNEE)) {
+            return outcome.fields();
+        }
+        Map<String, String> fields = new LinkedHashMap<>(outcome.fields());
+        fields.remove(ASSIGNEE);
+        return fields;
+    }
+
+    private static Expected expected(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
         Map<String, String> values = templateValues(item, target, settings);
         String description = itemSettings.getDescriptionTemplate() == null || itemSettings.getDescriptionTemplate().isBlank()
                 ? null : renderDescription(itemSettings.getDescriptionTemplate(), item, values);
-        return new Expected(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values), description);
+        return new Expected(TemplateRenderer.renderText(itemSettings.getTitleTemplate(), values), description, assignees(item, target, outcome));
+    }
+
+    /**
+     * The users a work item gets from the assignees of its GitHub item, or null when the mapping does
+     * not decide them. Without a mapped assignee an assignee of the settings applies, as without a mapping.
+     */
+    private static @Nullable Assignees assignees(GithubItem item, Target target, Outcome outcome) {
+        if (target.users().isEmpty()) {
+            return null;
+        }
+        Map<String, IUser> wanted = new LinkedHashMap<>();
+        for (String login : item.assigneeLogins()) {
+            IUser user = target.users().get(login.toLowerCase(Locale.ROOT));
+            if (user != null) {
+                wanted.putIfAbsent(user.getId(), user);
+            }
+        }
+        boolean configured = outcome.fields().containsKey(ASSIGNEE);
+        if (wanted.isEmpty() && configured) {
+            return null;
+        }
+        Set<String> managed = new HashSet<>();
+        target.users().values().forEach(user -> managed.add(user.getId()));
+        return new Assignees(List.copyOf(wanted.values()), configured, managed);
+    }
+
+    /**
+     * The assignees of a work item that come from GitHub. With an assignee in the settings they are
+     * all the assignees. Otherwise they replace only the mapped users, and an assignee set in Polarion
+     * by hand stays.
+     */
+    private record Assignees(List<IUser> wanted, boolean exact, Set<String> managed) {
+
+        /** The users to take away from the current ones. */
+        List<IUser> toRemove(List<IUser> current) {
+            Set<String> wantedIds = ids(wanted);
+            return current.stream().filter(user -> !wantedIds.contains(user.getId()) && (exact || managed.contains(user.getId()))).toList();
+        }
+
+        /** The users to add to the current ones. */
+        List<IUser> toAdd(List<IUser> current) {
+            Set<String> currentIds = ids(current);
+            return wanted.stream().filter(user -> !currentIds.contains(user.getId())).toList();
+        }
+
+        boolean differ(List<IUser> current) {
+            return !toRemove(current).isEmpty() || !toAdd(current).isEmpty();
+        }
+
+        void apply(IWorkItem workItem) {
+            List<IUser> current = users(workItem);
+            toRemove(current).forEach(workItem::removeAssignee);
+            toAdd(current).forEach(workItem::addAssignee);
+        }
+
+        private static Set<String> ids(List<IUser> users) {
+            Set<String> ids = new HashSet<>();
+            users.forEach(user -> ids.add(user.getId()));
+            return ids;
+        }
+    }
+
+    @SuppressWarnings("unchecked") // IWorkItem.getAssignees is declared with a raw IPObjectList
+    private static List<IUser> users(IWorkItem workItem) {
+        List<IUser> users = new ArrayList<>();
+        List<Object> assignees = workItem.getAssignees();
+        if (assignees != null) {
+            for (Object user : assignees) {
+                if (user instanceof IUser assignee) {
+                    users.add(assignee);
+                }
+            }
+        }
+        return users;
     }
 
     /** The parts of the work item that differ, by name: title, description, type, a field ID, epic link. */
@@ -364,11 +476,14 @@ public class ImportService {
         if (type == null || !Objects.equals(outcome.type().getId(), type.getId())) {
             differences.add(TYPE);
         }
-        outcome.fields().forEach((fieldId, value) -> {
+        fields(outcome, expected.assignees()).forEach((fieldId, value) -> {
             if (!holds(workItem, fieldId, value)) {
                 differences.add(fieldId);
             }
         });
+        if (expected.assignees() != null && expected.assignees().differ(users(workItem))) {
+            differences.add(ASSIGNEE);
+        }
         if (target.epic() != null && !linkedTo(workItem, target.epic(), outcome.epicRole())) {
             differences.add(EPIC_LINK);
         }
@@ -417,6 +532,14 @@ public class ImportService {
                         && link.getLinkRole() != null && role != null && Objects.equals(role.getId(), link.getLinkRole().getId()));
     }
 
+    private void setAssignees(Target target, IWorkItem workItem, Outcome outcome, Expected expected) {
+        if (expected.assignees() == null) {
+            setField(target.project(), workItem, ASSIGNEE, outcome.fields().get(ASSIGNEE));
+        } else {
+            expected.assignees().apply(workItem);
+        }
+    }
+
     /** @return the work item as it is after the save, with what the workflow set, or null when it cannot be read */
     private @Nullable Existing update(Target target, Outcome outcome, Expected expected, String workItemId, List<String> differences) {
         IWorkItem workItem = polarionService.getWorkItem(target.project().getId(), workItemId);
@@ -426,6 +549,7 @@ public class ImportService {
                 case DESCRIPTION -> workItem.setDescription(Text.html(expected.description()));
                 case TYPE -> workItem.setType(outcome.type());
                 case EPIC_LINK -> workItem.addLinkedItem(target.epic(), outcome.epicRole(), null, false);
+                case ASSIGNEE -> setAssignees(target, workItem, outcome, expected);
                 default -> setField(target.project(), workItem, difference, outcome.fields().get(difference));
             }
         }
@@ -478,6 +602,8 @@ public class ImportService {
     private Existing createWorkItem(GithubItem item, Target target, Outcome outcome, RepositorySettingsModel settings) {
         ItemSettings itemSettings = target.settings();
         Map<String, String> values = templateValues(item, target, settings);
+        Assignees assignees = assignees(item, target, outcome);
+        Map<String, String> fields = fields(outcome, assignees);
 
         IWorkItem workItem = polarionService.getTrackerService().createWorkItem(target.project());
         workItem.setType(outcome.type());
@@ -485,7 +611,10 @@ public class ImportService {
         if (itemSettings.getDescriptionTemplate() != null && !itemSettings.getDescriptionTemplate().isBlank()) {
             workItem.setDescription(Text.html(renderDescription(itemSettings.getDescriptionTemplate(), item, values)));
         }
-        outcome.fields().forEach((fieldId, value) -> setField(target.project(), workItem, fieldId, value));
+        fields.forEach((fieldId, value) -> setField(target.project(), workItem, fieldId, value));
+        if (assignees != null) {
+            assignees.apply(workItem);
+        }
         if (itemSettings.getDuplicateKey() == DuplicateKey.CUSTOM_FIELD) {
             polarionService.setFieldValue(workItem, itemSettings.getDuplicateKeyField(), item.htmlUrl());
         } else {
@@ -615,7 +744,7 @@ public class ImportService {
 
     /** What the import needs of one block of the settings, looked up in the project. */
     private record Target(ITrackerProject project, ItemSettings settings, @Nullable IWorkItem epic, Outcome fallback, List<ResolvedRule> rules,
-                          Map<String, String> checks, Map<String, GithubAdvisory> advisories) {
+                          Map<String, String> checks, Map<String, GithubAdvisory> advisories, Map<String, IUser> users) {
     }
 
     /** The work item an item becomes: its type, the role of its link to the epic, and its field values. */
