@@ -17,6 +17,7 @@ import {
   ITEMS,
   SCOPE,
   itemsRoutes,
+  projectItems,
 } from './fixtures/items';
 import { type FetchMock, type Route, installFetchMock, jsonResponse } from './mockFetch';
 
@@ -61,6 +62,8 @@ async function choose(label: string, ...texts: string[]) {
 }
 
 let fetchMock: FetchMock;
+/** The URLs of the requests for items, in the order the page sent them. */
+const itemsCalls = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((url) => url.includes('/items?'));
 
 async function mount(overrides: Route[] = []) {
   fetchMock = installFetchMock(itemsRoutes(overrides));
@@ -102,8 +105,8 @@ describe('GitHub items page', () => {
       '#9 Old idea',
       '#10 Export to CSV',
       '#30 How to configure',
-      '#3 Typo in the guide',
       '#4 Renamed on GitHub',
+      '#3 Typo in the guide',
     ]);
     const cells = (row: number) =>
       Array.from(document.querySelectorAll('.items-table tbody tr')[row].children).map((cell) =>
@@ -133,8 +136,8 @@ describe('GitHub items page', () => {
     expect([cells(0)[7], cells(0)[8]]).toEqual(['', '']);
     expect(rows[0].querySelector('.work-item-cell')).toBeNull();
     // A status without an icon shows its name alone.
-    expect(rows[6].children[8].textContent).toBe('Open');
-    expect(rows[6].children[8].querySelector('img')).toBeNull();
+    expect(rows[5].children[8].textContent).toBe('Open');
+    expect(rows[5].children[8].querySelector('img')).toBeNull();
     // Labels take the colors of GitHub, with dark text on a light label and white on a dark one.
     const chips = Array.from(rows[0].querySelectorAll<HTMLElement>('.label-chip'));
     expect(chips.map((chip) => [chip.textContent, chip.style.backgroundColor, chip.style.color])).toEqual([
@@ -154,7 +157,15 @@ describe('GitHub items page', () => {
     expect(checkbox('https://github.com/acme/tool/issues/5')).toBeNull();
     expect(checkbox('https://github.com/acme/tool/issues/9')).toBeNull();
     expect(button('Create work items').disabled).toBe(true);
-    expect(String(fetchMock.mock.calls[0][0])).toBe('/polarion/github/rest/internal/projects/elibrary/items');
+    // The page reads the names of the settings, then the items of each setting.
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      '/polarion/github/rest/internal/settings/repositories/names?scope=project%2Felibrary%2F',
+    );
+    expect(itemsCalls()).toEqual([
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=tool',
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=docs',
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=broken',
+    ]);
   });
 
   it('hides and moves columns, and keeps the layout for the next visit', async () => {
@@ -265,14 +276,12 @@ describe('GitHub items page', () => {
   });
 
   it('shows a security advisory by its GHSA ID and finds it by it', async () => {
-    fetchMock = installFetchMock(
-      itemsRoutes([{ method: 'GET', match: /\/items$/, json: { ...ITEMS, entries: [...ITEMS.entries, ADVISORY] } }]),
-    );
+    fetchMock = installFetchMock(itemsRoutes(projectItems({ ...ITEMS, entries: [...ITEMS.entries, ADVISORY] })));
     setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
     render(<App />);
     await vi.waitFor(() => expect(numbers()).toHaveLength(8));
 
-    const row = document.querySelectorAll('.items-table tbody tr')[7];
+    const row = document.querySelectorAll('.items-table tbody tr')[6];
     expect(row.querySelector('.kind-ADVISORY')).not.toBeNull();
     expect(row.querySelector('a.item-number')!.textContent).toBe('GHSA-r7fg-v8g5-j6jr');
     expect(document.querySelector('[aria-label="Hide GHSA-r7fg-v8g5-j6jr"]')).not.toBeNull();
@@ -283,15 +292,13 @@ describe('GitHub items page', () => {
 
   it('shows a pull request with its failed checks, and filters it by its kind', async () => {
     fetchMock = installFetchMock(
-      itemsRoutes([
-        { method: 'GET', match: /\/items$/, json: { ...ITEMS, entries: [...ITEMS.entries, FAILED_PULL_REQUEST] } },
-      ]),
+      itemsRoutes([...projectItems({ ...ITEMS, entries: [...ITEMS.entries, FAILED_PULL_REQUEST] })]),
     );
     setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
     render(<App />);
     await vi.waitFor(() => expect(numbers()).toHaveLength(8));
 
-    const row = document.querySelectorAll('.items-table tbody tr')[7];
+    const row = document.querySelectorAll('.items-table tbody tr')[6];
     expect(row.querySelector('.kind-PULL_REQUEST')).not.toBeNull();
     expect(row.querySelector('.item-checks')!.textContent).toBe('Failed checks: build, e2e');
     expect(checkbox(FAILED_PULL_REQUEST.url!)).not.toBeNull();
@@ -367,14 +374,18 @@ describe('GitHub items page', () => {
   it('reads only the repositories of the widget, in its order', async () => {
     await mountWidget('&settings=docs%2Ctool');
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe(
-      '/polarion/github/rest/internal/projects/elibrary/items?settings=docs&settings=tool',
-    );
+    // A widget names its settings: it never asks for the names.
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/names'))).toBe(false);
+    expect(itemsCalls()).toEqual([
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=docs',
+      '/polarion/github/rest/internal/projects/elibrary/items?settings=tool',
+    ]);
     button('Update from GitHub').click();
     await vi.waitFor(() =>
-      expect(String(fetchMock.mock.calls.at(-1)![0])).toBe(
-        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true&settings=docs&settings=tool',
-      ),
+      expect(itemsCalls().slice(2)).toEqual([
+        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true&settings=docs',
+        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true&settings=tool',
+      ]),
     );
   });
 
@@ -411,17 +422,16 @@ describe('GitHub items page', () => {
   });
 
   it('shows the read time on the 24-hour clock', async () => {
-    await mount([
-      {
-        method: 'GET',
-        match: /\/items$/,
-        json: {
-          ...ITEMS,
-          repositories: [{ setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T18:48:00Z', error: null }],
-          cacheMinutes: 1,
-        },
-      },
-    ]);
+    await mount(
+      projectItems({
+        ...ITEMS,
+        repositories: [
+          { setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T18:48:00Z', error: null },
+          { setting: 'docs', repository: 'acme/docs', readAt: null, error: null },
+        ],
+        cacheMinutes: 1,
+      }),
+    );
 
     const text = document.querySelector('.items-read-at')!.textContent!;
     const local = new Date('2026-10-03T18:48:00Z');
@@ -509,8 +519,8 @@ describe('GitHub items page', () => {
       'Left out: by the rule Label = wontfix',
       'Failed: The field severity is required',
       'New',
-      'Created',
       'Out of date: differs in title',
+      'Created',
     ]);
     expect(button('Create work items').disabled).toBe(true);
   });
@@ -549,7 +559,7 @@ describe('GitHub items page', () => {
     const updates = fetchMock.mock.calls.filter((c) => /\/update$/.test(String(c[0])));
     expect(updates.map((c) => JSON.parse(String(c[1]!.body)))).toEqual([{ urls: [ISSUE_4] }]);
     const rows = document.querySelectorAll('.items-table tbody tr');
-    expect(rows[6].querySelector('.state')!.textContent).toBe('Updated: updated title');
+    expect(rows[5].querySelector('.state')!.textContent).toBe('Updated: updated title');
     // The new item #7 stays as it was, and stays selected for Create.
     expect(rows[0].querySelector('.state')!.textContent).toBe('New');
     expect(checkbox(ISSUE_7)!.checked).toBe(true);
@@ -565,7 +575,7 @@ describe('GitHub items page', () => {
           repository: 'acme/tool',
           dryRun: false,
           readAt: null,
-          entries: [{ ...ITEMS.entries[6], status: 'FAILED', message: 'locked' }],
+          entries: [{ ...ITEMS.entries[5], status: 'FAILED', message: 'locked' }],
         },
       },
     ]);
@@ -603,32 +613,100 @@ describe('GitHub items page', () => {
     await mount();
 
     button('Refresh').click();
-    await vi.waitFor(() => expect(fetchMock.mock.calls.filter((c) => /\/items$/.test(String(c[0])))).toHaveLength(2));
+    await vi.waitFor(() => expect(itemsCalls().filter((url) => url.endsWith('?settings=tool'))).toHaveLength(2));
 
     // The buttons stay disabled while a read runs.
     await vi.waitFor(() => expect(button('Update from GitHub').disabled).toBe(false));
     button('Update from GitHub').click();
     await vi.waitFor(() =>
       expect(fetchMock.mock.calls.map((c) => String(c[0]))).toContain(
-        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true',
+        '/polarion/github/rest/internal/projects/elibrary/items?refresh=true&settings=tool',
       ),
     );
   });
 
-  it('shows why the items did not load', async () => {
+  it('shows why the repository settings did not load', async () => {
     fetchMock = installFetchMock(
-      itemsRoutes([{ method: 'GET', match: /\/items$/, respond: () => new Response('down', { status: 500 }) }]),
+      itemsRoutes([
+        {
+          method: 'GET',
+          match: /\/settings\/repositories\/names\?/,
+          respond: () => new Response('down', { status: 500 }),
+        },
+      ]),
     );
     setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
     render(<App />);
 
     await vi.waitFor(() => expect(alerts()).toEqual(['down']));
+    expect(itemsCalls()).toEqual([]);
+  });
+
+  it('names a repository whose request failed and shows the others', async () => {
+    await mount([
+      { method: 'GET', match: /\/items\?settings=broken$/, respond: () => new Response('down', { status: 500 }) },
+    ]);
+
+    expect(alerts()).toEqual(['broken: down']);
+    expect(document.querySelector('.items-progress')).toBeNull();
+  });
+
+  it('shows the progress of the read and the rows of each repository as it arrives', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const names = Array.from({ length: 5 }, (_, i) => ({ name: `repo${i}`, scope: SCOPE }));
+    fetchMock = installFetchMock(
+      itemsRoutes([
+        { method: 'GET', match: /\/settings\/repositories\/names\?/, json: names },
+        {
+          method: 'GET',
+          match: /\/items\?settings=repo\d$/,
+          respond: (url) => {
+            const setting = url.slice(-5);
+            const state = { setting, repository: `acme/${setting}`, readAt: null, error: null };
+            const entry = {
+              ...ITEMS.entries[0],
+              setting,
+              title: setting,
+              url: `https://github.com/acme/${setting}/issues/1`,
+            };
+            return jsonResponse({ repositories: [state], entries: [entry], cacheMinutes: 5 });
+          },
+        },
+      ]),
+    );
+    // The third repository answers only on release. Every answer waits a moment, so the reads overlap.
+    const respond = fetchMock.getMockImplementation()!;
+    let running = 0;
+    let most = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (!String(input).includes('/items?')) return respond(input, init);
+      most = Math.max(most, ++running);
+      await (String(input).endsWith('settings=repo2') ? held : new Promise((resolve) => setTimeout(resolve, 20)));
+      running--;
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+
+    const progress = () => document.querySelector('.items-progress');
+    await vi.waitFor(() => expect(progress()?.textContent).toBe('Reading: 4 of 5 repositories'));
+    expect(progress()!.querySelector('progress')!.value).toBe(4);
+    // The rows keep the order of the settings, whatever order the answers come in.
+    expect(numbers().map((text) => text.split(' ')[1])).toEqual(['repo0', 'repo1', 'repo3', 'repo4']);
+    // Three requests run at a time, never more.
+    expect(itemsCalls()).toHaveLength(5);
+    expect(most).toBe(3);
+    expect(button('Refresh').disabled).toBe(true);
+
+    release();
+    await vi.waitFor(() => expect(progress()).toBeNull());
+    expect(numbers()).toHaveLength(5);
+    expect(button('Refresh').disabled).toBe(false);
   });
 
   it('points to the Repositories page while the project has no setting', async () => {
-    fetchMock = installFetchMock(
-      itemsRoutes([{ method: 'GET', match: /\/items$/, json: { repositories: [], entries: [] } }]),
-    );
+    fetchMock = installFetchMock(itemsRoutes(projectItems({ repositories: [], entries: [], cacheMinutes: 5 })));
     setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
     render(<App />);
 
@@ -638,20 +716,23 @@ describe('GitHub items page', () => {
 
   it('shows an item without a URL as plain text and leaves out the read time when nothing was read', async () => {
     fetchMock = installFetchMock(
-      itemsRoutes([
-        {
-          method: 'GET',
-          match: /\/items$/,
-          json: {
-            repositories: [
-              { setting: 'draft', repository: null, readAt: null, error: 'The repository must be given as owner/name' },
-            ],
-            entries: [
-              { ...ITEMS.entries[0], url: null, status: 'FAILED', message: 'The item has no URL in the repository' },
-            ],
-          },
-        },
-      ]),
+      itemsRoutes(
+        projectItems({
+          repositories: [
+            { setting: 'draft', repository: null, readAt: null, error: 'The repository must be given as owner/name' },
+          ],
+          entries: [
+            {
+              ...ITEMS.entries[0],
+              setting: 'draft',
+              url: null,
+              status: 'FAILED',
+              message: 'The item has no URL in the repository',
+            },
+          ],
+          cacheMinutes: 5,
+        }),
+      ),
     );
     setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
     render(<App />);
@@ -729,6 +810,73 @@ describe('the GitHub token of the user', () => {
         fetchMock.mock.calls.some(([url, init]) => String(url).endsWith('/github-token') && init?.method === 'DELETE'),
       ).toBe(true),
     );
+  });
+
+  it('keeps the rows of the read with the new token when the old read answers late', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = installFetchMock(itemsRoutes());
+    const respond = fetchMock.getMockImplementation()!;
+    let first = true;
+    // The first read of tool, without a token, answers only on release, with a row the new read lacks.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (first && String(input).endsWith('/items?settings=tool')) {
+        first = false;
+        await held;
+        const stale = { ...ITEMS.entries[0], title: 'Stale', url: 'https://github.com/acme/tool/issues/99' };
+        return jsonResponse({ repositories: [ITEMS.repositories[0]], entries: [stale], cacheMinutes: 5 });
+      }
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(document.querySelector('.items-progress')?.textContent).toContain('2 of 3'));
+
+    await userEvent.click(tokenButton());
+    await vi.waitFor(() => expect(document.activeElement).toBe(tokenInput()));
+    await userEvent.fill(tokenInput(), TOKEN);
+    await userEvent.click(button('Save'));
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
+    expect(document.querySelector('.items-progress')).toBeNull();
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(numbers()).toHaveLength(7);
+    expect(numbers()).not.toContain('#7 Stale');
+    expect(button('Refresh').disabled).toBe(false);
+  });
+
+  it('sends no more requests for a read that a newer one replaced', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const names = Array.from({ length: 5 }, (_, i) => ({ name: `repo${i}`, scope: SCOPE }));
+    fetchMock = installFetchMock(
+      itemsRoutes([
+        { method: 'GET', match: /\/settings\/repositories\/names\?/, json: names },
+        { method: 'GET', match: /\/items\?settings=repo\d$/, json: { repositories: [], entries: [], cacheMinutes: 5 } },
+      ]),
+    );
+    const respond = fetchMock.getMockImplementation()!;
+    const tokenOf = (init?: RequestInit) => (init?.headers as Record<string, string> | undefined)?.['X-GitHub-Token'];
+    // The reads without a token answer only on release.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).includes('/items?') && !tokenOf(init)) await held;
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(itemsCalls()).toHaveLength(3));
+
+    await userEvent.click(tokenButton());
+    await vi.waitFor(() => expect(document.activeElement).toBe(tokenInput()));
+    await userEvent.fill(tokenInput(), TOKEN);
+    await userEvent.click(button('Save'));
+    await vi.waitFor(() => expect(itemsCalls()).toHaveLength(8));
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // The old read stops: three requests of its own, five of the new read, none more.
+    expect(itemsCalls()).toHaveLength(8);
   });
 
   it('says when the server could not forget the token', async () => {

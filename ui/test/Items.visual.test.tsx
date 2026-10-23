@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import App from '../src/App';
 import { appButton, captureApp } from './captureApp';
-import { ADVISORY, FAILED_PULL_REQUEST, ITEMS, SCOPE, itemsRoutes } from './fixtures/items';
+import { ADVISORY, FAILED_PULL_REQUEST, ITEMS, SCOPE, itemsRoutes, projectItems } from './fixtures/items';
 import { type Route, installFetchMock } from './mockFetch';
 
 // Docker-only full-page snapshots of the page of the GitHub items (the topic GitHub of a project and the
@@ -78,13 +78,7 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
   });
 
   it('a pull request of Renovate whose checks failed, and a drafted security advisory', async () => {
-    await open([
-      {
-        method: 'GET',
-        match: /\/items$/,
-        json: { ...ITEMS, entries: [...ITEMS.entries.slice(0, 2), FAILED_PULL_REQUEST, ADVISORY] },
-      },
-    ]);
+    await open(projectItems({ ...ITEMS, entries: [...ITEMS.entries.slice(0, 2), FAILED_PULL_REQUEST, ADVISORY] }));
 
     await vi.waitFor(() => expect(rows()).toHaveLength(4));
     await captureApp('items-pull-request');
@@ -125,8 +119,23 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-widget');
   });
 
+  it('the repositories being read, one of them still running', async () => {
+    const fetchMock = installFetchMock(itemsRoutes());
+    const respond = fetchMock.getMockImplementation()!;
+    // The last repository never answers: the page stays in the middle of the read.
+    fetchMock.mockImplementation((input, init) =>
+      String(input).endsWith('settings=broken') ? new Promise(() => {}) : respond(input, init),
+    );
+    window.history.replaceState({}, '', `?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+
+    await vi.waitFor(() => expect(document.querySelector('.items-progress')?.textContent).toContain('2 of 3'));
+    await vi.waitFor(() => expect(rows()).toHaveLength(7));
+    await captureApp('items-reading');
+  });
+
   it('a project without a repository setting', async () => {
-    await open([{ method: 'GET', match: /\/items$/, json: { repositories: [], entries: [] } }]);
+    await open(projectItems({ repositories: [], entries: [], cacheMinutes: 5 }));
 
     await vi.waitFor(() => expect(document.querySelector('.page')?.textContent).toContain('no repository setting'));
     await captureApp('items-no-settings');

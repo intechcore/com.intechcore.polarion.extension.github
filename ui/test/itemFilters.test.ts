@@ -7,7 +7,7 @@ const numbers = (filters: Partial<typeof NO_FILTERS>) =>
 
 describe('item filters', () => {
   it('shows everything without a filter', () => {
-    expect(numbers({})).toEqual([7, 5, 9, 10, 30, 3, 4, 2]);
+    expect(numbers({})).toEqual([7, 5, 9, 10, 30, 4, 2, 3]);
   });
 
   it('matches an item by any of the selected values of a filter', () => {
@@ -21,7 +21,7 @@ describe('item filters', () => {
 
   it('matches an item without a value by the empty choice', () => {
     expect(numbers({ assignees: [NONE] })).toEqual([9, 10, 30, 4, 2]);
-    expect(numbers({ githubTypes: [NONE] })).toEqual([9, 10, 3, 4, 2]);
+    expect(numbers({ githubTypes: [NONE] })).toEqual([9, 10, 4, 2, 3]);
     expect(numbers({ workItemTypes: [NONE] })).toEqual([9]);
   });
 
@@ -31,7 +31,7 @@ describe('item filters', () => {
 
   it('counts a work item created or updated on the page as one that exists', () => {
     const created = { ...ENTRIES[0], status: 'CREATED' as const };
-    const updated = { ...ENTRIES[6], status: 'UPDATED' as const };
+    const updated = { ...ENTRIES[5], status: 'UPDATED' as const };
     expect(applyFilters([created, updated], { ...NO_FILTERS, states: ['EXISTS'] })).toEqual([created, updated]);
   });
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   faArrowsRotate,
@@ -30,6 +30,7 @@ import {
   saveLayout,
   visibleColumns,
 } from '../services/columns';
+import { eachLimited } from '../services/eachLimited';
 import {
   type ItemFilters,
   KIND_LABELS,
@@ -41,7 +42,17 @@ import {
 import { readPageOptions } from '../services/pageOptions';
 import useSettings from '../services/settings';
 import useIframeAutoHeight from '../services/useIframeAutoHeight';
-import type { ImportEntry, ImportStatus, ItemKind, RepositoryState } from '../types';
+import type { ImportEntry, ImportStatus, ItemKind, ProjectItems, RepositoryState } from '../types';
+
+/** How many repository settings the page reads at a time. GitHub limits parallel requests. */
+const PARALLEL_READS = 3;
+
+/** What a long action has done so far, counted in repository settings. */
+interface Progress {
+  action: string;
+  done: number;
+  total: number;
+}
 
 const join = (values: string[] | null | undefined) => (values ?? []).join(', ');
 
@@ -84,6 +95,7 @@ export default function Items() {
   const [filters, setFilters] = useState<ItemFilters>(options.filters);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState('');
   // A widget that fixes its columns neither reads nor changes the layout the viewer keeps.
   const [layout, setLayout] = useState<ColumnLayout>(() => options.layout ?? loadLayout());
@@ -99,26 +111,83 @@ export default function Items() {
   useIframeAutoHeight(options.widget);
   const title = options.widget ? undefined : 'GitHub';
 
+  // A new token starts a read while one runs: only the latest read writes the page.
+  const latestRead = useRef(0);
+
+  /**
+   * Reads the items one repository setting at a time, a few in parallel, so the table fills as they
+   * come. A setting not read yet keeps the rows it had.
+   */
   const load = useCallback(
     async (refresh = false) => {
+      const run = ++latestRead.current;
+      const current = () => run === latestRead.current;
       setBusy(true);
       setError('');
+      setChecked(new Set());
       try {
-        // A widget reads only the repositories it names, in their order.
         const started = performance.now();
-        const items = await settings.loadItems(projectId, refresh, options.widget ? options.filters.settings : []);
-        setRepositories(items.repositories);
-        setCacheMinutes(items.cacheMinutes);
-        setEntries(items.entries);
-        setGenerationTime(performance.now() - started);
-        setChecked(new Set());
+        // A widget reads only the repositories it names, in their order.
+        const names =
+          options.widget && options.filters.settings.length > 0
+            ? [...new Set(options.filters.settings)]
+            : (await settings.loadConfigurationNames(scope)).map((name) => name.name);
+        if (!current()) return;
+        if (names.length === 0) {
+          setRepositories([]);
+          setEntries([]);
+        }
+        const read = new Map<string, ProjectItems>();
+        const merge = <T,>(
+          current: T[] | null,
+          setting: (value: T) => string | null,
+          fresh: (items: ProjectItems) => T[],
+        ) =>
+          names.flatMap((name) => {
+            const items = read.get(name);
+            return items ? fresh(items) : (current ?? []).filter((value) => setting(value) === name);
+          });
+        setProgress({ action: 'Reading', done: 0, total: names.length });
+        await eachLimited(names, PARALLEL_READS, async (name) => {
+          // A replaced read sends no more requests: each one counts against the GitHub limit.
+          if (!current()) return;
+          try {
+            const items = await settings.loadItems(projectId, refresh, [name]);
+            read.set(name, items);
+            if (current()) setCacheMinutes(items.cacheMinutes);
+          } catch (e) {
+            // One repository that fails leaves the others readable, as on the server.
+            const failed = { setting: name, repository: null, readAt: null, error: (e as Error).message };
+            read.set(name, { repositories: [failed], entries: [], cacheMinutes: 0 });
+          }
+          if (!current()) return;
+          setRepositories((current) =>
+            merge(
+              current,
+              (state) => state.setting,
+              (items) => items.repositories,
+            ),
+          );
+          setEntries((current) =>
+            merge(
+              current,
+              (entry) => entry.setting,
+              (items) => items.entries,
+            ),
+          );
+          setProgress((current) => current && { ...current, done: read.size });
+        });
+        if (current()) setGenerationTime(performance.now() - started);
       } catch (e) {
-        setError((e as Error).message);
+        if (current()) setError((e as Error).message);
       } finally {
-        setBusy(false);
+        if (current()) {
+          setProgress(null);
+          setBusy(false);
+        }
       }
     },
-    [settings, projectId, options],
+    [settings, projectId, scope, options],
   );
 
   useEffect(() => {
@@ -191,7 +260,10 @@ export default function Items() {
     setError('');
     const outcome = new Map<string, ImportEntry>();
     const failures: string[] = [];
+    const action = update ? 'Updating work items' : 'Creating work items';
+    let step = 0;
     for (const [setting, urls] of bySetting) {
+      setProgress({ action, done: step++, total: bySetting.size });
       try {
         const result = update
           ? await settings.runUpdate(projectId, setting, urls)
@@ -209,6 +281,7 @@ export default function Items() {
       ),
     );
     setChecked((current) => new Set([...current].filter((url) => !selected.has(url))));
+    setProgress(null);
     setBusy(false);
     if (failures.length > 0) {
       setError(failures.join(' '));
@@ -371,7 +444,13 @@ export default function Items() {
                 </button>
               </>
             )}
-            {busy && <span>Working...</span>}
+            {busy && progress && (
+              <span className="items-progress" role="status">
+                <progress value={progress.done} max={progress.total} />
+                {progress.action}: {progress.done} of {progress.total}{' '}
+                {progress.total === 1 ? 'repository' : 'repositories'}
+              </span>
+            )}
             {!options.hideFilters && time && (
               <span className="items-read-at">
                 Read from GitHub at {time}. The server keeps the lists for {cacheMinutes}{' '}

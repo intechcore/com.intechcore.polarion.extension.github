@@ -102,6 +102,18 @@ body {
   margin: 4px 0 0;
 }
 
+/* The progress of a read or an import, counted in repository settings. */
+.items-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.items-progress progress {
+  width: 120px;
+}
+
 .items-read-at {
   color: #6b6b6b;
   /* It wraps in itself, so the token button keeps its place at the end of the row. */

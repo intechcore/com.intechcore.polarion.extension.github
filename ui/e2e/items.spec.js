@@ -25,7 +25,10 @@ const entry = (status, workItemId = null) => ({
 
 test('the topic lists the items and creates the work item of the selected one', async ({ page }) => {
   let requested;
-  await page.route('**/rest/internal/projects/elibrary/items', (r) =>
+  await page.route('**/rest/internal/settings/repositories/names?**', (r) =>
+    r.fulfill(json([{ name: 'tool', scope: SCOPE }])),
+  );
+  await page.route('**/rest/internal/projects/elibrary/items?settings=tool', (r) =>
     r.fulfill(
       json({
         repositories: [{ setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T08:00:00Z', error: null }],
