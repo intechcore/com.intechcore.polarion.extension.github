@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-23
+
 ### Added
 - The page `User Mapping` maps GitHub logins to Polarion users, globally or for a project. The
   import assigns a work item to the mapped users of the GitHub assignees, and an update adds and
