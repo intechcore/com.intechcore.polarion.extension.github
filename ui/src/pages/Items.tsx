@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   faArrowsRotate,
@@ -111,12 +111,17 @@ export default function Items() {
   useIframeAutoHeight(options.widget);
   const title = options.widget ? undefined : 'GitHub';
 
+  // A new token starts a read while one runs: only the latest read writes the page.
+  const latestRead = useRef(0);
+
   /**
    * Reads the items one repository setting at a time, a few in parallel, so the table fills as they
    * come. A setting not read yet keeps the rows it had.
    */
   const load = useCallback(
     async (refresh = false) => {
+      const run = ++latestRead.current;
+      const current = () => run === latestRead.current;
       setBusy(true);
       setError('');
       setChecked(new Set());
@@ -127,6 +132,7 @@ export default function Items() {
           options.widget && options.filters.settings.length > 0
             ? [...new Set(options.filters.settings)]
             : (await settings.loadConfigurationNames(scope)).map((name) => name.name);
+        if (!current()) return;
         if (names.length === 0) {
           setRepositories([]);
           setEntries([]);
@@ -146,12 +152,13 @@ export default function Items() {
           try {
             const items = await settings.loadItems(projectId, refresh, [name]);
             read.set(name, items);
-            setCacheMinutes(items.cacheMinutes);
+            if (current()) setCacheMinutes(items.cacheMinutes);
           } catch (e) {
             // One repository that fails leaves the others readable, as on the server.
             const failed = { setting: name, repository: null, readAt: null, error: (e as Error).message };
             read.set(name, { repositories: [failed], entries: [], cacheMinutes: 0 });
           }
+          if (!current()) return;
           setRepositories((current) =>
             merge(
               current,
@@ -168,12 +175,14 @@ export default function Items() {
           );
           setProgress((current) => current && { ...current, done: read.size });
         });
-        setGenerationTime(performance.now() - started);
+        if (current()) setGenerationTime(performance.now() - started);
       } catch (e) {
-        setError((e as Error).message);
+        if (current()) setError((e as Error).message);
       } finally {
-        setProgress(null);
-        setBusy(false);
+        if (current()) {
+          setProgress(null);
+          setBusy(false);
+        }
       }
     },
     [settings, projectId, scope, options],

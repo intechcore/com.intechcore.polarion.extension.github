@@ -812,6 +812,40 @@ describe('the GitHub token of the user', () => {
     );
   });
 
+  it('keeps the rows of the read with the new token when the old read answers late', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = installFetchMock(itemsRoutes());
+    const respond = fetchMock.getMockImplementation()!;
+    let first = true;
+    // The first read of tool, without a token, answers only on release, with a row the new read lacks.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (first && String(input).endsWith('/items?settings=tool')) {
+        first = false;
+        await held;
+        const stale = { ...ITEMS.entries[0], title: 'Stale', url: 'https://github.com/acme/tool/issues/99' };
+        return jsonResponse({ repositories: [ITEMS.repositories[0]], entries: [stale], cacheMinutes: 5 });
+      }
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(document.querySelector('.items-progress')?.textContent).toContain('2 of 3'));
+
+    await userEvent.click(tokenButton());
+    await vi.waitFor(() => expect(document.activeElement).toBe(tokenInput()));
+    await userEvent.fill(tokenInput(), TOKEN);
+    await userEvent.click(button('Save'));
+    await vi.waitFor(() => expect(numbers()).toHaveLength(7));
+    expect(document.querySelector('.items-progress')).toBeNull();
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(numbers()).toHaveLength(7);
+    expect(numbers()).not.toContain('#7 Stale');
+    expect(button('Refresh').disabled).toBe(false);
+  });
+
   it('says when the server could not forget the token', async () => {
     window.sessionStorage.setItem('github.token', TOKEN);
     await mount([{ method: 'DELETE', match: /\/github-token$/, status: 500, json: { message: 'Server down' } }]);
