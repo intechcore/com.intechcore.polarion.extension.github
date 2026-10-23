@@ -364,19 +364,24 @@ export default function Items() {
     label: string,
     key: Exclude<keyof ItemFilters, 'text'>,
     options: { id: string; name: string }[],
-  ) => (
-    <label className="item-filter">
-      <span>{label}</span>
-      <SearchableSelect
-        multiple
-        ariaLabel={label}
-        value={filters[key]}
-        onChange={(value) => setFilter({ [key]: value })}
-        options={options}
-        placeholder="All"
-      />
-    </label>
-  );
+  ) => {
+    // Every value chosen filters nothing: the filter shows All, not a chip per value.
+    const everything = (values: string[]) =>
+      options.length > 0 && options.every((option) => values.includes(option.id));
+    return (
+      <label className="item-filter">
+        <span>{label}</span>
+        <SearchableSelect
+          multiple
+          ariaLabel={label}
+          value={everything(filters[key]) ? [] : filters[key]}
+          onChange={(value) => setFilter({ [key]: everything(value) ? [] : value })}
+          options={options}
+          placeholder="All"
+        />
+      </label>
+    );
+  };
 
   return (
     <PageLayout title={title}>
