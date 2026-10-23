@@ -374,6 +374,9 @@ describe('GitHub items page', () => {
   it('reads only the repositories of the widget, in its order', async () => {
     await mountWidget('&settings=docs%2Ctool');
 
+    // The widget filters by both repositories it reads, which shows as All.
+    expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(0);
+    expect(dropdown('Repository').textContent).toContain('All');
     // A widget names its settings: it never asks for the names.
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/names'))).toBe(false);
     expect(itemsCalls()).toEqual([
@@ -457,6 +460,53 @@ describe('GitHub items page', () => {
     expect(document.querySelector<HTMLElement>('.item-filter .sd-trigger-multi')!.getBoundingClientRect().height).toBe(
       23,
     );
+  });
+
+  it('shows All for a filter with every value chosen', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `Repository ${i}`);
+    const entries = names.map((name, i) => ({
+      ...ITEMS.entries[0],
+      setting: `repo${i}`,
+      shortName: name,
+      url: `https://github.com/acme/repo${i}/issues/1`,
+    }));
+    const repositories = entries.map((entry) => ({ ...ITEMS.repositories[0], setting: entry.setting as string }));
+    fetchMock = installFetchMock(itemsRoutes(projectItems({ ...ITEMS, repositories, entries })));
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(12));
+
+    await choose('Repository', ...names.slice(0, 11));
+    await vi.waitFor(() => expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(11));
+    expect(numbers()).toHaveLength(11);
+
+    await choose('Repository', names[11]);
+    await vi.waitFor(() => expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(0));
+    expect(dropdown('Repository').textContent).toContain('All');
+    expect(numbers()).toHaveLength(12);
+  });
+
+  it('keeps a filter chosen while repositories are still read', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = installFetchMock(itemsRoutes());
+    const respond = fetchMock.getMockImplementation()!;
+    // Docs answers only on release: the filter offers Tool alone until then.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).endsWith('settings=docs')) await held;
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
+
+    await choose('Repository', 'Tool');
+    await vi.waitFor(() => expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(1));
+
+    release();
+    await vi.waitFor(() => expect(document.querySelector('.items-progress')).toBeNull());
+    expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(1);
+    expect(numbers()).not.toContain('#3 Typo in the guide');
   });
 
   it('filters by repository, type, assignee and state, and searches', async () => {

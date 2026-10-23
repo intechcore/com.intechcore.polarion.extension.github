@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows
 - The GitHub page reads its repositories three at a time and shows the progress. The table fills
   as each repository arrives. Create and Update work items show their progress as well.
 
+### Fixed
+- A filter of the GitHub page with every value chosen shows All. Before, it showed a chip per value
+  and grew as tall as the list.
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
