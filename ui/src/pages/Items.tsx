@@ -149,6 +149,8 @@ export default function Items() {
           });
         setProgress({ action: 'Reading', done: 0, total: names.length });
         await eachLimited(names, PARALLEL_READS, async (name) => {
+          // A replaced read sends no more requests: each one counts against the GitHub limit.
+          if (!current()) return;
           try {
             const items = await settings.loadItems(projectId, refresh, [name]);
             read.set(name, items);

@@ -846,6 +846,39 @@ describe('the GitHub token of the user', () => {
     expect(button('Refresh').disabled).toBe(false);
   });
 
+  it('sends no more requests for a read that a newer one replaced', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const names = Array.from({ length: 5 }, (_, i) => ({ name: `repo${i}`, scope: SCOPE }));
+    fetchMock = installFetchMock(
+      itemsRoutes([
+        { method: 'GET', match: /\/settings\/repositories\/names\?/, json: names },
+        { method: 'GET', match: /\/items\?settings=repo\d$/, json: { repositories: [], entries: [], cacheMinutes: 5 } },
+      ]),
+    );
+    const respond = fetchMock.getMockImplementation()!;
+    const tokenOf = (init?: RequestInit) => (init?.headers as Record<string, string> | undefined)?.['X-GitHub-Token'];
+    // The reads without a token answer only on release.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).includes('/items?') && !tokenOf(init)) await held;
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(itemsCalls()).toHaveLength(3));
+
+    await userEvent.click(tokenButton());
+    await vi.waitFor(() => expect(document.activeElement).toBe(tokenInput()));
+    await userEvent.fill(tokenInput(), TOKEN);
+    await userEvent.click(button('Save'));
+    await vi.waitFor(() => expect(itemsCalls()).toHaveLength(8));
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // The old read stops: three requests of its own, five of the new read, none more.
+    expect(itemsCalls()).toHaveLength(8);
+  });
+
   it('says when the server could not forget the token', async () => {
     window.sessionStorage.setItem('github.token', TOKEN);
     await mount([{ method: 'DELETE', match: /\/github-token$/, status: 500, json: { message: 'Server down' } }]);
