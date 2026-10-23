@@ -1,4 +1,4 @@
-import type { ImportEntry } from '../../src/types';
+import type { ImportEntry, ProjectItems } from '../../src/types';
 import { type Route, jsonResponse } from '../mockFetch';
 import { SCOPE } from './repositories';
 
@@ -109,18 +109,6 @@ export const ENTRIES: ImportEntry[] = [
   },
   {
     ...base,
-    setting: 'docs',
-    repository: 'acme/docs',
-    shortName: 'Docs',
-    kind: 'ISSUE',
-    number: 3,
-    title: 'Typo in the guide',
-    url: DOCS_3,
-    status: 'NEW',
-    assignees: ['carol'],
-  },
-  {
-    ...base,
     kind: 'ISSUE',
     number: 4,
     title: 'Renamed on GitHub',
@@ -138,6 +126,18 @@ export const ENTRIES: ImportEntry[] = [
     url: DASHBOARD_2,
     status: 'NEW',
     hidden: true,
+  },
+  {
+    ...base,
+    setting: 'docs',
+    repository: 'acme/docs',
+    shortName: 'Docs',
+    kind: 'ISSUE',
+    number: 3,
+    title: 'Typo in the guide',
+    url: DOCS_3,
+    status: 'NEW',
+    assignees: ['carol'],
   },
 ];
 
@@ -166,7 +166,7 @@ export const ADVISORY: ImportEntry = {
   githubType: 'medium',
 };
 
-export const ITEMS = {
+export const ITEMS: ProjectItems = {
   repositories: [
     { setting: 'tool', repository: 'acme/tool', readAt: '2026-10-03T08:00:00Z', error: null },
     { setting: 'docs', repository: 'acme/docs', readAt: '2026-10-03T08:02:00Z', error: null },
@@ -183,11 +183,35 @@ export const ITEMS = {
 
 const created = (entry: ImportEntry, workItemId: string): ImportEntry => ({ ...entry, status: 'CREATED', workItemId });
 
+/**
+ * The routes of a project that holds these items: the names of its repository settings, and the items
+ * of each setting, which the page reads one setting at a time.
+ */
+export function projectItems(items: ProjectItems): Route[] {
+  const names = items.repositories.map((state) => ({ name: state.setting, scope: SCOPE }));
+  return [
+    { method: 'GET', match: /\/settings\/repositories\/names\?/, json: names },
+    {
+      method: 'GET',
+      match: /\/projects\/elibrary\/items(\?[^/]*)?$/,
+      respond: (url) => {
+        const wanted = new URL(url, window.location.origin).searchParams.getAll('settings');
+        const of = (setting: string | null) => wanted.length === 0 || wanted.includes(setting ?? '');
+        return jsonResponse({
+          ...items,
+          repositories: items.repositories.filter((state) => of(state.setting)),
+          entries: items.entries.filter((entry) => of(entry.setting)),
+        });
+      },
+    },
+  ];
+}
+
 /** The routes of a project with three repository settings. Overrides go first. */
 export function itemsRoutes(overrides: Route[] = []): Route[] {
   return [
     ...overrides,
-    { method: 'GET', match: /\/projects\/elibrary\/items(\?[^/]*)?$/, json: ITEMS },
+    ...projectItems(ITEMS),
     // GitHub takes every token: a test that wants a refusal overrides the route.
     { method: 'GET', match: /\/github-token$/, json: { login: 'octocat', remaining: 4990, limit: 5000 } },
     {
@@ -222,13 +246,13 @@ export function itemsRoutes(overrides: Route[] = []): Route[] {
         dryRun: false,
         readAt: null,
         // An update answers for every item of the repository; the page takes only the selected ones.
-        entries: [{ ...ENTRIES[6], status: 'UPDATED', message: 'updated title' }, { ...ENTRIES[0] }],
+        entries: [{ ...ENTRIES[5], status: 'UPDATED', message: 'updated title' }, { ...ENTRIES[0] }],
       },
     },
     {
       method: 'POST',
       match: /\/repositories\/docs\/import\?dryRun=false/,
-      json: { repository: 'acme/docs', dryRun: false, readAt: null, entries: [created(ENTRIES[5], 'EL-102')] },
+      json: { repository: 'acme/docs', dryRun: false, readAt: null, entries: [created(ENTRIES[7], 'EL-102')] },
     },
   ];
 }

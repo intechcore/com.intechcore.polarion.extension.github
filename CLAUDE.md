@@ -152,7 +152,8 @@ feature falls back to About.
   issues or discussions. `services/settings.ts` holds the REST calls.
 - `pages/Items.tsx` - the GitHub topic and the administration entry: the items of all repository
   settings, the filters (`services/itemFilters.ts`, in the browser), and `Create work items`, which
-  sends the selected URLs to the import endpoint, one request per repository setting.
+  sends the selected URLs to the import endpoint, one request per repository setting. It reads the
+  items one setting per request, three at a time (`services/eachLimited.ts`), and shows the progress.
 - `components/RulesEditor.tsx` and `components/FieldValues.tsx` - the rules of a block and the
   field value rows, which the block and every rule share. `Repositories` serves all their requests
   for the fields of one work item type from one request.
