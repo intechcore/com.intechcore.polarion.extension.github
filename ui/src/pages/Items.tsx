@@ -365,9 +365,10 @@ export default function Items() {
     key: Exclude<keyof ItemFilters, 'text'>,
     options: { id: string; name: string }[],
   ) => {
-    // Every value chosen filters nothing: the filter shows All, not a chip per value.
+    // Every value chosen filters nothing: the filter shows All, not a chip per value. While a read
+    // runs, the options are not complete yet.
     const everything = (values: string[]) =>
-      options.length > 0 && options.every((option) => values.includes(option.id));
+      !busy && options.length > 0 && options.every((option) => values.includes(option.id));
     return (
       <label className="item-filter">
         <span>{label}</span>

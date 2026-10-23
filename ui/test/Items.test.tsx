@@ -486,6 +486,29 @@ describe('GitHub items page', () => {
     expect(numbers()).toHaveLength(12);
   });
 
+  it('keeps a filter chosen while repositories are still read', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock = installFetchMock(itemsRoutes());
+    const respond = fetchMock.getMockImplementation()!;
+    // Docs answers only on release: the filter offers Tool alone until then.
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).endsWith('settings=docs')) await held;
+      return respond(input, init);
+    });
+    setUrl(`?feature=items&embedded=true&scope=${encodeURIComponent(SCOPE)}`);
+    render(<App />);
+    await vi.waitFor(() => expect(numbers()).toHaveLength(6));
+
+    await choose('Repository', 'Tool');
+    await vi.waitFor(() => expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(1));
+
+    release();
+    await vi.waitFor(() => expect(document.querySelector('.items-progress')).toBeNull());
+    expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(1);
+    expect(numbers()).not.toContain('#3 Typo in the guide');
+  });
+
   it('filters by repository, type, assignee and state, and searches', async () => {
     await mount();
 
