@@ -134,6 +134,29 @@ describe.skipIf(!__PIXEL_REFERENCES__)('GitHub items page visual', () => {
     await captureApp('items-reading');
   });
 
+  it('a filter with every repository chosen, shown as All', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `Repository ${i}`);
+    const entries = names.map((name, i) => ({
+      ...ITEMS.entries[0],
+      setting: `repo${i}`,
+      shortName: name,
+      url: `https://github.com/acme/repo${i}/issues/1`,
+    }));
+    const repositories = entries.map((entry) => ({ ...ITEMS.repositories[0], setting: entry.setting as string }));
+    await open(projectItems({ ...ITEMS, repositories, entries }));
+    await vi.waitFor(() => expect(rows()).toHaveLength(12));
+
+    // The dropdown reacts to mousedown, not click. The popup stays open with every option checked.
+    const mousedown = (el: Element) =>
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    mousedown(document.querySelector('div.sd-trigger[aria-label="Repository"]')!);
+    await vi.waitFor(() => expect(document.querySelectorAll('.sd-portal .option')).toHaveLength(12));
+    document.querySelectorAll('.sd-portal .option').forEach(mousedown);
+
+    await vi.waitFor(() => expect(document.querySelectorAll('.item-filter .sd-chip')).toHaveLength(0));
+    await captureApp('items-all-chosen');
+  });
+
   it('a project without a repository setting', async () => {
     await open(projectItems({ repositories: [], entries: [], cacheMinutes: 5 }));
 
